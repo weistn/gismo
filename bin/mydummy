@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+"use strict"
+
+var x = require('../index.js');
+
+x.dodummy();

@@ -1,0 +1,25 @@
+{
+  "name": "mydummy",
+  "version": "0.0.0",
+  "description": "I want to learn",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "foo",
+    "bar"
+  ],
+  "author": "Torben Weis <torben.weis@gmail.com> (http://vs.uni-due.de/)",
+  "license": "ISC",
+  "devDependencies": {
+    "chai": "^1.9.1",
+    "mocha": "^1.18.2"
+  },
+  "bin": {
+    "mydummy": "./bin/mydummy"
+  },
+  "dependencies": {
+    "commander": "^2.2.0"
+  }
+}
