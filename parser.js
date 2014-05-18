@@ -1,12 +1,14 @@
 var esprima = require('esprima');
 
 function foo() {
+	var tokens = esprima.tokenize("a = this.b", { });
+
 //	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c;break)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return}", { });
 //	var tokens = esprima.tokenize("a.b.c()", { });
 //	var tokens = esprima.tokenize("new a; new a.x; new x.y(); new (u.v); new (a.b)(); new a.b()(12)", { });
 //	var tokens = esprima.tokenize("new a; new x.a; new x.y(); new (x.y)()", { });
-	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
+//	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
 //	var tokens = esprima.tokenize("(a = 0; b; c) + - -a", { });
 //	var tokens = esprima.tokenize("a = function hudel(a,b) { x + y } - 3", { });
 //	var tokens = esprima.tokenize("a = () * 3", { });
@@ -466,6 +468,12 @@ var operatorPrecedence = [
 		value: "new",
 		associativity: "none",
 		parser: newParser
+	},
+	{
+		type: 'Keyword',
+		value: "this",
+		associativity: "none",
+		terminal: true
 	},
 	{
 		type: 'Keyword',
