@@ -1,8 +1,8 @@
 var esprima = require('esprima');
 
 function foo() {
-	var tokens = esprima.tokenize("a = this.b", { });
-
+	var tokens = esprima.tokenize("while(a<5){print(a)}", { });
+//	var tokens = esprima.tokenize("for(a=0;a<4;a++){print(a)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c;break)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return}", { });
 //	var tokens = esprima.tokenize("a.b.c()", { });
@@ -117,10 +117,42 @@ function functionParser(tokenizer) {
 	tokenizer.expectLookahead("{");
 	var code = parse(tokenizer, Mode_Bracket);
 	return {
-		type: "Function",
-		parameters: parameters,
-		code: code,
-		name: name
+		type: "FunctionDeclaration",
+		params: parameters,
+		body: code,
+		id: name
+	};
+}
+
+function forParser(tokenizer) {
+	tokenizer.expectLookahead("(");
+	var args = parse(tokenizer, Mode_Bracket);
+	if (typeof (args.content) !== "object" || typeof(args.content.left) !== "object" || args.content.op !== ";" || args.content.left.length !== 3) {
+		throw "Malformed 'for' statement";
+	}
+	tokenizer.expectLookahead("{");
+	var code = parse(tokenizer, Mode_Bracket);
+	return {
+		type: "ForStatement",
+		init: args.content.left[0],
+		test: args.content.left[1],
+		update: args.content.left[2],
+		body: code
+	};
+}
+
+function whileParser(tokenizer) {
+	tokenizer.expectLookahead("(");
+	var args = parse(tokenizer, Mode_Bracket);
+	if (args.content === undefined) {
+		throw "Malformed 'while' statement";
+	}
+	tokenizer.expectLookahead("{");
+	var code = parse(tokenizer, Mode_Bracket);
+	return {
+		type: "WhileStatement",
+		test: args.content,
+		body: code
 	};
 }
 
@@ -132,8 +164,8 @@ function newParser(tokenizer) {
 		arguments = parse(tokenizer, Mode_Bracket);
 	}
 	return {
-		type: "New",
-		clas: clas,
+		type: "NewExpression",
+		callee: clas,
 		arguments: arguments
 	};
 }
@@ -141,8 +173,8 @@ function newParser(tokenizer) {
 function returnParser(tokenizer) {
 	var left = parse(tokenizer, Mode_Expression);
 	return {
-		type: "Return",
-		left: left
+		type: "ReturnStatement",
+		argument: left
 	};
 }
 
@@ -168,6 +200,18 @@ var operatorPrecedence = [
 		value: "return",
 		associativity: "none",
 		parser: returnParser
+	},	
+	{
+		type: 'Keyword',
+		value: "for",
+		associativity: "none",
+		parser: forParser
+	},	
+	{
+		type: 'Keyword',
+		value: "while",
+		associativity: "none",
+		parser: whileParser
 	},	
 	{
 		type: 'Keyword',
@@ -657,7 +701,7 @@ function parse(toks, mode) {
 			console.log(token.value, "closing_bracket");
 			value = finishRecursions(-1 ,stack, value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
-				throw "Unbalanced brackets";
+				throw "Unexpected closing bracket '" + state.op.value + "'";
 			}
 			stack[stack.length - 1].value.content = value;
 			value = stack[stack.length - 1].value;
@@ -679,7 +723,7 @@ function parse(toks, mode) {
 			stack.push(state);
 			value = undefined;
 		} else {
-			throw "Unknown state in loop";
+			throw "Internal Error: Unknown state in loop";
 		}
 
 		// Determine the next operator based on the next token (if there is any)
