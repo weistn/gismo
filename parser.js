@@ -172,14 +172,12 @@ var operatorPrecedence = [
 	{
 		type: 'Keyword',
 		value: "break",
-		associativity: "none",
-		terminal: true
+		associativity: "none"
 	},	
 	{
 		type: 'Keyword',
 		value: "continue",
-		associativity: "none",
-		terminal: true
+		associativity: "none"
 	}],
 	[{
 		type: 'Punctuator',
@@ -455,13 +453,11 @@ var operatorPrecedence = [
 	}],
 	[{
 		type: 'Identifier',
-		associativity: "none",
-		terminal: true
+		associativity: "none"
 	},
 	{
 		type: 'Numeric',
-		associativity: "none",
-		terminal: true
+		associativity: "none"
 	},
 	{
 		type: 'Keyword',
@@ -472,8 +468,7 @@ var operatorPrecedence = [
 	{
 		type: 'Keyword',
 		value: "this",
-		associativity: "none",
-		terminal: true
+		associativity: "none"
 	},
 	{
 		type: 'Keyword',
@@ -557,15 +552,13 @@ for(var i = 0; i < operatorPrecedence.length; i++) {
 	var ops = operatorPrecedence[i];
 	for(var j = 0; j < ops.length; j++) {
 		ops[j].level = i;
-		if (ops[j].terminal) {
-			if (ops[j].type === "Identifier") {
-				identifierTerminal = ops[j];
-				continue;
-			}
-			if (ops[j].type === "Numeric") {
-				numericTerminal = ops[j];
-				continue;
-			}
+		if (ops[j].type === "Identifier") {
+			identifierTerminal = ops[j];
+			continue;
+		}
+		if (ops[j].type === "Numeric") {
+			numericTerminal = ops[j];
+			continue;
 		}
 		if (operators[ops[j].value] !== undefined) {
 			operators[ops[j].value].push(ops[j]);
@@ -673,9 +666,6 @@ function parse(toks, mode) {
 		if (state.op.parser) {
 			console.log(token.value, "parser");
 			value = state.op.parser(toks);
-		} else if (state.op.terminal) {
-			console.log(token.value, "terminal");
-			value = token;
 		} else if (state.op.bracket && state.op.associativity === "none") {
 			console.log(token.value, "bracket");
 			state.value = {op: state.op.value};
@@ -697,6 +687,9 @@ function parse(toks, mode) {
 			stack[stack.length - 1].value.content = value;
 			value = stack[stack.length - 1].value;
 			bracketCount--;
+		} else if (state.op.associativity === "none") {
+			console.log(token.value, "terminal");
+			value = token;
 		} else if (state.op.associativity === "ul") {
 			console.log(token.value, "ul");
 			value = {op: state.op.value, left: value};
