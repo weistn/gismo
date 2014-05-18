@@ -483,12 +483,6 @@ var operatorPrecedence = [
 		value: "(",
 		correspondingBracket: ")"
 	},
-//	{
-//		type: 'Punctuator',
-//		associativity: "none",
-//		closingBracket: true,
-//		value: ")"
-//	},
 	{
 		type: 'Punctuator',
 		associativity: "none",
@@ -496,12 +490,6 @@ var operatorPrecedence = [
 		value: "[",
 		correspondingBracket: "]"
 	},
-//	{
-//		type: 'Punctuator',
-//		associativity: "none",
-//		closingBracket: true,
-//		value: "]"
-//	},
 	{
 		type: 'Punctuator',
 		associativity: "none",
@@ -509,12 +497,6 @@ var operatorPrecedence = [
 		value: "{",
 		correspondingBracket: "}"
 	}]
-//	{
-//		type: 'Punctuator',
-//		associativity: "none",
-//		closingBracket: true,
-//		value: "}"
-//	}]
 ];
 
 var operators = { };
@@ -591,10 +573,6 @@ function findOperatorDownwards(token, level) {
 			op = ops[i];
 		}
 	}
-//	if (!op) {
-//		console.log("NO SUCH OP downwards", token.value, level);
-//		return undefined;
-//	}
 	return op;
 }
 
@@ -625,9 +603,6 @@ function finishRecursions(level, stack, value) {
 	while(stack.length > 0 && stack[stack.length - 1].op.level >= level && !stack[stack.length - 1].op.bracket) {
 		state = stack.pop()
 		console.log(state.op.value, "... upwards to level", level, " value=", value);
-//		if (state.op.bracket) {
-//			throw "Expected closing bracket " + state.op.correspondingBracket;
-//		}
 		if (value === undefined && state.op !== programOperator) {
 			throw "Unexpected end of expression";
 		}
@@ -714,26 +689,19 @@ function parse(toks, mode) {
 		if (lookahead === undefined) {
 			if (state.op.closingBracket) {	
 				stack.pop();
-//				if (mode === Mode_Bracket && stack.length === 0) {
-//					return value;
-//				}
 			}
 			break;
 		}
 
 		if (state.op.closingBracket) {
 			var state = stack.pop();
-//			console.log("BRACKs", bracketOnly, stack.length, stack);
 			if (mode === Mode_Bracket && stack.length === 1) {
 				value = finishRecursions(-1, stack, value);
 				return value.right;
 			}
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
-					break;
-//				}
-//				throw "Unknown operator: " + lookahead.value;
+				break;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};			
@@ -741,27 +709,20 @@ function parse(toks, mode) {
 			var op = findOperatorDownwards(lookahead, 0);
 			if (!op) {
 				break;
-//				throw "Unknown operator: " + lookahead.value;
 			}
 			state = {op: op};
 			value = undefined;
 		} else if (state.op.associativity === "none") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
-					break;
-//				}
-//				throw "Unknown operator (2): " + lookahead.value;
+				break;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};
 		} else if (state.op.associativity === "ul") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
-					break;
-//				}
-//				throw "Unknown operator: " + lookahead.value;
+				break;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};
@@ -769,16 +730,12 @@ function parse(toks, mode) {
 			value = undefined;
 			var op = findOperatorDownwards(lookahead, state.op.level);
 			if (!op) {
-//				if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && state.op.value === 'program' && lookahead.value === ";") {
-					break;
-//				}
-//				throw "Unknown operator (1): " + lookahead.value;
+				break;
 			}
 			state = {op: op};
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			var op = findOperatorDownwards(lookahead, state.op.level + 1);
 			if (!op) {
-//				throw "Unknown operator: " + lookahead.value;
 				break;
 			}
 			state = {op: op};
