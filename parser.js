@@ -1,16 +1,12 @@
 var esprima = require('esprima');
 
 function foo() {
-	console.log("Hallo Welt");
-	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c)}", { });
-
-//	var tokens = esprima.tokenize("return", { });
-
+//	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c;break)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return}", { });
 //	var tokens = esprima.tokenize("a.b.c()", { });
 //	var tokens = esprima.tokenize("new a; new a.x; new x.y(); new (u.v); new (a.b)(); new a.b()(12)", { });
 //	var tokens = esprima.tokenize("new a; new x.a; new x.y(); new (x.y)()", { });
-//	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
+	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
 //	var tokens = esprima.tokenize("(a = 0; b; c) + - -a", { });
 //	var tokens = esprima.tokenize("a = function hudel(a,b) { x + y } - 3", { });
 //	var tokens = esprima.tokenize("a = () * 3", { });
@@ -21,7 +17,7 @@ function foo() {
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 	console.log(tokens);
 	var toks = new tokenizer(tokens);
-	var parsed = parse(toks);
+	var parsed = parse(toks, Mode_Default);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
 	return 42;
@@ -164,6 +160,24 @@ var operatorPrecedence = [
 		type: 'Keyword',
 		value: "throw",
 		associativity: "ur"
+	},
+	{
+		type: 'Keyword',
+		value: "return",
+		associativity: "none",
+		parser: returnParser
+	},	
+	{
+		type: 'Keyword',
+		value: "break",
+		associativity: "none",
+		terminal: true
+	},	
+	{
+		type: 'Keyword',
+		value: "continue",
+		associativity: "none",
+		terminal: true
 	}],
 	[{
 		type: 'Punctuator',
@@ -174,74 +188,62 @@ var operatorPrecedence = [
 	[{
 		type: 'Punctuator',
 		value: "=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "+=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "-=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "*=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "/=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "&=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "<<=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: ">>=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: ">>>=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "&=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "|=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	},
 	{
 		type: 'Punctuator',
 		value: "^=",
-		associativity: "br",
-		collapse: true
+		associativity: "br"
 	}],
 	[{
 		type: 'Keyword',
@@ -472,36 +474,18 @@ var operatorPrecedence = [
 		parser: functionParser
 	},
 	{
-		type: 'Keyword',
-		value: "return",
-		associativity: "none",
-		parser: returnParser
-	},	
-	{
-		type: 'Keyword',
-		value: "break",
-		associativity: "none",
-		terminal: true
-	},	
-	{
-		type: 'Keyword',
-		value: "continue",
-		associativity: "none",
-		terminal: true
-	},	
-	{
 		type: 'Punctuator',
 		associativity: "none",
 		bracket: true,
 		value: "(",
 		correspondingBracket: ")"
 	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		closingBracket: true,
-		value: ")"
-	},
+//	{
+//		type: 'Punctuator',
+//		associativity: "none",
+//		closingBracket: true,
+//		value: ")"
+//	},
 	{
 		type: 'Punctuator',
 		associativity: "none",
@@ -509,25 +493,25 @@ var operatorPrecedence = [
 		value: "[",
 		correspondingBracket: "]"
 	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		closingBracket: true,
-		value: "]"
-	},
+//	{
+//		type: 'Punctuator',
+//		associativity: "none",
+//		closingBracket: true,
+//		value: "]"
+//	},
 	{
 		type: 'Punctuator',
 		associativity: "none",
 		bracket: true,
 		value: "{",
 		correspondingBracket: "}"
-	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		closingBracket: true,
-		value: "}"
 	}]
+//	{
+//		type: 'Punctuator',
+//		associativity: "none",
+//		closingBracket: true,
+//		value: "}"
+//	}]
 ];
 
 var operators = { };
@@ -537,6 +521,27 @@ var programOperator = {
 	type: "Program",
 	associativity: "ur",
 	value: "program",
+	level: -1
+};
+var closingRoundBracketOperator = {
+	type: "Punctuator",
+	associativity: "none",
+	value: ")",
+	closingBracket: true,
+	level: -1
+};
+var closingCurlyBracketOperator = {
+	type: "Punctuator",
+	associativity: "none",
+	value: "}",
+	closingBracket: true,
+	level: -1
+};
+var closingSquareBracketOperator = {
+	type: "Punctuator",
+	associativity: "none",
+	value: "]",
+	closingBracket: true,
 	level: -1
 };
 
@@ -569,6 +574,15 @@ function findOperatorDownwards(token, level) {
 	if (token.type === "Numeric") {
 		return numericTerminal;
 	}
+	if (token.value === ")") {
+		return closingRoundBracketOperator;
+	}
+	if (token.value === "]") {
+		return closingSquareBracketOperator;
+	}
+	if (token.value === "}") {
+		return closingCurlyBracketOperator;
+	}
 	var op;
 	var ops = operators[token.value];
 	for(var i = 0; i < ops.length; i++) {
@@ -584,8 +598,20 @@ function findOperatorDownwards(token, level) {
 }
 
 function findOperatorUpwards(token, level) {
+	if (token.value === ")") {
+		return closingRoundBracketOperator;
+	}
+	if (token.value === "]") {
+		return closingSquareBracketOperator;
+	}
+	if (token.value === "}") {
+		return closingCurlyBracketOperator;
+	}
 	var op;
 	var ops = operators[token.value];
+	if (ops === undefined) {
+		return undefined;
+	}
 	for(var i = 0; i < ops.length; i++) {
 		if (ops[i].level <= level && (!op || ops[i].level > op.level) && (ops[i].associativity === "bl" || ops[i].associativity === "br" || ops[i].associativity === "ul" || ops[i].closingBracket)) {
 			op = ops[i];
@@ -598,8 +624,10 @@ function finishRecursions(level, stack, value) {
 	while(stack.length > 0 && stack[stack.length - 1].op.level >= level && !stack[stack.length - 1].op.bracket) {
 		state = stack.pop()
 		console.log(state.op.value, "... upwards to level", level, " value=", value);
+//		if (state.op.bracket) {
+//			throw "Expected closing bracket " + state.op.correspondingBracket;
+//		}
 		if (value === undefined && state.op !== programOperator) {
-			console.log("State is", state);
 			throw "Unexpected end of expression";
 		}
 		if (state.op.associativity === "ur") {
@@ -617,7 +645,7 @@ function finishRecursions(level, stack, value) {
 				state.value.right = value;
 			}
 		} else {
-			throw "Unknown state in upward recursion";
+			throw "Internal Error: Unknown state in upward recursion";
 		}
 //		console.log("      value changes from", value, "to", state.value);
 		value = state.value;
@@ -701,37 +729,38 @@ function parse(toks, mode) {
 			}
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
+//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
 					break;
-				}
-				throw "Unknown operator: " + lookahead.value;
+//				}
+//				throw "Unknown operator: " + lookahead.value;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};			
 		} else if (state.op.bracket) {
 			var op = findOperatorDownwards(lookahead, 0);
 			if (!op) {
-				throw "Unknown operator: " + lookahead.value;
+				break;
+//				throw "Unknown operator: " + lookahead.value;
 			}
 			state = {op: op};
 			value = undefined;
 		} else if (state.op.associativity === "none") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
+//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
 					break;
-				}
-				throw "Unknown operator (2): " + lookahead.value;
+//				}
+//				throw "Unknown operator (2): " + lookahead.value;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};
 		} else if (state.op.associativity === "ul") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
+//				if (mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) {
 					break;
-				}
-				throw "Unknown operator: " + lookahead.value;
+//				}
+//				throw "Unknown operator: " + lookahead.value;
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
 			state = {op: op};
@@ -739,21 +768,22 @@ function parse(toks, mode) {
 			value = undefined;
 			var op = findOperatorDownwards(lookahead, state.op.level);
 			if (!op) {
-				if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && state.op.value === 'program' && lookahead.value === ";") {
+//				if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && state.op.value === 'program' && lookahead.value === ";") {
 					break;
-				}
-				throw "Unknown operator (1): " + lookahead.value;
+//				}
+//				throw "Unknown operator (1): " + lookahead.value;
 			}
 			state = {op: op};
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			var op = findOperatorDownwards(lookahead, state.op.level + 1);
 			if (!op) {
-				throw "Unknown operator: " + lookahead.value;
+//				throw "Unknown operator: " + lookahead.value;
+				break;
 			}
 			state = {op: op};
 			value = undefined;
 		} else {
-			throw "Unknown state in loop";
+			throw "Internal Error: Unknown state in loop";
 		}
 
 		if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && lookahead.value === ";" && bracketCount === 0) {
@@ -770,9 +800,14 @@ function parse(toks, mode) {
 	// Finish all recursions upwards
 	value = finishRecursions(-1, stack, value);
 	if (stack.length > 0) {
-		throw "Unexpected end of file";
+		if (toks.lookahead() === undefined) {
+			throw "Unexpected end of file";
+		}
+		throw "Unexpected symbol '" + toks.lookahead().value + "'";
 	}
-
+	if (mode === Mode_Default && toks.lookahead() !== undefined) {
+		throw "Unexpected symbol '" + toks.lookahead().value + "'";
+	}
 	return value.right;
 }
 
