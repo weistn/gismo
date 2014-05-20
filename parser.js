@@ -1,7 +1,8 @@
 var esprima = require('esprima');
 
 function foo() {
-	var tokens = esprima.tokenize("while(a<5){print(a)}", { });
+	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
+//	var tokens = esprima.tokenize("while(a<5){print(a)}", {loc: true});
 //	var tokens = esprima.tokenize("for(a=0;a<4;a++){print(a)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c;break)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return}", { });
@@ -29,6 +30,8 @@ function foo() {
 var Mode_Default = 0,
 	// Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 	Mode_Expression = 1,
+	// TODO: Must get a different number
+	Mode_Statement = 1,
 	// Parses an expression, but stops at call operation. Required when parsing "new ... ()"" since "..." must not contain
 	// a function call at top-level.
 	Mode_ExpressionWithoutCall = 2,
@@ -189,6 +192,7 @@ var operatorPrecedence = [
 		type: 'Keyword',
 		value: "var",
 		associativity: "ur"
+//		statement: true
 	},
 	{
 		type: 'Keyword',
@@ -205,12 +209,14 @@ var operatorPrecedence = [
 		type: 'Keyword',
 		value: "for",
 		associativity: "none",
+		statement: true,
 		parser: forParser
 	},	
 	{
 		type: 'Keyword',
 		value: "while",
 		associativity: "none",
+		statement: true,
 		parser: whileParser
 	},	
 	{
@@ -677,8 +683,9 @@ function parse(toks, mode) {
 	var stack = [];
 	var value;
 	var state = {op: programOperator};
-	var token = {value: "program"};
+	var token = {value: "program", loc: {start: {line: 0}, end: {line: 0}}};
 	var bracketCount = 0;
+	var tryColon = false;
 
 	do {
 		// Process the current token (token[index]) with the current operator (state.op)
@@ -745,10 +752,12 @@ function parse(toks, mode) {
 			}
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				break;
+				tryColon = true;
+//				break;
+			} else {
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				state = {op: op};
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
-			state = {op: op};			
 		} else if (state.op.bracket) {
 			var op = findOperatorDownwards(lookahead, 0);
 			if (!op) {
@@ -759,17 +768,21 @@ function parse(toks, mode) {
 		} else if (state.op.associativity === "none") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				break;
+				tryColon = true;
+//				break;
+			} else {
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				state = {op: op};
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
-			state = {op: op};
 		} else if (state.op.associativity === "ul") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				break;
+				tryColon = true;
+//				break;
+			} else {
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				state = {op: op};
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
-			state = {op: op};
 		} else if (state.op.associativity === "ur") {
 			value = undefined;
 			var op = findOperatorDownwards(lookahead, state.op.level);
@@ -788,6 +801,24 @@ function parse(toks, mode) {
 			throw "Internal Error: Unknown state in loop";
 		}
 
+		if (tryColon) {
+			// The token and the lookahead must reside on different lines. Otherwise colon insertion is not allowed
+			if (token.loc.end.line === lookahead.loc.start.line) {
+				break;
+			}
+			lookahead = {
+				type: "Punctuator",
+				value: ";",
+				loc: token.loc
+			};
+			var op = findOperatorUpwards(lookahead, state.op.level);
+			if (!op) {
+				throw "Internal Error: Could not find colon";
+			}
+			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+			state = {op: op};
+		}
+
 		if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && lookahead.value === ";" && bracketCount === 0) {
 			break;
 		}
@@ -797,7 +828,15 @@ function parse(toks, mode) {
 		if (mode === Mode_ExpressionWithoutCall && state.op.value === "(" && state.op.associativity === "ul" && bracketCount === 0) {
 			break;
 		}
-	} while(token = toks.next());
+
+		// If a colon has been inserted, do not consume another token from the tokenizer
+		if (tryColon) {
+			token = lookahead;
+			tryColon = false;
+		} else {
+			token = toks.next()
+		}
+	} while(true);
 
 	// Finish all recursions upwards
 	value = finishRecursions(-1, stack, value);
@@ -813,4 +852,8 @@ function parse(toks, mode) {
 	return value.right;
 }
 
+function parseStatement(toks) {
+	var result = parse(toks, Mode_Statement);
+	return result;
+}
 exports.foo = foo;
