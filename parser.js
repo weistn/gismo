@@ -1,6 +1,7 @@
 var esprima = require('esprima');
 
 function foo() {
+	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
 //	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
 //	var tokens = esprima.tokenize("while(true) {1+2; return !x;;}; throw a", {loc: true});
 //	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
@@ -12,7 +13,7 @@ function foo() {
 //	var tokens = esprima.tokenize("new a; new a.x; new foo(); new foo(1); new foo(1,2); new x.y(); new (u.v); new (a.b)(); new a.b()(12)", {loc: true });
 //	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
 //	var tokens = esprima.tokenize("a = function hudel(a,b) { x + y } - 3", {loc: true });
-	var tokens = esprima.tokenize("function hudel(a) { x + y } - 3", {loc: true });
+//	var tokens = esprima.tokenize("function hudel(a) { x + y } - 3", {loc: true });
 //	var tokens = esprima.tokenize("a = () * 3", { });
 //	var tokens = esprima.tokenize("a = b", { });
 //	var tokens = esprima.tokenize("a + (x=4) + () + (a,b,c) + [1,2]", { });
@@ -750,10 +751,15 @@ function parseObjectExpression(toks) {
 			prop.key = {type: "Identifier", name: token.value };
 		} else if (token.type === "String") {
 			prop.key = {type: "Literal", value: token.value, raw: token.value };
+		} else {
+			throw "SyntaxError: Unexpected token '" + token.value + "'";
 		}
 		toks.expect(":");
 		prop.value = parseExpression(toks, Mode_ExpressionWithoutComma);
 		properties.push(prop);
+		if (!toks.presume(",", true)) {
+			break;
+		}
 	}
 	toks.expect("}");
 	return {type: "ObjectExpression", properties: properties, kind: "init"};
