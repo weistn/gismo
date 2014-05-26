@@ -1,7 +1,8 @@
 var esprima = require('esprima');
 
 function foo() {
-	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
+	var tokens = esprima.tokenize("while(true) {1+2; return !x}; throw throw a", {loc: true});
+//	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
 //	var tokens = esprima.tokenize("while(a<5){print(a)}", {loc: true});
 //	var tokens = esprima.tokenize("for(a=0;a<4;a++){print(a)}", { });
 //	var tokens = esprima.tokenize("return a; return; {return a+b}; {return}; {typeof a+b}; {return (a;b;c;break)}", { });
@@ -20,7 +21,7 @@ function foo() {
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 	console.log(tokens);
 	var toks = new tokenizer(tokens);
-	var parsed = parse(toks, Mode_Default);
+	var parsed = parseTopLevelStatements(toks);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
 	return 42;
@@ -31,12 +32,12 @@ var Mode_Default = 0,
 	// Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 	Mode_Expression = 1,
 	// TODO: Must get a different number
-	Mode_Statement = 1,
+	Mode_Statement = 2,
 	// Parses an expression, but stops at call operation. Required when parsing "new ... ()"" since "..." must not contain
 	// a function call at top-level.
-	Mode_ExpressionWithoutCall = 2,
+	Mode_ExpressionWithoutCall = 3,
 	// Parses a bracket expression, i.e. '(...)'
-	Mode_Bracket = 3;
+	Mode_Bracket = 4;
 
 function tokenizer(tokens) {
 	this.index = 0;
@@ -133,8 +134,9 @@ function forParser(tokenizer) {
 	if (typeof (args.content) !== "object" || typeof(args.content.left) !== "object" || args.content.op !== ";" || args.content.left.length !== 3) {
 		throw "Malformed 'for' statement";
 	}
-	tokenizer.expectLookahead("{");
-	var code = parse(tokenizer, Mode_Bracket);
+	var code = parseStatement(tokenizer);
+//	tokenizer.expectLookahead("{");
+//	var code = parse(tokenizer, Mode_Bracket);
 	return {
 		type: "ForStatement",
 		init: args.content.left[0],
@@ -148,10 +150,11 @@ function whileParser(tokenizer) {
 	tokenizer.expectLookahead("(");
 	var args = parse(tokenizer, Mode_Bracket);
 	if (args.content === undefined) {
-		throw "Malformed 'while' statement";
+		throw "SyntaxError: Unexpected token ')'";
 	}
-	tokenizer.expectLookahead("{");
-	var code = parse(tokenizer, Mode_Bracket);
+	var code = parseStatement(tokenizer);
+//	tokenizer.expectLookahead("{");
+//	var code = parse(tokenizer, Mode_Bracket);
 	return {
 		type: "WhileStatement",
 		test: args.content,
@@ -181,6 +184,14 @@ function returnParser(tokenizer) {
 	};
 }
 
+function throwParser(tokenizer) {
+	var left = parse(tokenizer, Mode_Expression);
+	return {
+		type: "ThrowStatement",
+		expression: left
+	};
+}
+
 var operatorPrecedence = [
 	[{
 		type: 'Punctuator',
@@ -197,7 +208,8 @@ var operatorPrecedence = [
 	{
 		type: 'Keyword',
 		value: "throw",
-		associativity: "ur"
+		associativity: "none",
+		parser: throwParser
 	},
 	{
 		type: 'Keyword',
@@ -511,6 +523,21 @@ var operatorPrecedence = [
 	},
 	{
 		type: 'Keyword',
+		associativity: "none",
+		value: "true"
+	},
+	{
+		type: 'Keyword',
+		associativity: "none",
+		value: "false"
+	},
+	{
+		type: 'Keyword',
+		associativity: "none",
+		value: "null"
+	},
+	{
+		type: 'Keyword',
 		value: "new",
 		associativity: "none",
 		parser: newParser
@@ -649,11 +676,14 @@ function findOperatorUpwards(token, level) {
 	return op;
 }
 
-function finishRecursions(level, stack, value) {
+function finishRecursions(level, stack, value, lookahead) {
 	while(stack.length > 0 && stack[stack.length - 1].op.level >= level && !stack[stack.length - 1].op.bracket) {
 		state = stack.pop()
-		console.log(state.op.value, "... upwards to level", level, " value=", value);
+//		console.log(state.op.value, "... upwards to level", level, " value=", value);
 		if (value === undefined && state.op !== programOperator) {
+			if (lookahead !== undefined) {
+				throw "SyntaxError: Unexpected token '" + lookahead.value + "'";				
+			}
 			throw "Unexpected end of expression";
 		}
 		if (state.op.associativity === "ur") {
@@ -686,6 +716,7 @@ function parse(toks, mode) {
 	var token = {value: "program", loc: {start: {line: 0}, end: {line: 0}}};
 	var bracketCount = 0;
 	var tryColon = false;
+	var enforceColon = false;
 
 	do {
 		// Process the current token (token[index]) with the current operator (state.op)
@@ -694,19 +725,19 @@ function parse(toks, mode) {
 			value = state.op.parser(toks);
 		} else if (state.op.bracket && state.op.associativity === "none") {
 			console.log(token.value, "bracket");
-			state.value = {op: state.op.value};
+			state.value = {operator: state.op.value};
 			stack.push(state);
 			value = undefined;
 			bracketCount++;
 		} else if (state.op.bracket && state.op.associativity === "ul") {
 			console.log(token.value, "post-bracket");
-			state.value = {op: state.op.value, left: value};
+			state.value = {operator: state.op.value, left: value};
 			stack.push(state);
 			value = undefined;
 			bracketCount++;
 		} else if (state.op.closingBracket) {
 			console.log(token.value, "closing_bracket");
-			value = finishRecursions(-1 ,stack, value);
+			value = finishRecursions(-1 ,stack, value, state.op.value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
 				throw "Unexpected closing bracket '" + state.op.value + "'";
 			}
@@ -715,18 +746,26 @@ function parse(toks, mode) {
 			bracketCount--;
 		} else if (state.op.associativity === "none") {
 			console.log(token.value, "terminal");
-			value = token;
+			if (state.op.nodeType) {
+				value = {type: state.op.nodeType};
+			} else {
+				value = {type: "Literal", raw: token.value, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "Identifier" ? token.value : parseFloat(token.value))))};				
+			}
 		} else if (state.op.associativity === "ul") {
 			console.log(token.value, "ul");
-			value = {op: state.op.value, left: value};
+			value = {operator: state.op.value, left: value, prefix: false, type: "UnaryExpression"};
 		} else if (state.op.associativity === "ur") {
 			console.log(token.value, "ur");
-			state.value = {op: state.op.value};
+			if (state.op.nodeType) {
+				state.value = {type: state.op.nodeType};
+			} else {
+				state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression"};
+			}
 			stack.push(state);
 			value = undefined;
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			console.log(token.value, "bl or br");	
-			state.value = {op: state.op.value, left: value};
+			state.value = {operator: state.op.value, left: value, type: "BinaryExpression"};
 			stack.push(state);
 			value = undefined;
 		} else {
@@ -747,15 +786,14 @@ function parse(toks, mode) {
 		if (state.op.closingBracket) {
 			var state = stack.pop();
 			if (mode === Mode_Bracket && stack.length === 1) {
-				value = finishRecursions(-1, stack, value);
+				value = finishRecursions(-1, stack, value, lookahead);
 				return value.right;
 			}
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				tryColon = true;
-//				break;
 			} else {
-				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 				state = {op: op};
 			}
 		} else if (state.op.bracket) {
@@ -768,19 +806,21 @@ function parse(toks, mode) {
 		} else if (state.op.associativity === "none") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
-				tryColon = true;
-//				break;
+				if (state.op.statement) {
+					enforceColon = true;
+				} else {
+					tryColon = true;
+				}
 			} else {
-				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 				state = {op: op};
 			}
 		} else if (state.op.associativity === "ul") {
 			var op = findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				tryColon = true;
-//				break;
 			} else {
-				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value);
+				value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 				state = {op: op};
 			}
 		} else if (state.op.associativity === "ur") {
@@ -801,10 +841,10 @@ function parse(toks, mode) {
 			throw "Internal Error: Unknown state in loop";
 		}
 
-		if (tryColon) {
+		if (tryColon || enforceColon) {
 			// The token and the lookahead must reside on different lines. Otherwise colon insertion is not allowed
-			if (token.loc.end.line === lookahead.loc.start.line) {
-				break;
+			if (tryColon && token.loc.end.line === lookahead.loc.start.line) {
+				throw "SyntaxError: Unexpected token '" + lookahead.value + "'";
 			}
 			lookahead = {
 				type: "Punctuator",
@@ -819,10 +859,14 @@ function parse(toks, mode) {
 			state = {op: op};
 		}
 
+		if (mode === Mode_Statement && lookahead.value === ";" && bracketCount === 0) {
+			toks.next();
+			break;
+		}
 		if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && lookahead.value === ";" && bracketCount === 0) {
 			break;
 		}
-		if ((mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && state.op.closingBracket && bracketCount === 0) {
+		if ((mode === Mode_Statement || mode === Mode_Expression || mode === Mode_ExpressionWithoutCall) && state.op.closingBracket && bracketCount === 0) {
 			break;
 		}
 		if (mode === Mode_ExpressionWithoutCall && state.op.value === "(" && state.op.associativity === "ul" && bracketCount === 0) {
@@ -830,16 +874,17 @@ function parse(toks, mode) {
 		}
 
 		// If a colon has been inserted, do not consume another token from the tokenizer
-		if (tryColon) {
+		if (tryColon || enforceColon) {
 			token = lookahead;
 			tryColon = false;
+			enforceColon = false;
 		} else {
 			token = toks.next()
 		}
 	} while(true);
 
 	// Finish all recursions upwards
-	value = finishRecursions(-1, stack, value);
+	value = finishRecursions(-1, stack, value, lookahead);
 	if (stack.length > 0) {
 		if (toks.lookahead() === undefined) {
 			throw "Unexpected end of file";
@@ -853,7 +898,44 @@ function parse(toks, mode) {
 }
 
 function parseStatement(toks) {
-	var result = parse(toks, Mode_Statement);
+	var result;
+	var lookahead = toks.lookahead();
+	if (lookahead !== undefined && lookahead.value === "{") {
+		var body = parse(toks, Mode_Bracket);
+		if (body.content === undefined) {
+			body = [];
+		} if (body.content.operator === ";") {
+			body = body.content.left;
+		} else {
+			body = [body.content];
+		}
+		for(var i = 0; i < body.length; i++) {
+			if (body[i].type.length < 9 || body[i].type.substr(body[i].type.length - 9, 9) !== "Statement") {
+				body[i] = { type: "ExpressionStatement", expression: body[i]};
+			}
+		}
+		result = {type: "BlockStatement", body: body};
+	} else {
+		var body = parse(toks, Mode_Statement);
+		if (body.type.length < 9 || body.type.substr(body.type.length - 9, 9) !== "Statement") {
+			result = { type: "ExpressionStatement", expression: body};
+		} else {
+			result = body;
+		}
+	}
 	return result;
 }
+
+function parseTopLevelStatements(toks) {
+	var result = { type: "Program", body: []};
+	while( toks.lookahead() !== undefined) {
+		var body = parseStatement(toks);
+		if (body.type.length < 9 || body.type.substr(body.type.length - 9, 9) !== "Statement") {
+			body = { type: "ExpressionStatement", expression: body};
+		}
+		result.body.push(body);
+	}
+	return result;
+}
+
 exports.foo = foo;
