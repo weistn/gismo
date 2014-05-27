@@ -1,7 +1,9 @@
 var esprima = require('esprima');
 
 function foo() {
-	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
+	var tokens = esprima.tokenize("[1,2,3*4]", {loc: true});
+
+//	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
 //	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
 //	var tokens = esprima.tokenize("while(true) {1+2; return !x;;}; throw a", {loc: true});
 //	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
@@ -511,12 +513,6 @@ var operatorPrecedence = [
 		value: "(",
 		correspondingBracket: ")"
 	},
-//	{
-//		type: 'Punctuator',
-//		associativity: "ul",
-//		closingBracket: true,
-//		value: ")"
-//	},
 	{
 		type: 'Punctuator',
 		associativity: "ul",
@@ -524,12 +520,6 @@ var operatorPrecedence = [
 		value: "[",
 		correspondingBracket: "]"
 	}],
-//	{
-//		type: 'Punctuator',
-//		associativity: "ul",
-//		closingBracket: true,
-//		value: "]"
-//	}],
 	[{
 		type: 'Identifier',
 		associativity: "none"
@@ -741,6 +731,19 @@ function finishRecursions(level, stack, value, lookahead) {
 	return value;
 };
 
+function parseArrayExpression(toks) {
+	var elements = [];
+	toks.expect("[");
+	while(toks.lookahead() !== undefined && toks.lookahead() !== ']') {
+		elements.push(parseExpression(toks, Mode_ExpressionWithoutComma));
+		if (!toks.presume(",", true)) {
+			break;
+		}
+	}
+	toks.expect("]");	
+	return {type: "ArrayExpression", elements: elements};
+}
+
 function parseObjectExpression(toks) {
 	var properties = [];
 	toks.expect("{");
@@ -782,6 +785,9 @@ function parseExpression(toks, mode) {
 			if (state.op.value === '{') {
 				toks.undo();
 				value = parseObjectExpression(toks);
+			} else if (state.op.value === '[') {
+				toks.undo();
+				value = parseArrayExpression(toks);
 			} else {
 				state.value = {operator: state.op.value};
 				stack.push(state);
