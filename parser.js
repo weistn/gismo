@@ -1,7 +1,7 @@
 var esprima = require('esprima');
 
 function foo() {
-	var tokens = esprima.tokenize("[1,2,3*4]", {loc: true});
+	var tokens = esprima.tokenize("[1,2,(3+4)*5]; (1,2,3)", {loc: true});
 
 //	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
 //	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
@@ -820,15 +820,19 @@ function parseExpression(toks, mode) {
 				} else {
 					stack[stack.length - 1].value.arguments = [];
 				}
+				value = stack[stack.length - 1].value;
 			} else if (stack[stack.length - 1].op.value === '[' && stack[stack.length - 1].op.associativity === "ul") {
 				if (value === undefined) {
 					throw "SyntaxErrror: Unexpected token ']'";
 				}
 				stack[stack.length - 1].value.property = value;
+				value = stack[stack.length - 1].value;
+			} else if (stack[stack.length - 1].op.value === '(' && stack[stack.length - 1].op.associativity === "none") {
+				// Do not change value by intention
 			} else {
 				stack[stack.length - 1].value.content = value;
+				value = stack[stack.length - 1].value;
 			}
-			value = stack[stack.length - 1].value;
 			bracketCount--;
 		} else if (state.op.associativity === "none") {
 			console.log(token.value, "terminal");
