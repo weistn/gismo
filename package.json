@@ -21,6 +21,7 @@
     "mydummy": "./bin/mydummy"
   },
   "dependencies": {
-    "commander": "^2.2.0"
+    "commander": "^2.2.0",
+    "escodegen": "^1.3.2"
   }
 }

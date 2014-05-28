@@ -1,7 +1,9 @@
 var esprima = require('esprima');
+var escodegen = require('escodegen');
+var fs = require('fs');
 
 function foo() {
-	var tokens = esprima.tokenize("[1,2,(3+4)*5]; (1,2,3)", {loc: true});
+	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
 
 //	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
 //	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
@@ -22,11 +24,19 @@ function foo() {
 //	var tokens = esprima.tokenize("a + 3 + x", { });
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
+
+	var tokens = esprima.tokenize(str, {loc: true});
 	console.log(tokens);
 	var toks = new tokenizer(tokens);
 	var parsed = parseTopLevelStatements(toks);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
+	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
+	console.log(JSON.stringify(result));
+
+	fs.writeFileSync('out.js', result.code + "\n//# sourceMappingURL=out.js.map");
+	fs.writeFileSync('out.js.map', result.map.toString());
+	fs.writeFileSync('in.gismo', str);
 	return 42;
 }
 	
@@ -135,9 +145,10 @@ tokenizer.prototype.expectLookahead = function(tokenValue, errorMsg) {
 };
 
 function functionParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	var name = tokenizer.presumeIdentifier(true);
 	if (name) {
-		name = {type: "Identifier", name: name.value};
+		name = {type: "Identifier", name: name.value, loc: name.loc};
 	}
 	tokenizer.expect("(");
 	var parameters = parseExpression(tokenizer, Mode_Expression);
@@ -154,11 +165,13 @@ function functionParser(tokenizer) {
 		type: "FunctionExpression",
 		params: parameters,
 		body: code,
-		id: name
+		id: name,
+		loc: loc
 	};
 }
 
 function newParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	var clas = parseExpression(tokenizer, Mode_ExpressionWithoutCall);
 	var arguments = [];
 	var t = tokenizer.presume("(", true);
@@ -176,12 +189,15 @@ function newParser(tokenizer) {
 	return {
 		type: "NewExpression",
 		callee: clas,
-		arguments: arguments
+		arguments: arguments,
+		loc: loc
 	};
 }
 
 function functionDeclParser(tokenizer) {
-	var name = {type: "Identifier", name: tokenizer.expectIdentifier().value};
+	var loc = tokenizer.lookback().loc;
+	var tok = tokenizer.expectIdentifier();
+	var name = {type: "Identifier", name: tok.value, loc: tok.loc};
 	tokenizer.expect("(");
 	var parameters = parseExpression(tokenizer, Mode_Expression);
 	if (parameters === undefined) {
@@ -197,11 +213,13 @@ function functionDeclParser(tokenizer) {
 		type: "FunctionDeclaration",
 		params: parameters,
 		body: code,
-		id: name
+		id: name,
+		loc: loc
 	};
 }
 
 function forParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	tokenizer.expect("(");
 	var init, test, update;
 	if (tokenizer.presume("var", false)) {
@@ -220,11 +238,13 @@ function forParser(tokenizer) {
 		init: init,
 		test: test,
 		update: update,
-		body: code
+		body: code,
+		loc: loc
 	};
 }
 
 function whileParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	tokenizer.expect("(");
 	var args = parseExpression(tokenizer, Mode_Expression);
 	tokenizer.expect(")");
@@ -232,11 +252,13 @@ function whileParser(tokenizer) {
 	return {
 		type: "WhileStatement",
 		test: args.content,
-		body: code
+		body: code,
+		loc: loc
 	};
 }
 
 function returnParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	var argument = parseExpressionStatement(tokenizer);
 	if (argument.type === "ExpressionStatement") {
 		argument = argument.expression;
@@ -245,18 +267,21 @@ function returnParser(tokenizer) {
 	}
 	return {
 		type: "ReturnStatement",
-		argument: argument
+		argument: argument,
+		loc: loc
 	};
 }
 
 function throwParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
 	var expression = parseExpressionStatement(tokenizer);
 	if (expression.type !== "ExpressionStatement") {
 		throw "SyntaxError: Missing expression in 'throw' statement";
 	}
 	return {
 		type: "ThrowStatement",
-		expression: expression
+		expression: expression,
+		loc: loc
 	};
 }
 
@@ -590,6 +615,7 @@ var operatorPrecedence = [
 var operators = { };
 var numericTerminal;
 var identifierTerminal;
+var stringTerminal;
 var expressionOperator = {
 	type: "Expression",
 	associativity: "ur",
@@ -638,6 +664,10 @@ for(var i = 0; i < operatorPrecedence.length; i++) {
 			numericTerminal = ops[j];
 			continue;
 		}
+		if (ops[j].type === "String") {
+			stringTerminal = ops[j];
+			continue;
+		}
 		if (operators[ops[j].value] !== undefined) {
 			operators[ops[j].value].push(ops[j]);
 		} else {
@@ -652,6 +682,9 @@ function findOperatorDownwards(token, level) {
 	}
 	if (token.type === "Numeric") {
 		return numericTerminal;
+	}
+	if (token.type === "String") {
+		return stringTerminal;
 	}
 	if (token.value === ")") {
 		return closingRoundBracketOperator;
@@ -733,21 +766,23 @@ function finishRecursions(level, stack, value, lookahead) {
 
 function parseArrayExpression(toks) {
 	var elements = [];
-	toks.expect("[");
-	while(toks.lookahead() !== undefined && toks.lookahead() !== ']') {
+	var loc1 = toks.expect("[").loc;
+	while(toks.lookahead().value !== undefined && toks.lookahead().value !== ']') {
 		elements.push(parseExpression(toks, Mode_ExpressionWithoutComma));
 		if (!toks.presume(",", true)) {
 			break;
 		}
 	}
-	toks.expect("]");	
-	return {type: "ArrayExpression", elements: elements};
+	var loc2 = toks.expect("]").loc;	
+	return {type: "ArrayExpression", elements: elements, loc: {start: loc1.start, end: loc2.end}};
 }
 
 function parseObjectExpression(toks) {
 	var properties = [];
-	toks.expect("{");
-	while(toks.lookahead() !== undefined && toks.lookahead() !== '}') {
+	var loc1 = toks.expect("{").loc;
+	while(toks.lookahead().value !== undefined && toks.lookahead().value !== '}') {
+		var lookahead = toks.lookahead();
+		var loc1 = lookahead ? lookahead.loc : undefined;
 		var prop = {type: "Property"};
 		var token = toks.next();
 		if (token.type === "Identifier") {
@@ -759,13 +794,16 @@ function parseObjectExpression(toks) {
 		}
 		toks.expect(":");
 		prop.value = parseExpression(toks, Mode_ExpressionWithoutComma);
+		var lookback = toks.lookback();
+		var loc2 = lookback ? lookback.loc : undefined;
+		prop.loc = {start: loc1.start, end: loc2.end};
 		properties.push(prop);
 		if (!toks.presume(",", true)) {
 			break;
 		}
 	}
-	toks.expect("}");
-	return {type: "ObjectExpression", properties: properties, kind: "init"};
+	var loc2 = toks.expect("}").loc;
+	return {type: "ObjectExpression", properties: properties, kind: "init", loc: {start: loc1.start, end: loc2.end}};
 }
 
 function parseExpression(toks, mode) {
@@ -797,11 +835,11 @@ function parseExpression(toks, mode) {
 		} else if (state.op.bracket && state.op.associativity === "ul") {
 			console.log(token.value, "post-bracket");
 			if (state.op.value === "(") {
-				state.value = {callee: value, type: "CallExpression"};
+				state.value = {callee: value, type: "CallExpression", loc: token.loc};
 			} else if (state.op.value === "[") {
-				state.value = {object: value, type: "MemberExpression", computed: true};
+				state.value = {object: value, type: "MemberExpression", computed: true, loc: token.loc};
 			} else {
-				state.value = {operator: state.op.value, left: value};
+				state.value = {operator: state.op.value, left: value, loc: token.loc};
 			}
 			stack.push(state);
 			value = undefined;
@@ -837,26 +875,28 @@ function parseExpression(toks, mode) {
 		} else if (state.op.associativity === "none") {
 			console.log(token.value, "terminal");
 			if (token.type === "Identifier") {
-				value = {type: "Identifier", name: token.value};
+				value = {type: "Identifier", name: token.value, loc: token.loc};
 			} else {
-				value = {type: "Literal", raw: token.value, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
+				value = {type: "Literal", loc: token.loc, raw: token.value, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
 			}
 		} else if (state.op.associativity === "ul") {
 			console.log(token.value, "ul");
-			value = {operator: state.op.value, argument: value, prefix: false, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
+			value = {operator: state.op.value, argument: value, prefix: false, loc: token.loc, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
 		} else if (state.op.associativity === "ur") {
 			console.log(token.value, "ur");
-			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression"};
+			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression", loc: token.loc};
 			stack.push(state);
 			value = undefined;
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			console.log(token.value, "bl or br");	
 			if (state.op.value === ",") {
-				state.value = {expressions: [value], type: "SequenceExpression"};
+				state.value = {expressions: [value], type: "SequenceExpression", loc: token.loc};
 			} else if (state.op.value === ".") {
-				state.value = {object: value, computed: false, type: "MemberExpression"};
+				state.value = {object: value, computed: false, type: "MemberExpression", loc: token.loc};
+			} else if (state.op.value === "=") {
+				state.value = {left: value, type: "AssignmentExpression", loc: token.loc};
 			} else {
-				state.value = {operator: state.op.value, left: value, type: "BinaryExpression"};
+				state.value = {operator: state.op.value, left: value, type: "BinaryExpression", loc: token.loc};
 			}
 			stack.push(state);
 			value = undefined;
@@ -883,7 +923,7 @@ function parseExpression(toks, mode) {
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 			state = {op: op};
-		} else if (state.op.bracket && state.op.value !== "{") {
+		} else if (state.op.bracket && state.op.value === "(") {
 			var op = findOperatorDownwards(lookahead, 0);
 			if (!op) {
 				break;
@@ -939,7 +979,6 @@ function parseExpression(toks, mode) {
 		}
 
 	} while(token = toks.next());
-
 	// Finish all recursions upwards
 	value = finishRecursions(-1, stack, value, lookahead);
 	if (stack.length > 0) {
@@ -962,19 +1001,23 @@ function parseStatementOrBlockStatement(toks) {
 }
 
 function parseBlockStatement(toks) {
-	toks.expect("{");
+	var loc1 = toks.expect("{").loc;
 	var statements = parseStatements(toks);
-	toks.expect("}");
-	return {type: "BlockStatement", body: statements};
+	var loc2 = toks.expect("}").loc;
+	return {type: "BlockStatement", body: statements, loc: {start: loc1.start, end: loc2.end}};
 }
 
 function parseExpressionStatement(toks) {
 	var result;
+	var lookahead = toks.lookahead();
+	var loc1 = lookahead ? lookahead.loc : undefined;
 	var body = parseExpression(toks, Mode_Expression);
+	var lookback = toks.lookback();
+	var loc2 = lookback ? lookback.loc : undefined;
 	if (body === undefined) {
-		result = {type: "EmptyStatement"};
+		result = {type: "EmptyStatement", loc: {start: loc1.start, end: loc2.end}};
 	} else {
-		result = { type: "ExpressionStatement", expression: body};
+		result = { type: "ExpressionStatement", expression: body, loc: {start: loc1.start, end: loc2.end}};
 	}
 	// Determine the end of the statement. It must either be ';', a new line, or a closing bracket
 	lookahead = toks.lookahead();
