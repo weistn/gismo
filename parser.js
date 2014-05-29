@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "let a =42";
+	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
+//	var str = "let a =42";
 //	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
 //	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42}";
 //	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
@@ -258,6 +259,25 @@ function whileParser(tokenizer) {
 		type: "WhileStatement",
 		test: args,
 		body: code,
+		loc: loc
+	};
+}
+
+function ifParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	tokenizer.expect("(");
+	var args = parseExpression(tokenizer, Mode_Expression);
+	tokenizer.expect(")");
+	var code = parseStatementOrBlockStatement(tokenizer);
+	var alternate = null;
+	if (tokenizer.presume('else', true)) {
+		alternate = parseStatementOrBlockStatement(tokenizer);
+	}
+	return {
+		type: "IfStatement",
+		test: args,
+		consequent: code,
+		alternate: alternate,
 		loc: loc
 	};
 }
@@ -773,7 +793,8 @@ var statementKeywords = {
 	'break' : breakParser,
 	'continue' : continueParser,
 	'try' : tryCatchParser,
-	'let' : letParser
+	'let' : letParser,
+	'if' : ifParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
