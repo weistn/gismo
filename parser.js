@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
+	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
+//	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
 //	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
 
 //	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
@@ -331,7 +332,7 @@ function varParser(tokenizer) {
 
 function doParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
-	var code = parseStatementOrBlockStatement(tokenizer);
+	var code = parseBlockStatement(tokenizer);
 	tokenizer.expect('while');
 	tokenizer.expect("(");
 	var args = parseExpression(tokenizer, Mode_Expression);
@@ -341,6 +342,37 @@ function doParser(tokenizer) {
 		type: "DoWhileStatement",
 		test: args,
 		body: code,
+		loc: loc
+	};
+}
+
+function tryCatchParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var block = parseBlockStatement(tokenizer);
+	var handlers = [];
+	var guardedHandlers = [];
+	var finalizer = null;
+	var c;
+	while (c = tokenizer.presume('catch', true)) {
+		tokenizer.expect("(");
+		var param = tokenizer.expectIdentifier();
+		tokenizer.expect(")");
+		var body = parseBlockStatement(tokenizer);
+		var handler = {type: "CatchClause", body: body, param: {type: "Identifier", name: param.value, loc: param.loc}, loc: c.loc};
+		handlers.push(handler);
+	}
+	if (tokenizer.presume('finally', true)) {
+		finalizer = parseBlockStatement(tokenizer);
+	}
+	if (handlers.length === 0 && finalizer === null) {
+		throw "SyntaxError: Expected 'catch' or 'finally";
+	}
+	return {
+		type: "TryStatement",
+		block: block,
+		handlers: handlers,
+		guardedHandlers: guardedHandlers,
+		finalizer : finalizer,
 		loc: loc
 	};
 }
@@ -713,7 +745,8 @@ var statementKeywords = {
 	'var' : varParser,
 	'do' : doParser,
 	'break' : breakParser,
-	'continue' : continueParser
+	'continue' : continueParser,
+	'try' : tryCatchParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
