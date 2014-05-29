@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
+	var str = "let a =42";
+//	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
 //	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42}";
 //	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
 //	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
@@ -328,6 +329,29 @@ function varParser(tokenizer) {
 		type: "VariableDeclaration",
 		declarations: declarations,
 		kind: "var",
+		loc: loc
+	};
+}
+
+function letParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var declarations = [];
+	do {
+		var name = tokenizer.expectIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		if (tokenizer.presume('=', true)) {
+			v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
+			v.loc.end = tokenizer.lookback().loc.end;
+		} else {
+			v.loc.end = name.loc.end;
+		}
+		declarations.push(v);
+	} while( tokenizer.presume(',', true) );
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "VariableDeclaration",
+		declarations: declarations,
+		kind: "let",
 		loc: loc
 	};
 }
@@ -748,7 +772,8 @@ var statementKeywords = {
 	'do' : doParser,
 	'break' : breakParser,
 	'continue' : continueParser,
-	'try' : tryCatchParser
+	'try' : tryCatchParser,
+	'let' : letParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
