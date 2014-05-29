@@ -3,7 +3,7 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "const a = 32";
+	var str = "const a = 32; debugger";
 //	var str = "for(var a in x);"
 //	var str = "for(a=0;a<4;a++){print(a)}";
 //	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
@@ -510,6 +510,15 @@ function tryCatchParser(tokenizer) {
 	};
 }
 
+function debuggerParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "DebuggerStatement",
+		loc: loc
+	};
+}
+
 var operatorPrecedence = [
 	[{
 		type: 'Punctuator',
@@ -883,7 +892,8 @@ var statementKeywords = {
 	'let' : letParser,
 	'const' : constParser,
 	'if' : ifParser,
-	'switch' : switchParser
+	'switch' : switchParser,
+	'debugger' : debuggerParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
