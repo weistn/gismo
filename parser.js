@@ -3,7 +3,9 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
+	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
+//	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42}";
+//	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
 //	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
 //	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
 
@@ -882,15 +884,42 @@ function parseObjectExpression(toks) {
 		var loc1 = lookahead ? lookahead.loc : undefined;
 		var prop = {type: "Property"};
 		var token = toks.next();
-		if (token.type === "Identifier") {
-			prop.key = {type: "Identifier", name: token.value };
-		} else if (token.type === "String") {
-			prop.key = {type: "Literal", value: token.value, raw: token.value };
-		} else {
-			throw "SyntaxError: Unexpected token '" + token.value + "'";
+		if (token === undefined) {
+			throw "SyntaxError: Unexpected end of file";
 		}
-		toks.expect(":");
-		prop.value = parseExpression(toks, Mode_ExpressionWithoutComma);
+		var lookahead = toks.lookahead();
+		if (token.type === "Identifier" && (token.value === "get" || token.value === "set") && lookahead !== undefined && (lookahead.type === "Identifier" || lookahead.type === "String")) {
+			var name = toks.next();
+			if (name.type === "Identifier") {
+				prop.key = {type: "Identifier", name: name.value, loc: name.loc };
+			} else {
+				prop.key = {type: "Literal", value: name.value, loc: name.loc };
+			}
+			var parameters = [];
+			toks.expect("(");
+			var parameters = parseExpression(toks, Mode_Expression);
+			if (parameters === undefined) {
+				parameters = []
+			} else if (parameters.type === "SequenceExpression") {
+				parameters = parameters.expressions;
+			} else {
+				parameters = [parameters];
+			}
+			toks.expect(")");
+			prop.value = {type: "FunctionExpression", loc: name.loc, body: parseBlockStatement(toks), params: parameters, id: null};
+			prop.kind = token.value;
+		} else {
+			if (token.type === "Identifier") {
+				prop.key = {type: "Identifier", name: token.value, loc: token.loc };
+			} else if (token.type === "String") {
+				prop.key = {type: "Literal", value: token.value, loc: token.loc };
+			} else {
+				throw "SyntaxError: Unexpected token '" + token.value + "'";
+			}
+			toks.expect(":");
+			prop.value = parseExpression(toks, Mode_ExpressionWithoutComma);
+			prop.kind = "init";
+		}
 		var lookback = toks.lookback();
 		var loc2 = lookback ? lookback.loc : undefined;
 		prop.loc = {start: loc1.start, end: loc2.end};
@@ -900,7 +929,7 @@ function parseObjectExpression(toks) {
 		}
 	}
 	var loc2 = toks.expect("}").loc;
-	return {type: "ObjectExpression", properties: properties, kind: "init", loc: {start: loc1.start, end: loc2.end}};
+	return {type: "ObjectExpression", properties: properties, loc: {start: loc1.start, end: loc2.end}};
 }
 
 function parseExpression(toks, mode) {
@@ -971,7 +1000,9 @@ function parseExpression(toks, mode) {
 			bracketCount--;
 		} else if (state.op.associativity === "none") {
 			console.log(token.value, "terminal");
-			if (token.type === "Identifier") {
+			if (token.value === "this") {
+				value = {type: "ThisExpression", loc: token.loc};
+			} else if (token.type === "Identifier") {
 				value = {type: "Identifier", name: token.value, loc: token.loc};
 			} else {
 				value = {type: "Literal", loc: token.loc, raw: token.value, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
