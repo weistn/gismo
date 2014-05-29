@@ -3,7 +3,7 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "var a = 10, b, c = 24;return";
+	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
 //	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
 
 //	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
@@ -252,7 +252,7 @@ function whileParser(tokenizer) {
 	var code = parseStatementOrBlockStatement(tokenizer);
 	return {
 		type: "WhileStatement",
-		test: args.content,
+		test: args,
 		body: code,
 		loc: loc
 	};
@@ -267,6 +267,28 @@ function returnParser(tokenizer) {
 	return {
 		type: "ReturnStatement",
 		argument: argument,
+		loc: loc
+	};
+}
+
+function breakParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var name = tokenizer.presumeIdentifier(true);
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "BreakStatement",
+		label: name === undefined ? null : {type: "Identifier", name: name.value, loc: name.loc},
+		loc: loc
+	};
+}
+
+function continueParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var name = tokenizer.presumeIdentifier(true);
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "ContinueStatement",
+		label: name === undefined ? null : {type: "Identifier", name: name.value, loc: name.loc},
 		loc: loc
 	};
 }
@@ -298,18 +320,27 @@ function varParser(tokenizer) {
 		}
 		declarations.push(v);
 	} while( tokenizer.presume(',', true) );
-	// Must terminate with either semicolon or newline
-	if (tokenizer.presume(';', true)) {
-		// Got semicolon. Consumed it. Do nothing else by intention
-	} else if (tokenizer.lookahead() === undefined) {
-		// EOF: Do nothing by intention
-	} else if (tokenizer.lookback().loc.end.line === tokenizer.lookahead().loc.start.line) {
-		throw "SyntaxError: Did not expect token '" + tokenizer.lookahead().value + "'";
-	}
+	parseEndOfStatement(tokenizer);
 	return {
 		type: "VariableDeclaration",
 		declarations: declarations,
 		kind: "var",
+		loc: loc
+	};
+}
+
+function doParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var code = parseStatementOrBlockStatement(tokenizer);
+	tokenizer.expect('while');
+	tokenizer.expect("(");
+	var args = parseExpression(tokenizer, Mode_Expression);
+	tokenizer.expect(")");
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "DoWhileStatement",
+		test: args,
+		body: code,
 		loc: loc
 	};
 }
@@ -680,6 +711,9 @@ var statementKeywords = {
 	'while' : whileParser,
 	'function' : functionDeclParser,
 	'var' : varParser,
+	'do' : doParser,
+	'break' : breakParser,
+	'continue' : continueParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
@@ -1050,8 +1084,13 @@ function parseExpressionStatement(toks) {
 	} else {
 		result = { type: "ExpressionStatement", expression: body, loc: {start: lookahead.loc.start, end: locend}};
 	}
+	parseEndOfStatement(toks);
+	return result;	
+}
+
+function parseEndOfStatement(toks) {
 	// Determine the end of the statement. It must either be ';', a new line, or a closing bracket
-	lookahead = toks.lookahead();
+	var lookahead = toks.lookahead();
 	if (lookahead === undefined || lookahead.value === '}' || lookahead.value === ')' || lookahead.value === ']') {
 		// Do nothing by intention
 	} else if (lookahead.value === ";") {
@@ -1059,10 +1098,9 @@ function parseExpressionStatement(toks) {
 	} else {
 		var lookback = toks.lookback();
 		if (!lookback || lookback.loc.end.line === lookahead.loc.start.line) {
-			throw "SyntaxError: Expected colon";
+			throw "SyntaxError: Expected semicolon";
 		}
 	}
-	return result;	
 }
 
 function parseStatement(toks) {
