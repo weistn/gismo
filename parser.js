@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "for(var a in x);"
+	var str = "const a = 32";
+//	var str = "for(var a in x);"
 //	var str = "for(a=0;a<4;a++){print(a)}";
 //	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
 //	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
@@ -442,6 +443,26 @@ function letParser(tokenizer) {
 	};
 }
 
+function constParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var declarations = [];
+	do {
+		var name = tokenizer.expectIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		tokenizer.expect('=');
+		v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
+		v.loc.end = tokenizer.lookback().loc.end;
+		declarations.push(v);
+	} while( tokenizer.presume(',', true) );
+	parseEndOfStatement(tokenizer);
+	return {
+		type: "VariableDeclaration",
+		declarations: declarations,
+		kind: "const",
+		loc: loc
+	};
+}
+
 function doParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	var code = parseBlockStatement(tokenizer);
@@ -860,6 +881,7 @@ var statementKeywords = {
 	'continue' : continueParser,
 	'try' : tryCatchParser,
 	'let' : letParser,
+	'const' : constParser,
 	'if' : ifParser,
 	'switch' : switchParser
 }
