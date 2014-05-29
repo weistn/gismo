@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
+	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
+//	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
 //	var str = "let a =42";
 //	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
 //	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42}";
@@ -51,7 +52,8 @@ var	Mode_Expression = 1,
 	Mode_ExpressionWithoutComma = 2,
 	// Parses an expression, but stops at call operation. Required when parsing "new ... ()"" since "..." must not contain
 	// a function call at top-level.
-	Mode_ExpressionWithoutCall = 3
+	Mode_ExpressionWithoutCall = 3,
+	Mode_ExpressionWithoutColon = 4
 
 function tokenizer(tokens) {
 	this.index = 0;
@@ -278,6 +280,39 @@ function ifParser(tokenizer) {
 		test: args,
 		consequent: code,
 		alternate: alternate,
+		loc: loc
+	};
+}
+
+function switchParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	tokenizer.expect('(');
+	var discriminant = parseExpression(tokenizer);
+	tokenizer.expect(')');
+	var cases = [];
+	tokenizer.expect('{');
+	while(tokenizer.lookahead() !== undefined && !tokenizer.presume('}', false)) {
+		var token, test;
+		if (token = tokenizer.presume("case", true)) {
+			test = parseExpression(tokenizer, Mode_ExpressionWithoutColon);
+			tokenizer.expect(":");
+		} else if (token = tokenizer.presume("default", true)) {
+			tokenizer.expect(":");
+			test = null;
+		} else {
+			throw "SyntaxError: Unexpected token '" + tokenizer.lookahead() + "'";
+		}
+		var consequent = [];
+		while( tokenizer.lookahead() !== undefined && !tokenizer.presume('case', false) && !tokenizer.presume('default', false) && !tokenizer.presume('}', false)) {
+			consequent.push(parseStatement(tokenizer));
+		}
+		cases.push( {type: "SwitchCase", test: test, consequent: consequent, loc: token.loc} );
+	}
+	tokenizer.expect('}');
+	return {
+		type: "SwitchStatement",
+		discriminant: discriminant,
+		cases: cases,
 		loc: loc
 	};
 }
@@ -794,7 +829,8 @@ var statementKeywords = {
 	'continue' : continueParser,
 	'try' : tryCatchParser,
 	'let' : letParser,
-	'if' : ifParser
+	'if' : ifParser,
+	'switch' : switchParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
@@ -1142,6 +1178,9 @@ function parseExpression(toks, mode) {
 		}
 		// Expressions stop at closing brackets that have not been opened by the expression itself
 		if (state.op.closingBracket && bracketCount === 0) {
+			break;
+		}
+		if (mode === Mode_ExpressionWithoutColon && state.op.value === ":" && bracketCount === 0) {
 			break;
 		}
 		if (mode === Mode_ExpressionWithoutComma && state.op.value === "," && bracketCount === 0) {
