@@ -3,7 +3,9 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
+	var str = "for(var a in x);"
+//	var str = "for(a=0;a<4;a++){print(a)}";
+//	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
 //	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
 //	var str = "let a =42";
 //	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
@@ -229,6 +231,35 @@ function functionDeclParser(tokenizer) {
 function forParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	tokenizer.expect("(");
+	// Test whether it is a for...in loop
+	var v = tokenizer.presume("var", true);
+	var name = tokenizer.presumeIdentifier(true);
+	if (name !== undefined && tokenizer.presume("in", true)) {
+		var left;
+		left = {type: "Identifier", name: name.value, loc: name.loc};
+		if (v !== undefined) {
+			left = {type: "VariableDeclaration", loc: v.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: left}]};
+		}
+		var right = parseExpression(tokenizer);
+		tokenizer.expect(")");
+		var code = parseStatementOrBlockStatement(tokenizer);
+		return {
+			type: "ForInStatement",
+			left: left,
+			right: right,
+			body: code,
+			each: false,
+			loc: loc
+		}
+	} else {
+		if (v !== undefined) {
+			tokenizer.undo();
+		}
+		if (name !== undefined) {
+			tokenizer.undo();
+		}
+	}
+
 	var init, test, update;
 	if (tokenizer.presume("var", false)) {
 		init = parseStatement(tokenizer);
@@ -1104,7 +1135,7 @@ function parseExpression(toks, mode) {
 			} else if (state.op.value === ".") {
 				state.value = {object: value, computed: false, type: "MemberExpression", loc: token.loc};
 			} else if (state.op.value === "=") {
-				state.value = {left: value, type: "AssignmentExpression", loc: token.loc};
+				state.value = {left: value, operator: "=", type: "AssignmentExpression", loc: token.loc};
 			} else {
 				state.value = {operator: state.op.value, left: value, type: "BinaryExpression", loc: token.loc};
 			}
