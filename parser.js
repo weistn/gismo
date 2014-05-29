@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "const a = 32; debugger";
+	var str = "var a = 12; runat compile { console.log('Hello Compiler'); } console.log('a')";
+//	var str = "const a = 32; debugger";
 //	var str = "for(var a in x);"
 //	var str = "for(a=0;a<4;a++){print(a)}";
 //	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
@@ -35,10 +36,11 @@ function foo() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
-	var tokens = esprima.tokenize(str, {loc: true});
+	var tokens = esprima.tokenize(str, {loc: true, raw: true});
 	console.log(tokens);
 	var toks = new tokenizer(tokens);
-	var parsed = parseTopLevelStatements(toks);
+//	var parsed = parseTopLevelStatements(toks);
+	var parsed = compile(toks);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
 	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
@@ -1087,10 +1089,10 @@ function parseExpression(toks, mode) {
 	do {
 		// Process the current token (token[index]) with the current operator (state.op)
 		if (state.op.parser) {
-			console.log(token.value, "parser");
+//			console.log(token.value, "parser");
 			value = state.op.parser(toks);
 		} else if (state.op.bracket && state.op.associativity === "none") {
-			console.log(token.value, "bracket");
+//			console.log(token.value, "bracket");
 			if (state.op.value === '{') {
 				toks.undo();
 				value = parseObjectExpression(toks);
@@ -1104,7 +1106,7 @@ function parseExpression(toks, mode) {
 				bracketCount++;
 			}
 		} else if (state.op.bracket && state.op.associativity === "ul") {
-			console.log(token.value, "post-bracket");
+//			console.log(token.value, "post-bracket");
 			if (state.op.value === "(") {
 				state.value = {callee: value, type: "CallExpression", loc: token.loc};
 			} else if (state.op.value === "[") {
@@ -1116,7 +1118,7 @@ function parseExpression(toks, mode) {
 			value = undefined;
 			bracketCount++;
 		} else if (state.op.closingBracket) {
-			console.log(token.value, "closing_bracket");
+//			console.log(token.value, "closing_bracket");
 			value = finishRecursions(-1 ,stack, value, state.op.value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
 				throw "Unexpected closing bracket '" + state.op.value + "'";
@@ -1144,24 +1146,24 @@ function parseExpression(toks, mode) {
 			}
 			bracketCount--;
 		} else if (state.op.associativity === "none") {
-			console.log(token.value, "terminal");
+//			console.log(token.value, "terminal");
 			if (token.value === "this") {
 				value = {type: "ThisExpression", loc: token.loc};
 			} else if (token.type === "Identifier") {
 				value = {type: "Identifier", name: token.value, loc: token.loc};
 			} else {
-				value = {type: "Literal", loc: token.loc, raw: token.value, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
+				value = {type: "Literal", loc: token.loc, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
 			}
 		} else if (state.op.associativity === "ul") {
-			console.log(token.value, "ul");
+//			console.log(token.value, "ul");
 			value = {operator: state.op.value, argument: value, prefix: false, loc: token.loc, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
 		} else if (state.op.associativity === "ur") {
-			console.log(token.value, "ur");
+//			console.log(token.value, "ur");
 			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression", loc: token.loc};
 			stack.push(state);
 			value = undefined;
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
-			console.log(token.value, "bl or br");	
+//			console.log(token.value, "bl or br");	
 			if (state.op.value === ",") {
 				state.value = {expressions: [value], type: "SequenceExpression", loc: token.loc};
 			} else if (state.op.value === ".") {
@@ -1338,6 +1340,35 @@ function parseStatements(toks) {
 		result.push(body);
 	}
 	return result;
+}
+
+// Namespace where all compile-time code is executed 
+var compileNS = { };
+
+function compile(toks) {
+	var result = [];
+	while( toks.lookahead() !== undefined && toks.lookahead().value !== '}') {
+		if (toks.presume("runat", true)) {
+			if (toks.presume("compile", true)) {
+				var code = parseBlockStatement(toks);
+				var func = {type: "FunctionExpression", params:[], id: null, body: code};
+				var js = escodegen.generate(func);
+				executeAtCompileTime(js);
+			} else {
+				throw "SyntaxError: Unknown run-level '" + toks.next() + "'";
+			}
+		} else {
+			var body = parseStatement(toks);
+			result.push(body);
+		}
+	}
+	return { type: "Program", body: result};
+}
+
+function executeAtCompileTime(js) {
+	console.log("Executing: ", js);
+	var func = eval("(" + js + ")");
+	func.apply(compileNS);
 }
 
 exports.foo = foo;
