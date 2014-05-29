@@ -3,7 +3,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
+	var str = "var a = 10, b, c = 24;return";
+//	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
 
 //	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
 //	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
@@ -260,10 +261,8 @@ function whileParser(tokenizer) {
 function returnParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	var argument = parseExpressionStatement(tokenizer);
-	if (argument.type === "ExpressionStatement") {
+	if (argument !== undefined) {
 		argument = argument.expression;
-	} else {
-		argument = undefined;
 	}
 	return {
 		type: "ReturnStatement",
@@ -275,12 +274,42 @@ function returnParser(tokenizer) {
 function throwParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	var expression = parseExpressionStatement(tokenizer);
-	if (expression.type !== "ExpressionStatement") {
+	if (expression === undefined) {
 		throw "SyntaxError: Missing expression in 'throw' statement";
 	}
 	return {
 		type: "ThrowStatement",
 		expression: expression,
+		loc: loc
+	};
+}
+
+function varParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var declarations = [];
+	do {
+		var name = tokenizer.expectIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		if (tokenizer.presume('=', true)) {
+			v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
+			v.loc.end = tokenizer.lookback().loc.end;
+		} else {
+			v.loc.end = name.loc.end;
+		}
+		declarations.push(v);
+	} while( tokenizer.presume(',', true) );
+	// Must terminate with either semicolon or newline
+	if (tokenizer.presume(';', true)) {
+		// Got semicolon. Consumed it. Do nothing else by intention
+	} else if (tokenizer.lookahead() === undefined) {
+		// EOF: Do nothing by intention
+	} else if (tokenizer.lookback().loc.end.line === tokenizer.lookahead().loc.start.line) {
+		throw "SyntaxError: Did not expect token '" + tokenizer.lookahead().value + "'";
+	}
+	return {
+		type: "VariableDeclaration",
+		declarations: declarations,
+		kind: "var",
 		loc: loc
 	};
 }
@@ -649,7 +678,8 @@ var statementKeywords = {
 	'throw' : throwParser,
 	'for' : forParser,
 	'while' : whileParser,
-	'function' : functionDeclParser
+	'function' : functionDeclParser,
+	'var' : varParser,
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {
@@ -1008,16 +1038,17 @@ function parseBlockStatement(toks) {
 }
 
 function parseExpressionStatement(toks) {
-	var result;
 	var lookahead = toks.lookahead();
-	var loc1 = lookahead ? lookahead.loc : undefined;
+	if (lookahead === undefined) {
+		return undefined;
+	}
+	var result;
 	var body = parseExpression(toks, Mode_Expression);
-	var lookback = toks.lookback();
-	var loc2 = lookback ? lookback.loc : undefined;
+	var locend = toks.lookback().loc.end;
 	if (body === undefined) {
-		result = {type: "EmptyStatement", loc: {start: loc1.start, end: loc2.end}};
+		result = {type: "EmptyStatement", loc: {start: lookahead.loc.start, end: locend}};
 	} else {
-		result = { type: "ExpressionStatement", expression: body, loc: {start: loc1.start, end: loc2.end}};
+		result = { type: "ExpressionStatement", expression: body, loc: {start: lookahead.loc.start, end: locend}};
 	}
 	// Determine the end of the statement. It must either be ';', a new line, or a closing bracket
 	lookahead = toks.lookahead();
