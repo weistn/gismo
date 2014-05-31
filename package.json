@@ -14,7 +14,6 @@
   "license": "ISC",
   "devDependencies": {
     "chai": "^1.9.1",
-    "esprima": "^1.2.2",
     "mocha": "^1.18.2"
   },
   "bin": {
