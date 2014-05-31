@@ -889,26 +889,6 @@ function collectRegex() {
         column: index - lineStart
     };
 
-    /* istanbul ignore next */
-    if (!extra.tokenize) {
-        // Pop the previous token, which is likely '/' or '/='
-        if (extra.tokens.length > 0) {
-            token = extra.tokens[extra.tokens.length - 1];
-            if (token.range[0] === pos && token.type === 'Punctuator') {
-                if (token.value === '/' || token.value === '/=') {
-                    extra.tokens.pop();
-                }
-            }
-        }
-
-        extra.tokens.push({
-            type: 'RegularExpression',
-            value: regex.literal,
-            range: [pos, index],
-            loc: loc
-        });
-    }
-
     return regex;
 }
 
