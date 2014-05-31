@@ -997,7 +997,7 @@ function advance() {
     }
 
     // Slash (/) U+002F can also start a regex.
-    if (extra.tokenize && ch === 0x2F) {
+    if (ch === 0x2F) {
         return advanceSlash();
     }
 
@@ -1061,7 +1061,7 @@ function peek() {
     lineStart = start;
 }
 
-function tokenize(code, options) {
+function tokenize(code) {
     var toString,
         token,
         tokens;
@@ -1079,19 +1079,11 @@ function tokenize(code, options) {
     lookahead = null;
 
     extra = {};
-
-    // Options matching.
-    options = options || {};
-
     // Of course we collect tokens here.
     extra.tokens = [];
-    extra.tokenize = true;
     // The following two fields are necessary to compute the Regex tokens.
     extra.openParenToken = -1;
     extra.openCurlyToken = -1;
-
-    extra.range = (typeof options.range === 'boolean') && options.range;
-    extra.loc = (typeof options.loc === 'boolean') && options.loc;
 
     try {
         peek();
