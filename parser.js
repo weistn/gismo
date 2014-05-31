@@ -1,4 +1,5 @@
-var esprima = require('esprima');
+// var esprima = require('esprima');
+var lexer = require("./lexer.js");
 var escodegen = require('escodegen');
 var fs = require('fs');
 
@@ -36,7 +37,7 @@ function foo() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
-	var tokens = esprima.tokenize(str, {loc: true, raw: true});
+	var tokens = lexer.tokenize(str, {loc: true, raw: true});
 	console.log(tokens);
 	var toks = new tokenizer(tokens);
 //	var parsed = parseTopLevelStatements(toks);
