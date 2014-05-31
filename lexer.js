@@ -4,17 +4,19 @@
 var Token,
     TokenName,
     FnExprTokens,
-    PropertyKind,
     Messages,
     Regex,
+    // The source string
     source,
-    strict,
+    // Position inside the source string
     index,
+    // Current line number
     lineNumber,
+    // 'index' of the line start
     lineStart,
+    // Length of the source string
     length,
     lookahead,
-    state,
     extra;
 
 Token = {
@@ -71,21 +73,8 @@ Messages = {
     IllegalContinue: 'Illegal continue statement',
     IllegalBreak: 'Illegal break statement',
     IllegalReturn: 'Illegal return statement',
-    StrictModeWith:  'Strict mode code may not include a with statement',
-    StrictCatchVariable:  'Catch variable may not be eval or arguments in strict mode',
-    StrictVarName:  'Variable name may not be eval or arguments in strict mode',
-    StrictParamName:  'Parameter name eval or arguments is not allowed in strict mode',
-    StrictParamDupe: 'Strict mode function may not have duplicate parameter names',
-    StrictFunctionName:  'Function name may not be eval or arguments in strict mode',
-    StrictOctalLiteral:  'Octal literals are not allowed in strict mode.',
-    StrictDelete:  'Delete of an unqualified identifier in strict mode.',
-    StrictDuplicateProperty:  'Duplicate data property in object literal not allowed in strict mode',
     AccessorDataProperty:  'Object literal may not have data and accessor property with the same name',
     AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
-    StrictLHSAssignment:  'Assignment to eval or arguments is not allowed in strict mode',
-    StrictLHSPostfix:  'Postfix increment/decrement may not have eval or arguments operand in strict mode',
-    StrictLHSPrefix:  'Prefix increment/decrement may not have eval or arguments operand in strict mode',
-    StrictReservedWord:  'Use of future reserved word in strict mode'
 };
 
 // See also tools/generate-unicode-regex.py.
@@ -1088,14 +1077,6 @@ function tokenize(code, options) {
     lineStart = 0;
     length = source.length;
     lookahead = null;
-    state = {
-        allowIn: true,
-        labelSet: {},
-        inFunctionBody: false,
-        inIteration: false,
-        inSwitch: false,
-        lastCommentStart: -1
-    };
 
     extra = {};
 
