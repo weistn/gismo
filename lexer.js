@@ -40,8 +40,23 @@ var Token,
     // Length of the source string
     length,
     lookahead,
-    extra;
+    lookback,
+    punctuators,
+    keywords;
 
+Token = {
+    BooleanLiteral: "Boolean",
+    EOF: "<end>",
+    Identifier: "Identifier",
+    Keyword: "Keyword",
+    NullLiteral: "Null",
+    NumericLiteral: "Numeric",
+    Punctuator: "Punctuator",
+    StringLiteral: "String",
+    RegularExpression: "RegularExpression"
+};
+
+/*
 Token = {
     BooleanLiteral: 1,
     EOF: 2,
@@ -53,7 +68,9 @@ Token = {
     StringLiteral: 8,
     RegularExpression: 9
 };
+*/
 
+/*
 TokenName = {};
 TokenName[Token.BooleanLiteral] = 'Boolean';
 TokenName[Token.EOF] = '<end>';
@@ -64,6 +81,7 @@ TokenName[Token.NumericLiteral] = 'Numeric';
 TokenName[Token.Punctuator] = 'Punctuator';
 TokenName[Token.StringLiteral] = 'String';
 TokenName[Token.RegularExpression] = 'RegularExpression';
+*/
 
 // A function following one of those tokens is an expression.
 FnExprTokens = ['(', '{', '[', 'in', 'typeof', 'instanceof', 'new',
@@ -165,11 +183,13 @@ function isIdentifierPart(ch) {
 
 // 7.6.1.1 Keywords
 
-var keywords = ["if", "in", "do", "var", "for", "new", "try", "let",
-    "yield", "this", "else", "case", "void", "with",
-    "while", "break", "catch", "throw", "const",
-    "return", "typeof", "delete", "switch",
-    "default", "finally", "function", "continue", "debugger", "instanceof"];
+function registerESKeywords() {
+    keywords = ["if", "in", "do", "var", "for", "new", "try", "let",
+        "yield", "this", "else", "case", "void", "with",
+        "while", "break", "catch", "throw", "const",
+        "return", "typeof", "delete", "switch",
+        "default", "finally", "function", "continue", "debugger", "instanceof"];
+}
 
 function registerKeyword(str) {
     if (keywords.indexOf(str) !== -1) {
@@ -377,8 +397,6 @@ function scanIdentifier() {
 
 
 // 7.7 Punctuators
-
-var punctuators = { further: {} };
 
 function registerPunctuator(str) {
     if (str == "") {
@@ -724,12 +742,14 @@ function testRegExp(pattern, flags) {
     return value;
 }
 
+// Assumes that the initial '/' has already been consumed
 function scanRegExpBody() {
     var ch, str, classMarker, terminated, body;
 
-    ch = source[index];
-    assert(ch === '/', 'Regular expression literal must start with a slash');
-    str = source[index++];
+//    ch = source[index];
+//    assert(ch === '/', 'Regular expression literal must start with a slash');
+//    str = source[index++];
+    var str = '/';
 
     classMarker = false;
     terminated = false;
@@ -819,7 +839,6 @@ function scanRegExpFlags() {
 function scanRegExp() {
     var start, body, flags, pattern, value;
 
-    lookahead = null;
     skipComment();
     start = index;
 
@@ -837,96 +856,11 @@ function scanRegExp() {
     };
 }
 
-function collectRegex() {
-    var pos, loc, regex, token;
-
-    skipComment();
-
-    pos = index;
-    loc = {
-        start: {
-            line: lineNumber,
-            column: index - lineStart
-        }
-    };
-
-    regex = scanRegExp();
-    loc.end = {
-        line: lineNumber,
-        column: index - lineStart
-    };
-
-    return regex;
-}
-
 function isIdentifierName(token) {
     return token.type === Token.Identifier ||
         token.type === Token.Keyword ||
         token.type === Token.BooleanLiteral ||
         token.type === Token.NullLiteral;
-}
-
-function advanceSlash() {
-    var prevToken,
-        checkToken;
-    // Using the following algorithm:
-    // https://github.com/mozilla/sweet.js/wiki/design
-    prevToken = extra.tokens[extra.tokens.length - 1];
-    if (!prevToken) {
-        // Nothing before that: it cannot be a division.
-        return collectRegex();
-    }
-    if (prevToken.type === 'Punctuator') {
-        if (prevToken.value === ']') {
-            return scanPunctuator();
-        }
-        if (prevToken.value === ')') {
-            checkToken = extra.tokens[extra.openParenToken - 1];
-            if (checkToken &&
-                    checkToken.type === 'Keyword' &&
-                    (checkToken.value === 'if' ||
-                     checkToken.value === 'while' ||
-                     checkToken.value === 'for' ||
-                     checkToken.value === 'with')) {
-                return collectRegex();
-            }
-            return scanPunctuator();
-        }
-        if (prevToken.value === '}') {
-            // Dividing a function by anything makes little sense,
-            // but we have to check for that.
-            if (extra.tokens[extra.openCurlyToken - 3] &&
-                    extra.tokens[extra.openCurlyToken - 3].type === 'Keyword') {
-                // Anonymous function.
-                checkToken = extra.tokens[extra.openCurlyToken - 4];
-                if (!checkToken) {
-                    return scanPunctuator();
-                }
-            } else if (extra.tokens[extra.openCurlyToken - 4] &&
-                    extra.tokens[extra.openCurlyToken - 4].type === 'Keyword') {
-                // Named function.
-                checkToken = extra.tokens[extra.openCurlyToken - 5];
-                if (!checkToken) {
-                    return collectRegex();
-                }
-            } else {
-                return scanPunctuator();
-            }
-            // checkToken determines whether the function is
-            // a declaration or an expression.
-            if (FnExprTokens.indexOf(checkToken.value) >= 0) {
-                // It is an expression.
-                return scanPunctuator();
-            }
-            // It is a declaration.
-            return collectRegex();
-        }
-        return collectRegex();
-    }
-    if (prevToken.type === 'Keyword') {
-        return collectRegex();
-    }
-    return scanPunctuator();
 }
 
 function advance() {
@@ -974,11 +908,6 @@ function advance() {
         return scanNumericLiteral();
     }
 
-    // Slash (/) U+002F can also start a regex.
-    if (ch === 0x2F) {
-        return advanceSlash();
-    }
-
     return scanPunctuator();
 }
 
@@ -994,96 +923,135 @@ function collectToken() {
     };
 
     token = advance();
-    loc.end = {
+    token.loc = loc;
+    token.loc.end = {
         line: lineNumber,
         column: index - lineStart
     };
 
-    if (token.type !== Token.EOF) {
-        extra.tokens.push({
-            type: TokenName[token.type],
-            loc: loc,
-            value: token.value
-        });
-    }
-
     return token;
 }
 
-function lex() {
-    var token;
+function next() {
+    if (lookahead != null) {
+        lookback = lookahead;
+        lookahead = null;
+        return lookback;
+    }
 
-    token = lookahead;
-    index = token.end;
-    lineNumber = token.lineNumber;
-    lineStart = token.lineStart;
+    if (lookback != null) {
+        lineNumber = lookback.lineNumber;
+        lineStart = lookback.lineStart;
+        index = lookback.end;
+    }
 
-    lookahead = collectToken();
+    lookback = collectToken();
+    if (lookback.type === Token.EOF) {
+        lookback = undefined;
+    }
 
-    index = token.end;
-    lineNumber = token.lineNumber;
-    lineStart = token.lineStart;
+//    index = token.end;
+//    lineNumber = token.lineNumber;
+//    lineStart = token.lineStart;
 
-    return token;
+    return lookback;
 }
 
 function peek() {
-    var pos, line, start;
-
-    pos = index;
-    line = lineNumber;
-    start = lineStart;
-    lookahead = collectToken();
-    index = pos;
-    lineNumber = line;
-    lineStart = start;
-}
-
-function tokenize(code) {
-    var toString,
-        token,
-        tokens;
-
-    toString = String;
-    if (typeof code !== 'string' && !(code instanceof String)) {
-        code = toString(code);
+    if (lookahead != null) {
+        return lookahead;
     }
 
+
+    if (lookback != null) {
+        lineNumber = lookback.lineNumber;
+        lineStart = lookback.lineStart;
+        index = lookback.end;
+    }
+
+    lookahead = collectToken();
+    if (lookahead.type === Token.EOF) {
+        lookahead = undefined;
+    }
+    return lookahead;
+}
+
+function reconfigure() {
+    lookahead = null;
+}
+
+function setSource(code) {
     source = code;
     index = 0;
     lineNumber = (source.length > 0) ? 1 : 0;
     lineStart = 0;
     length = source.length;
     lookahead = null;
+    lookback = null;
 
-    extra = {};
-    // Of course we collect tokens here.
-    extra.tokens = [];
-    // The following two fields are necessary to compute the Regex tokens.
-    extra.openParenToken = -1;
-    extra.openCurlyToken = -1;
-
-    try {
-        peek();
-        if (lookahead.type === Token.EOF) {
-            return extra.tokens;
-        }
-
-        token = lex();
-        while (lookahead.type !== Token.EOF) {
-            token = lex();
-        }
-
-        tokens = extra.tokens;
-    } catch (e) {
-        throw e;
-    } finally {
-        extra = {};
-    }
-    return tokens;
+    punctuators = {further: {}};
+    registerESPunctuators();
+    keywords = [];
+    registerESKeywords();
 }
 
-registerESPunctuators();
+exports.presume = function(tokenValue, consume) {
+    var t = peek();
+    if (t && t.value === tokenValue) {
+        if (consume) {
+            lookback = t;
+            lookahead = null;
+        }
+        return t;
+    }
+    return undefined;
+};
 
-exports.tokenize = tokenize;
+exports.presumeIdentifier = function(consume) {
+    var t = peek();
+    if (t && t.type === Token.Identifier) {
+        if (consume) {
+            lookback = t;
+            lookahead = null;
+        }
+        return t;
+    }
+};
 
+exports.expect = function(tokenValue, errorMsg) {
+    var t = next();
+    if (t && t.value === tokenValue) {
+        return t;
+    }
+    if (errorMsg) {
+        throw errorMsg;
+    }   
+    throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
+};
+
+exports.expectIdentifier = function(errorMsg) {
+    var t = next();
+    if (t && t.type === Token.Identifier) {
+        return t;
+    }
+    if (errorMsg) {
+        throw errorMsg;
+    }   
+    throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
+};
+
+exports.expectLookahead = function(tokenValue, errorMsg) {
+    var t = lookahead();
+    if (t && t.value === tokenValue) {
+        return t;
+    }
+    if (errorMsg) {
+        throw errorMsg;
+    }   
+    throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
+};
+
+exports.lookback = function() { return lookback; };
+exports.next = next;
+exports.lookahead = peek;
+exports.setSource = setSource;

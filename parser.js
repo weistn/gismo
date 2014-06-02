@@ -4,7 +4,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "var a = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
+//	var str = "var a = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
+	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "const a = 32; debugger";
 //	var str = "for(var a in x);"
 //	var str = "for(a=0;a<4;a++){print(a)}";
@@ -12,7 +13,7 @@ function foo() {
 //	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
 //	var str = "let a =42";
 //	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
-//	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42}";
+//	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42, arr: [1,2,3]}";
 //	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
 //	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
 //	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
@@ -37,10 +38,12 @@ function foo() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
-	var tokens = lexer.tokenize(str, {loc: true, raw: true});
-	console.log(tokens);
-	var toks = new tokenizer(tokens);
+//	var tokens = lexer.tokenize(str, {loc: true, raw: true});
+//	console.log(tokens);
+//	var toks = new tokenizer(tokens);
 //	var parsed = parseTopLevelStatements(toks);
+	var toks = lexer;
+	lexer.setSource(str);
 	var parsed = compile(toks);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
@@ -74,10 +77,6 @@ tokenizer.prototype.next = function() {
 	return this.tokens[this.index++];
 };
 
-tokenizer.prototype.undo = function() {
-	this.index--;
-};
-
 tokenizer.prototype.lookahead = function() {
 	if (this.index === this.tokens.length) {
 		return undefined;
@@ -90,18 +89,6 @@ tokenizer.prototype.lookback = function() {
 		return undefined;
 	}
 	return this.tokens[this.index - 1];
-};
-
-tokenizer.prototype.save = function() {
-	this.stack.push(this.index);
-};
-
-tokenizer.prototype.restore = function() {
-	this.index = this.stack.pop();
-};
-
-tokenizer.prototype.unsave = function() {
-	this.stack.pop();
 };
 
 tokenizer.prototype.presume = function(tokenValue, consume) {
@@ -235,42 +222,60 @@ function functionDeclParser(tokenizer) {
 function forParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	tokenizer.expect("(");
+	var init;
 	// Test whether it is a for...in loop
-	var v = tokenizer.presume("var", true);
-	var name = tokenizer.presumeIdentifier(true);
-	if (name !== undefined && tokenizer.presume("in", true)) {
-		var left;
-		left = {type: "Identifier", name: name.value, loc: name.loc};
-		if (v !== undefined) {
-			left = {type: "VariableDeclaration", loc: v.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: left}]};
-		}
-		var right = parseExpression(tokenizer);
-		tokenizer.expect(")");
-		var code = parseStatementOrBlockStatement(tokenizer);
-		return {
-			type: "ForInStatement",
-			left: left,
-			right: right,
-			body: code,
-			each: false,
+	if (tokenizer.presume("var", true)) {
+		var count = 0;
+		var declarations = [];
+		do {
+			count++;
+			var name = tokenizer.expectIdentifier();
+			if (count === 1 && name !== undefined && tokenizer.presume("in", true)) {
+				var left = {type: "VariableDeclaration", loc: v.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: left}]};
+				var right = parseExpression(tokenizer);
+				tokenizer.expect(")");
+				var code = parseStatementOrBlockStatement(tokenizer);
+				return {
+					type: "ForInStatement",
+					left: left,
+					right: right,
+					body: code,
+					each: false,
+					loc: loc
+				};
+			}
+			var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+			if (tokenizer.presume('=', true)) {
+				v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
+				v.loc.end = tokenizer.lookback().loc.end;
+			} else {
+				v.loc.end = name.loc.end;
+			}
+			declarations.push(v);
+		} while( tokenizer.presume(',', true) );
+		init = {
+			type: "VariableDeclaration",
+			declarations: declarations,
+			kind: "var",
 			loc: loc
-		}
-	} else {
-		if (v !== undefined) {
-			tokenizer.undo();
-		}
-		if (name !== undefined) {
-			tokenizer.undo();
-		}
-	}
-
-	var init, test, update;
-	if (tokenizer.presume("var", false)) {
-		init = parseStatement(tokenizer);
+		};
 	} else {
 		init = parseExpression(tokenizer, Mode_Expression);
-		tokenizer.expect(";");
+		if (init.type === "BinaryExpression" && init.operator === "in") {
+			tokenizer.expect(")");
+			var code = parseStatementOrBlockStatement(tokenizer);
+			return {
+				type: "ForInStatement",
+				left: init.left,
+				right: init.right,
+				body: code,
+				each: false,
+				loc: loc
+			};
+		}
 	}
+	var test, update;
+	tokenizer.expect(";");
 	test = parseExpression(tokenizer, Mode_Expression);
 	tokenizer.expect(";");
 	update = parseExpression(tokenizer, Mode_Expression);
@@ -1025,7 +1030,8 @@ function finishRecursions(level, stack, value, lookahead) {
 
 function parseArrayExpression(toks) {
 	var elements = [];
-	var loc1 = toks.expect("[").loc;
+//	var loc1 = toks.expect("[").loc;
+	var loc1 = toks.lookback().loc;
 	while(toks.lookahead().value !== undefined && toks.lookahead().value !== ']') {
 		elements.push(parseExpression(toks, Mode_ExpressionWithoutComma));
 		if (!toks.presume(",", true)) {
@@ -1038,7 +1044,8 @@ function parseArrayExpression(toks) {
 
 function parseObjectExpression(toks) {
 	var properties = [];
-	var loc1 = toks.expect("{").loc;
+//	var loc1 = toks.expect("{").loc;
+	var loc1 = toks.lookback().loc;
 	while(toks.lookahead().value !== undefined && toks.lookahead().value !== '}') {
 		var lookahead = toks.lookahead();
 		var loc1 = lookahead ? lookahead.loc : undefined;
@@ -1107,10 +1114,10 @@ function parseExpression(toks, mode) {
 		} else if (state.op.bracket && state.op.associativity === "none") {
 //			console.log(token.value, "bracket");
 			if (state.op.value === '{') {
-				toks.undo();
+//				toks.undo();
 				value = parseObjectExpression(toks);
 			} else if (state.op.value === '[') {
-				toks.undo();
+//				toks.undo();
 				value = parseArrayExpression(toks);
 			} else {
 				state.value = {operator: state.op.value};

@@ -1,9 +1,12 @@
 var expect = require('chai').expect;
-var mydummy = require('../lexer.js');
-var foo = mydummy.foo;
+var lexer = require('../lexer.js');
 
 describe("My LexerTest", function() {
-	it('lexec', function() {
-		console.log(mydummy.tokenize('function(x) { return "Hello World" }', {loc: true}));
+	it('lex', function() {
+		lexer.setSource('function(x) { return "Hello World" }');
+		var token;
+		while(token = lexer.next()) {
+			console.log(token);
+		}
 	});
 });
