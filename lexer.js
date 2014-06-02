@@ -25,8 +25,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 var Token,
-    TokenName,
-    FnExprTokens,
     Messages,
     Regex,
     // The source string
@@ -82,17 +80,6 @@ TokenName[Token.Punctuator] = 'Punctuator';
 TokenName[Token.StringLiteral] = 'String';
 TokenName[Token.RegularExpression] = 'RegularExpression';
 */
-
-// A function following one of those tokens is an expression.
-FnExprTokens = ['(', '{', '[', 'in', 'typeof', 'instanceof', 'new',
-                'return', 'case', 'delete', 'throw', 'void',
-                // assignment operators
-                '=', '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '>>>=',
-                '&=', '|=', '^=', ',',
-                // binary/unary operators
-                '+', '-', '*', '/', '%', '++', '--', '<<', '>>', '>>>', '&',
-                '|', '^', '!', '~', '&&', '||', '?', ':', '===', '==', '>=',
-                '<=', '<', '>', '!=', '!=='];
 
 // Error messages should be identical to V8.
 Messages = {
