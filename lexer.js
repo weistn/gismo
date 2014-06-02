@@ -856,6 +856,26 @@ function scanRegExp() {
     };
 }
 
+function collectRegExpToken() {
+    var loc, token;
+
+    loc = {
+        start: {
+            line: lineNumber,
+            column: index - lineStart - 1
+        }
+    };
+
+    token = scanRegExp();
+    token.loc = loc;
+    token.loc.end = {
+        line: lineNumber,
+        column: index - lineStart
+    };
+
+    return token;
+}
+
 function isIdentifierName(token) {
     return token.type === Token.Identifier ||
         token.type === Token.Keyword ||
@@ -1050,6 +1070,25 @@ exports.expectLookahead = function(tokenValue, errorMsg) {
     }   
     throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
 };
+
+exports.expectRegExp = function(errorMsg) {
+    if (!lookback || lookback.type !== Token.Punctuator || lookback.value !== '/') {
+        throw "SyntaxError: Expected a regular expression starting with '/'"
+    }
+    try {
+        lineNumber = lookback.lineNumber;
+        lineStart = lookback.lineStart;
+        index = lookback.end;
+        lookback = collectRegExpToken();
+    } catch(e) {
+        if (errorMsg) {
+            throw errorMsg;
+        } else {
+            throw e;
+        }
+    }
+    return lookback;
+}
 
 exports.lookback = function() { return lookback; };
 exports.next = next;

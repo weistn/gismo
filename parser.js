@@ -4,8 +4,8 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-//	var str = "var a = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
-	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
+	var str = "var b = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
+//	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "const a = 32; debugger";
 //	var str = "for(var a in x);"
 //	var str = "for(a=0;a<4;a++){print(a)}";
@@ -193,6 +193,12 @@ function newParser(tokenizer) {
 		arguments: arguments,
 		loc: loc
 	};
+}
+
+function regexParser(tokenizer) {
+	var t = tokenizer.expectRegExp();
+	t.type = "Literal";
+	return t;
 }
 
 function functionDeclParser(tokenizer) {
@@ -795,9 +801,12 @@ var operatorPrecedence = [
 		type: 'Numeric',
 		associativity: "none"
 	},
+	// Regular Expression
 	{
-		type: 'RegularExpression',
-		associativity: "none"
+		type: 'Punctuator',
+		value: '/',
+		associativity: "none",
+		parser: regexParser
 	},
 	{
 		type: 'String',
@@ -862,7 +871,7 @@ var operators = { };
 var numericTerminal;
 var identifierTerminal;
 var stringTerminal;
-var regexpTerminal;
+//var regexpTerminal;
 var expressionOperator = {
 	type: "Expression",
 	associativity: "ur",
@@ -925,10 +934,10 @@ for(var i = 0; i < operatorPrecedence.length; i++) {
 			stringTerminal = ops[j];
 			continue;
 		}
-		if (ops[j].type === "RegularExpression") {
-			regexpTerminal = ops[j];
-			continue;
-		}
+//		if (ops[j].type === "RegularExpression") {
+//			regexpTerminal = ops[j];
+//			continue;
+//		}
 		if (operators[ops[j].value] !== undefined) {
 			operators[ops[j].value].push(ops[j]);
 		} else {
@@ -947,9 +956,9 @@ function findOperatorDownwards(token, level) {
 	if (token.type === "String") {
 		return stringTerminal;
 	}
-	if (token.type === "RegularExpression") {
-		return regexpTerminal;
-	}
+//	if (token.type === "RegularExpression") {
+//		return regexpTerminal;
+//	}
 	if (token.value === ")") {
 		return closingRoundBracketOperator;
 	}
@@ -1171,8 +1180,8 @@ function parseExpression(toks, mode) {
 				value = {type: "ThisExpression", loc: token.loc};
 			} else if (token.type === "Identifier") {
 				value = {type: "Identifier", name: token.value, loc: token.loc};
-			} else if (token.type === "RegularExpression") {
-				value = {type: "Literal", value: token.value, loc: token.loc};
+//			} else if (token.type === "RegularExpression") {
+//				value = {type: "Literal", value: token.value, loc: token.loc};
 			} else {
 				value = {type: "Literal", loc: token.loc, value: token.value === "true" ? true : (token.value === "false" ? false : (token.value === "null" ? null : (token.type === "String" ? token.value : parseFloat(token.value))))};
 			}
