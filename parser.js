@@ -4,7 +4,7 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 
 function foo() {
-	var str = "var b = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
+//	var str = "var b = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "const a = 32; debugger";
 //	var str = "for(var a in x);"
@@ -38,12 +38,9 @@ function foo() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
-//	var tokens = lexer.tokenize(str, {loc: true, raw: true});
-//	console.log(tokens);
-//	var toks = new tokenizer(tokens);
-//	var parsed = parseTopLevelStatements(toks);
-	var toks = lexer;
-	lexer.setSource(str);
+	var str = fs.readFileSync("in.gismo").toString();
+
+	var toks = lexer.newTokenizer(str);
 	var parsed = compile(toks);
 	console.log(JSON.stringify(parsed, null, '\t'));
 
@@ -52,7 +49,7 @@ function foo() {
 
 	fs.writeFileSync('out.js', result.code + "\n//# sourceMappingURL=out.js.map");
 	fs.writeFileSync('out.js.map', result.map.toString());
-	fs.writeFileSync('in.gismo', str);
+//	fs.writeFileSync('in.gismo', str);
 	return 42;
 }
 	
@@ -63,87 +60,6 @@ var	Mode_Expression = 1,
 	// a function call at top-level.
 	Mode_ExpressionWithoutCall = 3,
 	Mode_ExpressionWithoutColon = 4
-
-function tokenizer(tokens) {
-	this.index = 0;
-	this.stack = [];
-	this.tokens = tokens;
-}
-
-tokenizer.prototype.next = function() {
-	if (this.index === this.tokens.length) {
-		return undefined;
-	}
-	return this.tokens[this.index++];
-};
-
-tokenizer.prototype.lookahead = function() {
-	if (this.index === this.tokens.length) {
-		return undefined;
-	}
-	return this.tokens[this.index];
-};
-
-tokenizer.prototype.lookback = function() {
-	if (this.index === 0) {
-		return undefined;
-	}
-	return this.tokens[this.index - 1];
-};
-
-tokenizer.prototype.presume = function(tokenValue, consume) {
-	var t = this.lookahead();
-	if (t && t.value === tokenValue) {
-		if (consume) {
-			this.index++;
-		}
-		return t;
-	}
-	return undefined;
-};
-
-tokenizer.prototype.presumeIdentifier = function(consume) {
-	var t = this.lookahead();
-	if (t && t.type === "Identifier") {
-		if (consume) {
-			this.index++;
-		}
-		return t;
-	}
-};
-
-tokenizer.prototype.expect = function(tokenValue, errorMsg) {
-	var t = this.next();
-	if (t && t.value === tokenValue) {
-		return t;
-	}
-	if (errorMsg) {
-		throw errorMsg;
-	}	
-	throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
-};
-
-tokenizer.prototype.expectIdentifier = function(errorMsg) {
-	var t = this.next();
-	if (t && t.type === "Identifier") {
-		return t;
-	}
-	if (errorMsg) {
-		throw errorMsg;
-	}	
-	throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
-};
-
-tokenizer.prototype.expectLookahead = function(tokenValue, errorMsg) {
-	var t = this.lookahead();
-	if (t && t.value === tokenValue) {
-		return t;
-	}
-	if (errorMsg) {
-		throw errorMsg;
-	}	
-	throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
-};
 
 function functionParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
@@ -1349,10 +1265,27 @@ function parseEndOfStatement(toks) {
 }
 
 function parseStatement(toks) {
-	var p = statementKeywords[toks.lookahead().value];
+	var s = toks.lookahead().value;
+	var p = statementKeywords[s];
 	if (p) {
 		toks.next();
-		return p(toks);
+		var result = p(toks);
+		if (typeof result === "string") {
+			var l = lexer.newTokenizer(result);
+			result = parseStatements(l);
+			if (result.length === 0) {
+				return null;
+			} else if (result.length === 1) {
+				return result[0];
+			} else {
+				return {type: "BlockStatement", body: result, loc: {start: result[0].loc.start, end: result[result.length - 1].loc.end}};
+			}
+		} else if (typeof result === "object") {
+			// TODO: Check that the object tree is ok
+		} else {
+			throw "ExtensionError: Parser for statement '" + s + "' must return a string or an AST object";
+		}
+		return result;
 	}
 	return parseExpressionStatement(toks);
 }
@@ -1400,6 +1333,14 @@ function executeAtCompileTime(js) {
 	console.log("Executing: ", js);
 	var func = eval("(" + js + ")");
 	func.apply(compileNS);
+}
+
+
+function newStatement(keyword, parser) {
+	if (statementKeywords[keyword]) {
+		throw "ExtensionError: Statement has already been registered: '" + keyword + "'";
+	}
+	statementKeywords[keyword] = parser;
 }
 
 exports.foo = foo;
