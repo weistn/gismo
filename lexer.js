@@ -407,6 +407,8 @@ Tokenizer.prototype.registerESPunctuators = function() {
     this.registerPunctuator("%");
     this.registerPunctuator("&");
     this.registerPunctuator("|");
+    this.registerPunctuator("&&");
+    this.registerPunctuator("||");
     this.registerPunctuator("^");
     this.registerPunctuator("/");
     this.registerPunctuator("=");
@@ -432,6 +434,8 @@ Tokenizer.prototype.registerESPunctuators = function() {
     this.registerPunctuator(">>>");
     this.registerPunctuator(">>>=");
     this.registerPunctuator("=>");
+    this.registerPunctuator("++");
+    this.registerPunctuator("--");
 }
 
 Tokenizer.prototype.scanPunctuator = function() {
@@ -987,6 +991,7 @@ exports.newTokenizer = function(source) {
                 }
                 return t;
             }
+            return undefined;
         },
 
         expect : function(tokenValue, errorMsg) {
@@ -1040,6 +1045,14 @@ exports.newTokenizer = function(source) {
 
         lookahead : function() {
             return tokenizer.peek();
+        },
+
+        registerKeyword : function(keyword) {
+            tokenizer.registerKeyword(keyword);
+        },
+
+        registerPunctuator : function(punctuator) {
+            tokenizer.registerPunctuator(punctuator);
         }
     };
 }

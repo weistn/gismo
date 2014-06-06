@@ -41,14 +41,17 @@ function foo() {
 	var str = fs.readFileSync("in.gismo").toString();
 
 	var toks = lexer.newTokenizer(str);
+	compileNS.tokenizer = toks;
+
 	var parsed = compile(toks);
-	console.log(JSON.stringify(parsed, null, '\t'));
+//	console.log(JSON.stringify(parsed, null, '\t'));
 
 	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
-	console.log(JSON.stringify(result));
+	console.log(JSON.stringify(result.code));
 
 	fs.writeFileSync('out.js', result.code + "\n//# sourceMappingURL=out.js.map");
 	fs.writeFileSync('out.js.map', result.map.toString());
+
 //	fs.writeFileSync('in.gismo', str);
 	return 42;
 }
@@ -145,15 +148,16 @@ function forParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
 	tokenizer.expect("(");
 	var init;
+	var vartoken;
 	// Test whether it is a for...in loop
-	if (tokenizer.presume("var", true)) {
+	if (vartoken = tokenizer.presume("var", true)) {
 		var count = 0;
 		var declarations = [];
 		do {
 			count++;
 			var name = tokenizer.expectIdentifier();
 			if (count === 1 && name !== undefined && tokenizer.presume("in", true)) {
-				var left = {type: "VariableDeclaration", loc: v.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: left}]};
+				var left = {type: "VariableDeclaration", loc: vartoken.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: {type: "Identifier", name: name.value, loc: name.loc}}]};
 				var right = parseExpression(tokenizer);
 				tokenizer.expect(")");
 				var code = parseStatementOrBlockStatement(tokenizer);
@@ -322,7 +326,7 @@ function throwParser(tokenizer) {
 	}
 	return {
 		type: "ThrowStatement",
-		expression: expression,
+		argument: expression.expression,
 		loc: loc
 	};
 }
@@ -690,6 +694,8 @@ var operatorPrecedence = [
 		value: "--",
 		associativity: "ul"
 	}],
+	[
+	],
 	[{
 		type: 'Punctuator',
 		value: ".",
@@ -931,7 +937,11 @@ function finishRecursions(level, stack, value, lookahead) {
 			throw "Unexpected end of expression";
 		}
 		if (state.op.associativity === "ur") {
-			state.value.argument = value;
+			if (state.op.generator) {
+				state.value = state.op.generator(value);
+			} else {
+				state.value.argument = value;
+			}
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			if (state.op.value === ',') {
 				if (value.type === "SequenceExpression") {
@@ -1044,6 +1054,7 @@ function parseExpression(toks, mode) {
 			} else if (state.op.value === '[') {
 //				toks.undo();
 				value = parseArrayExpression(toks);
+
 			} else {
 				state.value = {operator: state.op.value};
 				stack.push(state);
@@ -1145,7 +1156,7 @@ function parseExpression(toks, mode) {
 			}
 			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 			state = {op: op};
-		} else if (state.op.bracket && state.op.value === "(") {
+		} else if (state.op.bracket && (state.op.value === "(" || (state.op.associativity === "ul" && state.op.value === "["))) {
 			var op = findOperatorDownwards(lookahead, 0);
 			if (!op) {
 				break;
@@ -1316,6 +1327,7 @@ function compile(toks) {
 			if (toks.presume("compile", true)) {
 				var code = parseBlockStatement(toks);
 				var func = {type: "FunctionExpression", params:[], id: null, body: code};
+//				console.log("CODE=", JSON.stringify(code, null, " "));
 				var js = escodegen.generate(func);
 				executeAtCompileTime(js);
 			} else {
@@ -1330,7 +1342,7 @@ function compile(toks) {
 }
 
 function executeAtCompileTime(js) {
-	console.log("Executing: ", js);
+//	console.log("Executing: ", js);
 	var func = eval("(" + js + ")");
 	func.apply(compileNS);
 }
@@ -1342,5 +1354,53 @@ function newStatement(keyword, parser) {
 	}
 	statementKeywords[keyword] = parser;
 }
+
+compileNS.newOperand = function(keyword, parser) {
+	// TODO: Check conflicts with existing operands or operators
+	compileNS.tokenizer.registerKeyword(keyword);
+	operators[keyword] = [
+		{
+			associativity: "none",
+			value: keyword,
+			type: "Keyword",
+			parser: parser,
+			level: numericTerminal.level
+		}
+	];
+};
+
+compileNS.newOperator = function(punctuator, options, generator) {
+	// TODO: Check conflicts with existing operands or operators
+	var associativity = "none";
+	switch (options.associativity) {
+		case "none":
+			break;
+		case "right":
+			associativity = "ur";
+			break;
+		case "left":
+			associativity = "ul";
+			break;
+		case "binary":
+		case "binary-left":
+			associativity = "bl";
+			break;
+		case "binary-right":
+			associativity = "br";
+			break;
+		default:
+			throw "ExtensionError: Unknown associativity '" + options.associativity + "'";
+	}
+	compileNS.tokenizer.registerPunctuator(punctuator);
+	operators[punctuator] = [
+		{
+			associativity: associativity,
+			value: punctuator,
+			type: "Punctuator",
+			generator: generator,
+			level: options.level
+		}
+	];	
+};
 
 exports.foo = foo;
