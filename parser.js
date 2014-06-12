@@ -46,12 +46,40 @@ function foo() {
 	compileNS.tokenizer = toks;
 
 	var parsed = compile(toks);
+
+	parsed.body.unshift({
+        "type": "VariableDeclaration",
+        "declarations": [
+            {
+                "type": "VariableDeclarator",
+                "id": {
+                    "type": "Identifier",
+                    "name": "__runtime"
+                },
+                "init": {
+                    "type": "CallExpression",
+                    "callee": {
+                        "type": "Identifier",
+                        "name": "require"
+                    },
+                    "arguments": [
+                        {
+                            "type": "Literal",
+                            "value": "./runtime.js",
+                            "raw": "'./runtime.js'"
+                        }
+                    ]
+                }
+            }
+        ],
+        "kind": "var"
+    });
 //	console.log(JSON.stringify(parsed, null, '\t'));
 
 	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
 	console.log(JSON.stringify(result.code));
 
-	var code = prefix + result.code + "\n//# sourceMappingURL=out.js.map";
+	var code = result.code + "\n//# sourceMappingURL=out.js.map";
 	fs.writeFileSync('out.js', code);
 	fs.writeFileSync('out.js.map', result.map.toString());
 
