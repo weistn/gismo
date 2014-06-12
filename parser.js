@@ -38,6 +38,8 @@ function foo() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
+	var prefix = "var __runtime = require('./runtime.js');\n";
+
 	var str = fs.readFileSync("in.gismo").toString();
 
 	var toks = lexer.newTokenizer(str);
@@ -49,9 +51,11 @@ function foo() {
 	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
 	console.log(JSON.stringify(result.code));
 
-	fs.writeFileSync('out.js', result.code + "\n//# sourceMappingURL=out.js.map");
+	var code = prefix + result.code + "\n//# sourceMappingURL=out.js.map";
+	fs.writeFileSync('out.js', code);
 	fs.writeFileSync('out.js.map', result.map.toString());
 
+	console.log(module.id);
 //	fs.writeFileSync('in.gismo', str);
 	return 42;
 }
@@ -446,11 +450,73 @@ function tryCatchParser(tokenizer) {
 
 function debuggerParser(tokenizer) {
 	var loc = tokenizer.lookback().loc;
-	parseEndOfStatement(tokenizer);
 	return {
 		type: "DebuggerStatement",
 		loc: loc
 	};
+}
+
+function importParser(tokenizer) {
+	var loc = tokenizer.lookback().loc;
+	var name = tokenizer.next();
+	if (!name || name.type !== "String") {
+		throw "SyntaxError: Expected string after 'import'";
+	}
+	var as;
+	if (tokenizer.presume('as', true)) {
+		as = tokenizer.expectIdentifier();
+	} else {
+		var filename = name.value;
+		if (name.value.indexOf('/') !== -1 || name.value.indexOf('\\') !== -1) {
+			filename = name.value.replace(/^.*[\\\/]/, '')
+		}
+		filename = filename.replace(/\.js$/, '');
+		if (filename === "") {
+			throw "SyntaxError: Invalid name for an import path";
+		}
+		as = {
+			value: filename,
+			loc: name.loc
+		};
+	}
+	parseEndOfStatement(tokenizer);
+	return {
+		loc: loc,
+        "type": "VariableDeclaration",
+        "declarations": [
+            {
+                "type": "VariableDeclarator",
+                "id": {
+                    "type": "Identifier",
+                    "name": as.value,
+                    loc: as.loc
+                },
+                "init": {
+                    "type": "CallExpression",
+                    "callee": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                            "type": "Identifier",
+                            "name": "__runtime"
+                        },
+                        "property": {
+                            "type": "Identifier",
+                            "name": "__import"
+                        }
+                    },
+                    "arguments": [
+                        {
+                            "type": "Literal",
+                            "value": name.value,
+                            loc: name.loc
+                        }
+                    ]
+                }
+            }
+        ],
+        "kind": "var"
+    };
 }
 
 var operatorPrecedence = [
@@ -837,7 +903,8 @@ var statementKeywords = {
 	'const' : constParser,
 	'if' : ifParser,
 	'switch' : switchParser,
-	'debugger' : debuggerParser
+	'debugger' : debuggerParser,
+	'import' : importParser
 }
 
 for(var i = 0; i < operatorPrecedence.length; i++) {

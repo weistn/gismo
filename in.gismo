@@ -1,3 +1,4 @@
+import "x/foobar.js" as bar
 
 runat compile {
 	this.newOperand('linepos', function(tokenizer) {
