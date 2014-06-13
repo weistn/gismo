@@ -1,94 +1,8 @@
 // var esprima = require('esprima');
 var lexer = require("./lexer.js");
 var escodegen = require('escodegen');
-var fs = require('fs');
-
-function foo() {
-//	var str = "var b = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
-//	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
-//	var str = "const a = 32; debugger";
-//	var str = "for(var a in x);"
-//	var str = "for(a=0;a<4;a++){print(a)}";
-//	var str = "switch(a) { case 0: case 1+2: x; break; default: z}";
-//	var str = "if (a) { 1+2 } else if (b) { 3+4 } else { 5 }";
-//	var str = "let a =42";
-//	var str = "{get x() { return 12 }, set x(y) {this.y = y;}}";
-//	var str = "{get x() { return 12 }, set x(y) { this.y = x;}, foo:42, arr: [1,2,3]}";
-//	var str = "try { a+b } catch(e) { 1+2 } finally { 3+4}"
-//	var str = "do { var a = 2 } while(true); while(false) { break; continue; break foo; continue bar}";
-//	var str = "function x(){ console.log(\"Hallo Welt\");\nb = {x:42, a:[1,2,3]} }";
-
-//	var tokens = esprima.tokenize("{foo: 12, \"bar\": 13}", {loc: true});
-//	var tokens = esprima.tokenize("return 1+2; return; return a,b,c;", {loc: true});
-//	var tokens = esprima.tokenize("while(true) {1+2; return !x;;}; throw a", {loc: true});
-//	var tokens = esprima.tokenize("5 * 6\n2+3\n var a = x,\nb = y\nreturn a\nvar b", {loc: true});
-//	var tokens = esprima.tokenize("while(a<5){print(a)}", {loc: true});
-//	var tokens = esprima.tokenize("for(var a=0;a<4;a++){print(a)}", {loc: true });
-//	var tokens = esprima.tokenize("for(a=0;a<4;a++){print();print(a); print(a,b)}", {loc: true });
-//	var tokens = esprima.tokenize("a.b.c()", {loc: true });
-//	var tokens = esprima.tokenize("a[1,2].x", {loc: true });
-//	var tokens = esprima.tokenize("new a; new a.x; new foo(); new foo(1); new foo(1,2); new x.y(); new (u.v); new (a.b)(); new a.b()(12)", {loc: true });
-//	var tokens = esprima.tokenize("return a(12)[13].foo(); var a, b = 12, c", { });
-//	var tokens = esprima.tokenize("a = function hudel(a,b) { x + y } - 3", {loc: true });
-//	var tokens = esprima.tokenize("function hudel(a) { x + y } - 3", {loc: true });
-//	var tokens = esprima.tokenize("a = () * 3", { });
-//	var tokens = esprima.tokenize("a = b", { });
-//	var tokens = esprima.tokenize("a + (x=4) + () + (a,b,c) + [1,2]", { });
-//	var tokens = esprima.tokenize("a + 3 + x", { });
-//	var tokens = esprima.tokenize("a = b = c", { });
-//	var tokens = esprima.tokenize("a + -x * +b++--", { });
-
-	var prefix = "var __runtime = require('./runtime.js');\n";
-
-	var str = fs.readFileSync("in.gismo").toString();
-
-	var toks = lexer.newTokenizer(str);
-	compileNS.tokenizer = toks;
-
-	var parsed = compile(toks);
-
-	parsed.body.unshift({
-        "type": "VariableDeclaration",
-        "declarations": [
-            {
-                "type": "VariableDeclarator",
-                "id": {
-                    "type": "Identifier",
-                    "name": "__runtime"
-                },
-                "init": {
-                    "type": "CallExpression",
-                    "callee": {
-                        "type": "Identifier",
-                        "name": "require"
-                    },
-                    "arguments": [
-                        {
-                            "type": "Literal",
-                            "value": "./runtime.js",
-                            "raw": "'./runtime.js'"
-                        }
-                    ]
-                }
-            }
-        ],
-        "kind": "var"
-    });
-//	console.log(JSON.stringify(parsed, null, '\t'));
-
-	var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
-	console.log(JSON.stringify(result.code));
-
-	var code = result.code + "\n//# sourceMappingURL=out.js.map";
-	fs.writeFileSync('out.js', code);
-	fs.writeFileSync('out.js.map', result.map.toString());
-
-	console.log(module.id);
-//	fs.writeFileSync('in.gismo', str);
-	return 42;
-}
 	
-	// Parses an expression up to the point where the next symbol cannot be added to the expression any more.
+// Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 var	Mode_Expression = 1,
 	Mode_ExpressionWithoutComma = 2,
 	// Parses an expression, but stops at call operation. Required when parsing "new ... ()"" since "..." must not contain
@@ -96,14 +10,402 @@ var	Mode_Expression = 1,
 	Mode_ExpressionWithoutCall = 3,
 	Mode_ExpressionWithoutColon = 4
 
-function functionParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var name = tokenizer.presumeIdentifier(true);
+function Parser(tokenizer) {
+	this.tokenizer = tokenizer;
+
+	// The statements supported by this parser
+	this.statementKeywords = {
+		'return' : returnParser.bind(this),
+		'throw' : throwParser.bind(this),
+		'for' : forParser.bind(this),
+		'while' : whileParser.bind(this),
+		'function' : functionDeclParser.bind(this),
+		'var' : varParser.bind(this),
+		'do' : doParser.bind(this),
+		'break' : breakParser.bind(this),
+		'continue' : continueParser.bind(this),
+		'try' : tryCatchParser.bind(this),
+		'let' : letParser.bind(this),
+		'const' : constParser.bind(this),
+		'if' : ifParser.bind(this),
+		'switch' : switchParser.bind(this),
+		'debugger' : debuggerParser.bind(this),
+		'import' : importParser.bind(this)
+	}
+
+	// Precedence of built-in JS operators
+	var operatorPrecedence = [
+		[{
+			type: 'Punctuator',
+			value: ",",
+			associativity: "br"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "+=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "-=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "*=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "/=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "&=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "<<=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: ">>=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: ">>>=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "&=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "|=",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: "^=",
+			associativity: "br"
+		}],
+		[{
+			type: 'Keyword',
+			value: "yield",
+			associativity: "ur"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "?",
+			associativity: "br"
+		},
+		{
+			type: 'Punctuator',
+			value: ":",
+			associativity: "br"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "||",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "&&",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "|",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "^",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "&",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "==",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "!=",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "===",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "!==",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "<",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: ">",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "<=",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: ">=",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "in",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "instanceof",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: ">>",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "<<",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: ">>>",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "+",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "-",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "*",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "/",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			value: "%",
+			associativity: "bl"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "+",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "-",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "!",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "!",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "delete",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "typeof",
+			associativity: "ur"
+		},
+		{
+			type: 'Punctuator',
+			value: "void",
+			associativity: "ur"
+		}],
+		[{
+			type: 'Punctuator',
+			value: "++",
+			associativity: "ul"
+		},
+		{
+			type: 'Punctuator',
+			value: "--",
+			associativity: "ul"
+		}],
+		[
+		],
+		[{
+			type: 'Punctuator',
+			value: ".",
+			associativity: "bl"
+		},
+		{
+			type: 'Punctuator',
+			associativity: "ul",
+			bracket: true,
+			value: "(",
+			correspondingBracket: ")"
+		},
+		{
+			type: 'Punctuator',
+			associativity: "ul",
+			bracket: true,
+			value: "[",
+			correspondingBracket: "]"
+		}],
+		[{
+			type: 'Identifier',
+			associativity: "none"
+		},
+		{
+			type: 'Numeric',
+			associativity: "none"
+		},
+		// Regular Expression
+		{
+			type: 'Punctuator',
+			value: '/',
+			associativity: "none",
+			parser: regexParser.bind(this)
+		},
+		{
+			type: 'String',
+			associativity: "none"
+		},
+		{
+			type: 'Keyword',
+			associativity: "none",
+			value: "true"
+		},
+		{
+			type: 'Keyword',
+			associativity: "none",
+			value: "false"
+		},
+		{
+			type: 'Keyword',
+			associativity: "none",
+			value: "null"
+		},
+		{
+			type: 'Keyword',
+			value: "new",
+			associativity: "none",
+			parser: newParser.bind(this)
+		},
+		{
+			type: 'Keyword',
+			value: "this",
+			associativity: "none"
+		},
+		{
+			type: 'Keyword',
+			value: "function",
+			associativity: "none",
+			parser: functionParser.bind(this)
+		},
+		{
+			type: 'Punctuator',
+			associativity: "none",
+			bracket: true,
+			value: "(",
+			correspondingBracket: ")"
+		},
+		{
+			type: 'Punctuator',
+			associativity: "none",
+			bracket: true,
+			value: "[",
+			correspondingBracket: "]"
+		},
+		{
+			type: 'Punctuator',
+			associativity: "none",
+			bracket: true,
+			value: "{",
+			correspondingBracket: "}"
+		}]
+	];
+
+	// The operators supported by this parser
+	this.operators = { };
+	// Initialize with standard JS operators
+	for(var i = 0; i < operatorPrecedence.length; i++) {
+		var ops = operatorPrecedence[i];
+		for(var j = 0; j < ops.length; j++) {
+			ops[j].level = i;
+			if (ops[j].type === "Identifier") {
+				this.identifierTerminal = ops[j];
+				continue;
+			}
+			if (ops[j].type === "Numeric") {
+				this.numericTerminal = ops[j];
+				continue;
+			}
+			if (ops[j].type === "String") {
+				this.stringTerminal = ops[j];
+				continue;
+			}
+			if (this.operators[ops[j].value] !== undefined) {
+				this.operators[ops[j].value].push(ops[j]);
+			} else {
+				this.operators[ops[j].value] = [ops[j]];
+			}
+		}
+	}
+}
+
+function functionParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var name = this.tokenizer.presumeIdentifier(true);
 	if (name) {
 		name = {type: "Identifier", name: name.value, loc: name.loc};
 	}
-	tokenizer.expect("(");
-	var parameters = parseExpression(tokenizer, Mode_Expression);
+	this.tokenizer.expect("(");
+	var parameters = this.parseExpression(Mode_Expression);
 	if (parameters === undefined) {
 		parameters = []
 	} else if (parameters.type === "SequenceExpression") {
@@ -111,8 +413,8 @@ function functionParser(tokenizer) {
 	} else {
 		parameters = [parameters];
 	}
-	tokenizer.expect(")");
-	var code = parseBlockStatement(tokenizer);
+	this.tokenizer.expect(")");
+	var code = this.parseBlockStatement();
 	return {
 		type: "FunctionExpression",
 		params: parameters,
@@ -122,14 +424,14 @@ function functionParser(tokenizer) {
 	};
 }
 
-function newParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var clas = parseExpression(tokenizer, Mode_ExpressionWithoutCall);
+function newParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var clas = this.parseExpression(Mode_ExpressionWithoutCall);
 	var arguments = [];
-	var t = tokenizer.presume("(", true);
+	var t = this.tokenizer.presume("(", true);
 	if (t !== undefined) {
-		arguments = parseExpression(tokenizer, Mode_Expression);
-		tokenizer.expect(')');
+		arguments = this.parseExpression(Mode_Expression);
+		this.tokenizer.expect(')');
 		if (arguments === undefined) {
 			arguments = []
 		} else if (arguments.type === "SequenceExpression") {
@@ -146,18 +448,18 @@ function newParser(tokenizer) {
 	};
 }
 
-function regexParser(tokenizer) {
-	var t = tokenizer.expectRegExp();
+function regexParser() {
+	var t = this.tokenizer.expectRegExp();
 	t.type = "Literal";
 	return t;
 }
 
-function functionDeclParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var tok = tokenizer.expectIdentifier();
+function functionDeclParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var tok = this.tokenizer.expectIdentifier();
 	var name = {type: "Identifier", name: tok.value, loc: tok.loc};
-	tokenizer.expect("(");
-	var parameters = parseExpression(tokenizer, Mode_Expression);
+	this.tokenizer.expect("(");
+	var parameters = this.parseExpression(Mode_Expression);
 	if (parameters === undefined) {
 		parameters = []
 	} else if (parameters.type === "SequenceExpression") {
@@ -165,8 +467,8 @@ function functionDeclParser(tokenizer) {
 	} else {
 		parameters = [parameters];
 	}
-	tokenizer.expect(")");
-	var code = parseBlockStatement(tokenizer);
+	this.tokenizer.expect(")");
+	var code = this.parseBlockStatement();
 	return {
 		type: "FunctionDeclaration",
 		params: parameters,
@@ -176,23 +478,23 @@ function functionDeclParser(tokenizer) {
 	};
 }
 
-function forParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	tokenizer.expect("(");
+function forParser() {
+	var loc = this.tokenizer.lookback().loc;
+	this.tokenizer.expect("(");
 	var init;
 	var vartoken;
 	// Test whether it is a for...in loop
-	if (vartoken = tokenizer.presume("var", true)) {
+	if (vartoken = this.tokenizer.presume("var", true)) {
 		var count = 0;
 		var declarations = [];
 		do {
 			count++;
-			var name = tokenizer.expectIdentifier();
-			if (count === 1 && name !== undefined && tokenizer.presume("in", true)) {
+			var name = this.tokenizer.expectIdentifier();
+			if (count === 1 && name !== undefined && this.tokenizer.presume("in", true)) {
 				var left = {type: "VariableDeclaration", loc: vartoken.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: {type: "Identifier", name: name.value, loc: name.loc}}]};
-				var right = parseExpression(tokenizer);
-				tokenizer.expect(")");
-				var code = parseStatementOrBlockStatement(tokenizer);
+				var right = this.parseExpression();
+				this.tokenizer.expect(")");
+				var code = this.parseStatementOrBlockStatement();
 				return {
 					type: "ForInStatement",
 					left: left,
@@ -203,14 +505,14 @@ function forParser(tokenizer) {
 				};
 			}
 			var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
-			if (tokenizer.presume('=', true)) {
-				v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
-				v.loc.end = tokenizer.lookback().loc.end;
+			if (this.tokenizer.presume('=', true)) {
+				v.init = this.parseExpression(Mode_ExpressionWithoutComma);
+				v.loc.end = this.tokenizer.lookback().loc.end;
 			} else {
 				v.loc.end = name.loc.end;
 			}
 			declarations.push(v);
-		} while( tokenizer.presume(',', true) );
+		} while( this.tokenizer.presume(',', true) );
 		init = {
 			type: "VariableDeclaration",
 			declarations: declarations,
@@ -218,10 +520,10 @@ function forParser(tokenizer) {
 			loc: loc
 		};
 	} else {
-		init = parseExpression(tokenizer, Mode_Expression);
+		init = this.parseExpression(Mode_Expression);
 		if (init.type === "BinaryExpression" && init.operator === "in") {
-			tokenizer.expect(")");
-			var code = parseStatementOrBlockStatement(tokenizer);
+			this.tokenizer.expect(")");
+			var code = this.parseStatementOrBlockStatement();
 			return {
 				type: "ForInStatement",
 				left: init.left,
@@ -233,12 +535,12 @@ function forParser(tokenizer) {
 		}
 	}
 	var test, update;
-	tokenizer.expect(";");
-	test = parseExpression(tokenizer, Mode_Expression);
-	tokenizer.expect(";");
-	update = parseExpression(tokenizer, Mode_Expression);
-	tokenizer.expect(")");
-	var code = parseStatementOrBlockStatement(tokenizer);
+	this.tokenizer.expect(";");
+	test = this.parseExpression(Mode_Expression);
+	this.tokenizer.expect(";");
+	update = this.parseExpression(Mode_Expression);
+	this.tokenizer.expect(")");
+	var code = this.parseStatementOrBlockStatement();
 	return {
 		type: "ForStatement",
 		init: init,
@@ -249,12 +551,12 @@ function forParser(tokenizer) {
 	};
 }
 
-function whileParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	tokenizer.expect("(");
-	var args = parseExpression(tokenizer, Mode_Expression);
-	tokenizer.expect(")");
-	var code = parseStatementOrBlockStatement(tokenizer);
+function whileParser() {
+	var loc = this.tokenizer.lookback().loc;
+	this.tokenizer.expect("(");
+	var args = this.parseExpression(Mode_Expression);
+	this.tokenizer.expect(")");
+	var code = this.parseStatementOrBlockStatement();
 	return {
 		type: "WhileStatement",
 		test: args,
@@ -263,15 +565,15 @@ function whileParser(tokenizer) {
 	};
 }
 
-function ifParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	tokenizer.expect("(");
-	var args = parseExpression(tokenizer, Mode_Expression);
-	tokenizer.expect(")");
-	var code = parseStatementOrBlockStatement(tokenizer);
+function ifParser() {
+	var loc = this.tokenizer.lookback().loc;
+	this.tokenizer.expect("(");
+	var args = this.parseExpression(Mode_Expression);
+	this.tokenizer.expect(")");
+	var code = this.parseStatementOrBlockStatement();
 	var alternate = null;
-	if (tokenizer.presume('else', true)) {
-		alternate = parseStatementOrBlockStatement(tokenizer);
+	if (this.tokenizer.presume('else', true)) {
+		alternate = this.parseStatementOrBlockStatement();
 	}
 	return {
 		type: "IfStatement",
@@ -282,31 +584,31 @@ function ifParser(tokenizer) {
 	};
 }
 
-function switchParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	tokenizer.expect('(');
-	var discriminant = parseExpression(tokenizer);
-	tokenizer.expect(')');
+function switchParser() {
+	var loc = this.tokenizer.lookback().loc;
+	this.tokenizer.expect('(');
+	var discriminant = this.parseExpression();
+	this.tokenizer.expect(')');
 	var cases = [];
-	tokenizer.expect('{');
-	while(tokenizer.lookahead() !== undefined && !tokenizer.presume('}', false)) {
+	this.tokenizer.expect('{');
+	while(this.tokenizer.lookahead() !== undefined && !this.tokenizer.presume('}', false)) {
 		var token, test;
-		if (token = tokenizer.presume("case", true)) {
-			test = parseExpression(tokenizer, Mode_ExpressionWithoutColon);
-			tokenizer.expect(":");
-		} else if (token = tokenizer.presume("default", true)) {
-			tokenizer.expect(":");
+		if (token = this.tokenizer.presume("case", true)) {
+			test = this.parseExpression(Mode_ExpressionWithoutColon);
+			this.tokenizer.expect(":");
+		} else if (token = this.tokenizer.presume("default", true)) {
+			this.tokenizer.expect(":");
 			test = null;
 		} else {
-			throw "SyntaxError: Unexpected token '" + tokenizer.lookahead() + "'";
+			throw "SyntaxError: Unexpected token '" + this.tokenizer.lookahead() + "'";
 		}
 		var consequent = [];
-		while( tokenizer.lookahead() !== undefined && !tokenizer.presume('case', false) && !tokenizer.presume('default', false) && !tokenizer.presume('}', false)) {
-			consequent.push(parseStatement(tokenizer));
+		while( this.tokenizer.lookahead() !== undefined && !this.tokenizer.presume('case', false) && !this.tokenizer.presume('default', false) && !this.tokenizer.presume('}', false)) {
+			consequent.push(this.parseStatement());
 		}
 		cases.push( {type: "SwitchCase", test: test, consequent: consequent, loc: token.loc} );
 	}
-	tokenizer.expect('}');
+	this.tokenizer.expect('}');
 	return {
 		type: "SwitchStatement",
 		discriminant: discriminant,
@@ -315,9 +617,9 @@ function switchParser(tokenizer) {
 	};
 }
 
-function returnParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var argument = parseExpressionStatement(tokenizer);
+function returnParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var argument = this.parseExpressionStatement();
 	if (argument !== undefined) {
 		argument = argument.expression;
 	}
@@ -328,10 +630,10 @@ function returnParser(tokenizer) {
 	};
 }
 
-function breakParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var name = tokenizer.presumeIdentifier(true);
-	parseEndOfStatement(tokenizer);
+function breakParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var name = this.tokenizer.presumeIdentifier(true);
+	this.parseEndOfStatement();
 	return {
 		type: "BreakStatement",
 		label: name === undefined ? null : {type: "Identifier", name: name.value, loc: name.loc},
@@ -339,10 +641,10 @@ function breakParser(tokenizer) {
 	};
 }
 
-function continueParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var name = tokenizer.presumeIdentifier(true);
-	parseEndOfStatement(tokenizer);
+function continueParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var name = this.tokenizer.presumeIdentifier(true);
+	this.parseEndOfStatement();
 	return {
 		type: "ContinueStatement",
 		label: name === undefined ? null : {type: "Identifier", name: name.value, loc: name.loc},
@@ -350,9 +652,9 @@ function continueParser(tokenizer) {
 	};
 }
 
-function throwParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var expression = parseExpressionStatement(tokenizer);
+function throwParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var expression = this.parseExpressionStatement();
 	if (expression === undefined) {
 		throw "SyntaxError: Missing expression in 'throw' statement";
 	}
@@ -363,21 +665,21 @@ function throwParser(tokenizer) {
 	};
 }
 
-function varParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
+function varParser() {
+	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = tokenizer.expectIdentifier();
+		var name = this.tokenizer.expectIdentifier();
 		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
-		if (tokenizer.presume('=', true)) {
-			v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
-			v.loc.end = tokenizer.lookback().loc.end;
+		if (this.tokenizer.presume('=', true)) {
+			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
+			v.loc.end = this.tokenizer.lookback().loc.end;
 		} else {
 			v.loc.end = name.loc.end;
 		}
 		declarations.push(v);
-	} while( tokenizer.presume(',', true) );
-	parseEndOfStatement(tokenizer);
+	} while( this.tokenizer.presume(',', true) );
+	this.parseEndOfStatement();
 	return {
 		type: "VariableDeclaration",
 		declarations: declarations,
@@ -386,21 +688,21 @@ function varParser(tokenizer) {
 	};
 }
 
-function letParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
+function letParser() {
+	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = tokenizer.expectIdentifier();
+		var name = this.tokenizer.expectIdentifier();
 		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
-		if (tokenizer.presume('=', true)) {
-			v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
-			v.loc.end = tokenizer.lookback().loc.end;
+		if (this.tokenizer.presume('=', true)) {
+			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
+			v.loc.end = this.tokenizer.lookback().loc.end;
 		} else {
 			v.loc.end = name.loc.end;
 		}
 		declarations.push(v);
-	} while( tokenizer.presume(',', true) );
-	parseEndOfStatement(tokenizer);
+	} while( this.tokenizer.presume(',', true) );
+	this.parseEndOfStatement();
 	return {
 		type: "VariableDeclaration",
 		declarations: declarations,
@@ -409,18 +711,18 @@ function letParser(tokenizer) {
 	};
 }
 
-function constParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
+function constParser() {
+	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = tokenizer.expectIdentifier();
+		var name = this.tokenizer.expectIdentifier();
 		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
-		tokenizer.expect('=');
-		v.init = parseExpression(tokenizer, Mode_ExpressionWithoutComma);
-		v.loc.end = tokenizer.lookback().loc.end;
+		this.tokenizer.expect('=');
+		v.init = this.parseExpression(Mode_ExpressionWithoutComma);
+		v.loc.end = this.tokenizer.lookback().loc.end;
 		declarations.push(v);
-	} while( tokenizer.presume(',', true) );
-	parseEndOfStatement(tokenizer);
+	} while( this.tokenizer.presume(',', true) );
+	this.parseEndOfStatement();
 	return {
 		type: "VariableDeclaration",
 		declarations: declarations,
@@ -429,14 +731,14 @@ function constParser(tokenizer) {
 	};
 }
 
-function doParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var code = parseBlockStatement(tokenizer);
-	tokenizer.expect('while');
-	tokenizer.expect("(");
-	var args = parseExpression(tokenizer, Mode_Expression);
-	tokenizer.expect(")");
-	parseEndOfStatement(tokenizer);
+function doParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var code = this.parseBlockStatement();
+	this.tokenizer.expect('while');
+	this.tokenizer.expect("(");
+	var args = this.parseExpression(Mode_Expression);
+	this.tokenizer.expect(")");
+	this.parseEndOfStatement();
 	return {
 		type: "DoWhileStatement",
 		test: args,
@@ -445,23 +747,23 @@ function doParser(tokenizer) {
 	};
 }
 
-function tryCatchParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var block = parseBlockStatement(tokenizer);
+function tryCatchParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var block = this.parseBlockStatement();
 	var handlers = [];
 	var guardedHandlers = [];
 	var finalizer = null;
 	var c;
-	while (c = tokenizer.presume('catch', true)) {
-		tokenizer.expect("(");
-		var param = tokenizer.expectIdentifier();
-		tokenizer.expect(")");
-		var body = parseBlockStatement(tokenizer);
+	while (c = this.tokenizer.presume('catch', true)) {
+		this.tokenizer.expect("(");
+		var param = this.tokenizer.expectIdentifier();
+		this.tokenizer.expect(")");
+		var body = this.parseBlockStatement();
 		var handler = {type: "CatchClause", body: body, param: {type: "Identifier", name: param.value, loc: param.loc}, loc: c.loc};
 		handlers.push(handler);
 	}
-	if (tokenizer.presume('finally', true)) {
-		finalizer = parseBlockStatement(tokenizer);
+	if (this.tokenizer.presume('finally', true)) {
+		finalizer = this.parseBlockStatement();
 	}
 	if (handlers.length === 0 && finalizer === null) {
 		throw "SyntaxError: Expected 'catch' or 'finally";
@@ -476,23 +778,23 @@ function tryCatchParser(tokenizer) {
 	};
 }
 
-function debuggerParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
+function debuggerParser() {
+	var loc = this.tokenizer.lookback().loc;
 	return {
 		type: "DebuggerStatement",
 		loc: loc
 	};
 }
 
-function importParser(tokenizer) {
-	var loc = tokenizer.lookback().loc;
-	var name = tokenizer.next();
+function importParser() {
+	var loc = this.tokenizer.lookback().loc;
+	var name = this.tokenizer.next();
 	if (!name || name.type !== "String") {
 		throw "SyntaxError: Expected string after 'import'";
 	}
 	var as;
-	if (tokenizer.presume('as', true)) {
-		as = tokenizer.expectIdentifier();
+	if (this.tokenizer.presume('as', true)) {
+		as = this.tokenizer.expectIdentifier();
 	} else {
 		var filename = name.value;
 		if (name.value.indexOf('/') !== -1 || name.value.indexOf('\\') !== -1) {
@@ -507,7 +809,7 @@ function importParser(tokenizer) {
 			loc: name.loc
 		};
 	}
-	parseEndOfStatement(tokenizer);
+	this.parseEndOfStatement();
 	return {
 		loc: loc,
         "type": "VariableDeclaration",
@@ -547,347 +849,6 @@ function importParser(tokenizer) {
     };
 }
 
-var operatorPrecedence = [
-	[{
-		type: 'Punctuator',
-		value: ",",
-		associativity: "br"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "+=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "-=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "*=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "/=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "&=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "<<=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: ">>=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: ">>>=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "&=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "|=",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: "^=",
-		associativity: "br"
-	}],
-	[{
-		type: 'Keyword',
-		value: "yield",
-		associativity: "ur"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "?",
-		associativity: "br"
-	},
-	{
-		type: 'Punctuator',
-		value: ":",
-		associativity: "br"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "||",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "&&",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "|",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "^",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "&",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "==",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "!=",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "===",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "!==",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "<",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: ">",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "<=",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: ">=",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "in",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "instanceof",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: ">>",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "<<",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: ">>>",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "+",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "-",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "*",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "/",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		value: "%",
-		associativity: "bl"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "+",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "-",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "!",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "!",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "delete",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "typeof",
-		associativity: "ur"
-	},
-	{
-		type: 'Punctuator',
-		value: "void",
-		associativity: "ur"
-	}],
-	[{
-		type: 'Punctuator',
-		value: "++",
-		associativity: "ul"
-	},
-	{
-		type: 'Punctuator',
-		value: "--",
-		associativity: "ul"
-	}],
-	[
-	],
-	[{
-		type: 'Punctuator',
-		value: ".",
-		associativity: "bl"
-	},
-	{
-		type: 'Punctuator',
-		associativity: "ul",
-		bracket: true,
-		value: "(",
-		correspondingBracket: ")"
-	},
-	{
-		type: 'Punctuator',
-		associativity: "ul",
-		bracket: true,
-		value: "[",
-		correspondingBracket: "]"
-	}],
-	[{
-		type: 'Identifier',
-		associativity: "none"
-	},
-	{
-		type: 'Numeric',
-		associativity: "none"
-	},
-	// Regular Expression
-	{
-		type: 'Punctuator',
-		value: '/',
-		associativity: "none",
-		parser: regexParser
-	},
-	{
-		type: 'String',
-		associativity: "none"
-	},
-	{
-		type: 'Keyword',
-		associativity: "none",
-		value: "true"
-	},
-	{
-		type: 'Keyword',
-		associativity: "none",
-		value: "false"
-	},
-	{
-		type: 'Keyword',
-		associativity: "none",
-		value: "null"
-	},
-	{
-		type: 'Keyword',
-		value: "new",
-		associativity: "none",
-		parser: newParser
-	},
-	{
-		type: 'Keyword',
-		value: "this",
-		associativity: "none"
-	},
-	{
-		type: 'Keyword',
-		value: "function",
-		associativity: "none",
-		parser: functionParser
-	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		bracket: true,
-		value: "(",
-		correspondingBracket: ")"
-	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		bracket: true,
-		value: "[",
-		correspondingBracket: "]"
-	},
-	{
-		type: 'Punctuator',
-		associativity: "none",
-		bracket: true,
-		value: "{",
-		correspondingBracket: "}"
-	}]
-];
-
-var operators = { };
-var numericTerminal;
-var identifierTerminal;
-var stringTerminal;
-//var regexpTerminal;
 var expressionOperator = {
 	type: "Expression",
 	associativity: "ur",
@@ -916,66 +877,16 @@ var closingSquareBracketOperator = {
 	level: -1
 };
 
-var statementKeywords = {
-	'return' : returnParser,
-	'throw' : throwParser,
-	'for' : forParser,
-	'while' : whileParser,
-	'function' : functionDeclParser,
-	'var' : varParser,
-	'do' : doParser,
-	'break' : breakParser,
-	'continue' : continueParser,
-	'try' : tryCatchParser,
-	'let' : letParser,
-	'const' : constParser,
-	'if' : ifParser,
-	'switch' : switchParser,
-	'debugger' : debuggerParser,
-	'import' : importParser
-}
-
-for(var i = 0; i < operatorPrecedence.length; i++) {
-	var ops = operatorPrecedence[i];
-	for(var j = 0; j < ops.length; j++) {
-		ops[j].level = i;
-		if (ops[j].type === "Identifier") {
-			identifierTerminal = ops[j];
-			continue;
-		}
-		if (ops[j].type === "Numeric") {
-			numericTerminal = ops[j];
-			continue;
-		}
-		if (ops[j].type === "String") {
-			stringTerminal = ops[j];
-			continue;
-		}
-//		if (ops[j].type === "RegularExpression") {
-//			regexpTerminal = ops[j];
-//			continue;
-//		}
-		if (operators[ops[j].value] !== undefined) {
-			operators[ops[j].value].push(ops[j]);
-		} else {
-			operators[ops[j].value] = [ops[j]];
-		}
-	}
-}
-
-function findOperatorDownwards(token, level) {
+Parser.prototype.findOperatorDownwards = function(token, level) {
 	if (token.type === "Identifier") {
-		return identifierTerminal;
+		return this.identifierTerminal;
 	}
 	if (token.type === "Numeric") {
-		return numericTerminal;
+		return this.numericTerminal;
 	}
 	if (token.type === "String") {
-		return stringTerminal;
+		return this.stringTerminal;
 	}
-//	if (token.type === "RegularExpression") {
-//		return regexpTerminal;
-//	}
 	if (token.value === ")") {
 		return closingRoundBracketOperator;
 	}
@@ -986,7 +897,7 @@ function findOperatorDownwards(token, level) {
 		return closingCurlyBracketOperator;
 	}
 	var op;
-	var ops = operators[token.value];
+	var ops = this.operators[token.value];
 	if (ops === undefined) {
 		return undefined;
 	}
@@ -998,7 +909,7 @@ function findOperatorDownwards(token, level) {
 	return op;
 }
 
-function findOperatorUpwards(token, level) {
+Parser.prototype.findOperatorUpwards = function(token, level) {
 	if (token.value === ")") {
 		return closingRoundBracketOperator;
 	}
@@ -1009,7 +920,7 @@ function findOperatorUpwards(token, level) {
 		return closingCurlyBracketOperator;
 	}
 	var op;
-	var ops = operators[token.value];
+	var ops = this.operators[token.value];
 	if (ops === undefined) {
 		return undefined;
 	}
@@ -1021,7 +932,7 @@ function findOperatorUpwards(token, level) {
 	return op;
 }
 
-function finishRecursions(level, stack, value, lookahead) {
+Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 	while(stack.length > 0 && stack[stack.length - 1].op.level >= level && !stack[stack.length - 1].op.bracket) {
 		state = stack.pop()
 //		console.log(state.op.value, "... upwards to level", level, " value=", value);
@@ -1058,43 +969,43 @@ function finishRecursions(level, stack, value, lookahead) {
 	return value;
 };
 
-function parseArrayExpression(toks) {
+Parser.prototype.parseArrayExpression = function() {
 	var elements = [];
-//	var loc1 = toks.expect("[").loc;
-	var loc1 = toks.lookback().loc;
-	while(toks.lookahead().value !== undefined && toks.lookahead().value !== ']') {
-		elements.push(parseExpression(toks, Mode_ExpressionWithoutComma));
-		if (!toks.presume(",", true)) {
+//	var loc1 = this.tokenizer.expect("[").loc;
+	var loc1 = this.tokenizer.lookback().loc;
+	while(this.tokenizer.lookahead().value !== undefined && this.tokenizer.lookahead().value !== ']') {
+		elements.push(this.parseExpression(Mode_ExpressionWithoutComma));
+		if (!this.tokenizer.presume(",", true)) {
 			break;
 		}
 	}
-	var loc2 = toks.expect("]").loc;	
+	var loc2 = this.tokenizer.expect("]").loc;	
 	return {type: "ArrayExpression", elements: elements, loc: {start: loc1.start, end: loc2.end}};
 }
 
-function parseObjectExpression(toks) {
+Parser.prototype.parseObjectExpression = function() {
 	var properties = [];
-//	var loc1 = toks.expect("{").loc;
-	var loc1 = toks.lookback().loc;
-	while(toks.lookahead().value !== undefined && toks.lookahead().value !== '}') {
-		var lookahead = toks.lookahead();
+//	var loc1 = this.tokenizer.expect("{").loc;
+	var loc1 = this.tokenizer.lookback().loc;
+	while(this.tokenizer.lookahead().value !== undefined && this.tokenizer.lookahead().value !== '}') {
+		var lookahead = this.tokenizer.lookahead();
 		var loc1 = lookahead ? lookahead.loc : undefined;
 		var prop = {type: "Property"};
-		var token = toks.next();
+		var token = this.tokenizer.next();
 		if (token === undefined) {
 			throw "SyntaxError: Unexpected end of file";
 		}
-		var lookahead = toks.lookahead();
+		var lookahead = this.tokenizer.lookahead();
 		if (token.type === "Identifier" && (token.value === "get" || token.value === "set") && lookahead !== undefined && (lookahead.type === "Identifier" || lookahead.type === "String")) {
-			var name = toks.next();
+			var name = this.tokenizer.next();
 			if (name.type === "Identifier") {
 				prop.key = {type: "Identifier", name: name.value, loc: name.loc };
 			} else {
 				prop.key = {type: "Literal", value: name.value, loc: name.loc };
 			}
 			var parameters = [];
-			toks.expect("(");
-			var parameters = parseExpression(toks, Mode_Expression);
+			this.tokenizer.expect("(");
+			var parameters = this.parseExpression(Mode_Expression);
 			if (parameters === undefined) {
 				parameters = []
 			} else if (parameters.type === "SequenceExpression") {
@@ -1102,8 +1013,8 @@ function parseObjectExpression(toks) {
 			} else {
 				parameters = [parameters];
 			}
-			toks.expect(")");
-			prop.value = {type: "FunctionExpression", loc: name.loc, body: parseBlockStatement(toks), params: parameters, id: null};
+			this.tokenizer.expect(")");
+			prop.value = {type: "FunctionExpression", loc: name.loc, body: this.parseBlockStatement(), params: parameters, id: null};
 			prop.kind = token.value;
 		} else {
 			if (token.type === "Identifier") {
@@ -1113,23 +1024,23 @@ function parseObjectExpression(toks) {
 			} else {
 				throw "SyntaxError: Unexpected token '" + token.value + "'";
 			}
-			toks.expect(":");
-			prop.value = parseExpression(toks, Mode_ExpressionWithoutComma);
+			this.tokenizer.expect(":");
+			prop.value = this.parseExpression(Mode_ExpressionWithoutComma);
 			prop.kind = "init";
 		}
-		var lookback = toks.lookback();
+		var lookback = this.tokenizer.lookback();
 		var loc2 = lookback ? lookback.loc : undefined;
 		prop.loc = {start: loc1.start, end: loc2.end};
 		properties.push(prop);
-		if (!toks.presume(",", true)) {
+		if (!this.tokenizer.presume(",", true)) {
 			break;
 		}
 	}
-	var loc2 = toks.expect("}").loc;
+	var loc2 = this.tokenizer.expect("}").loc;
 	return {type: "ObjectExpression", properties: properties, loc: {start: loc1.start, end: loc2.end}};
 }
 
-function parseExpression(toks, mode) {
+Parser.prototype.parseExpression = function(mode) {
 	var stack = [];
 	var value, lookahead;
 	var state = {op: expressionOperator};
@@ -1140,15 +1051,13 @@ function parseExpression(toks, mode) {
 		// Process the current token (token[index]) with the current operator (state.op)
 		if (state.op.parser) {
 //			console.log(token.value, "parser");
-			value = state.op.parser(toks);
+			value = state.op.parser();
 		} else if (state.op.bracket && state.op.associativity === "none") {
 //			console.log(token.value, "bracket");
 			if (state.op.value === '{') {
-//				toks.undo();
-				value = parseObjectExpression(toks);
+				value = this.parseObjectExpression();
 			} else if (state.op.value === '[') {
-//				toks.undo();
-				value = parseArrayExpression(toks);
+				value = this.parseArrayExpression();
 
 			} else {
 				state.value = {operator: state.op.value};
@@ -1170,7 +1079,7 @@ function parseExpression(toks, mode) {
 			bracketCount++;
 		} else if (state.op.closingBracket) {
 //			console.log(token.value, "closing_bracket");
-			value = finishRecursions(-1 ,stack, value, state.op.value);
+			value = this.finishRecursions(-1 ,stack, value, state.op.value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
 				throw "Unexpected closing bracket '" + state.op.value + "'";
 			}
@@ -1233,7 +1142,7 @@ function parseExpression(toks, mode) {
 		}
 
 		// Determine the next operator based on the next token (if there is any)
-		lookahead = toks.lookahead();
+		lookahead = this.tokenizer.lookahead();
 
 		// Reached EOF?
 		if (lookahead === undefined) {
@@ -1245,42 +1154,42 @@ function parseExpression(toks, mode) {
 
 		if (state.op.closingBracket) {
 			state = stack.pop();
-			var op = findOperatorUpwards(lookahead, state.op.level);
+			var op = this.findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				break
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
+			value = this.finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 			state = {op: op};
 		} else if (state.op.bracket && (state.op.value === "(" || (state.op.associativity === "ul" && state.op.value === "["))) {
-			var op = findOperatorDownwards(lookahead, 0);
+			var op = this.findOperatorDownwards(lookahead, 0);
 			if (!op) {
 				break;
 			}
 			state = {op: op};
 			value = undefined;
 		} else if (state.op.associativity === "none") {
-			var op = findOperatorUpwards(lookahead, state.op.level);
+			var op = this.findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				break
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
+			value = this.finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 			state = {op: op};
 		} else if (state.op.associativity === "ul") {
-			var op = findOperatorUpwards(lookahead, state.op.level);
+			var op = this.findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				break;
 			}
-			value = finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
+			value = this.finishRecursions(op.associativity === "br" ? op.level + 1 : op.level, stack, value, lookahead);
 			state = {op: op};
 		} else if (state.op.associativity === "ur") {
 			value = undefined;
-			var op = findOperatorDownwards(lookahead, state.op.level);
+			var op = this.findOperatorDownwards(lookahead, state.op.level);
 			if (!op) {
 				break;
 			}
 			state = {op: op};
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
-			var op = findOperatorDownwards(lookahead, state.op.level + 1);
+			var op = this.findOperatorDownwards(lookahead, state.op.level + 1);
 			if (!op) {
 				break;
 			}
@@ -1309,81 +1218,85 @@ function parseExpression(toks, mode) {
 			break;
 		}
 
-	} while(token = toks.next());
+	} while(token = this.tokenizer.next());
 	// Finish all recursions upwards
-	value = finishRecursions(-1, stack, value, lookahead);
+	value = this.finishRecursions(-1, stack, value, lookahead);
 	if (stack.length > 0) {
-		if (toks.lookahead() === undefined) {
+		if (this.tokenizer.lookahead() === undefined) {
 			throw "Unexpected end of file";
 		}
-		throw "Unexpected symbol '" + toks.lookahead().value + "'";
+		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
 	}
-//	if (mode === Mode_Default && toks.lookahead() !== undefined) {
-//		throw "Unexpected symbol '" + toks.lookahead().value + "'";
+//	if (mode === Mode_Default && this.tokenizer.lookahead() !== undefined) {
+//		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
 //	}
 	return value.argument;
 }
 
-function parseStatementOrBlockStatement(toks) {
-	if (toks.lookahead().value === "{") {
-		return parseBlockStatement(toks);
+Parser.prototype.parseStatementOrBlockStatement = function() {
+	if (this.tokenizer.lookahead().value === "{") {
+		return this.parseBlockStatement();
 	}
-	return parseStatement(toks);
+	return this.parseStatement();
 }
 
-function parseBlockStatement(toks) {
-	var loc1 = toks.expect("{").loc;
-	var statements = parseStatements(toks);
-	var loc2 = toks.expect("}").loc;
+Parser.prototype.parseBlockStatement = function() {
+	var loc1 = this.tokenizer.expect("{").loc;
+	var statements = this.parseStatements();
+	var loc2 = this.tokenizer.expect("}").loc;
 	return {type: "BlockStatement", body: statements, loc: {start: loc1.start, end: loc2.end}};
 }
 
-function parseExpressionStatement(toks) {
-	var lookahead = toks.lookahead();
+Parser.prototype.parseExpressionStatement = function() {
+	var lookahead = this.tokenizer.lookahead();
 	if (lookahead === undefined) {
 		return undefined;
 	}
 	var result;
-	var body = parseExpression(toks, Mode_Expression);
-	var locend = toks.lookback().loc.end;
+	var body = this.parseExpression(Mode_Expression);
+	var locend = this.tokenizer.lookback().loc.end;
 	if (body === undefined) {
 		result = {type: "EmptyStatement", loc: {start: lookahead.loc.start, end: locend}};
 	} else {
 		result = { type: "ExpressionStatement", expression: body, loc: {start: lookahead.loc.start, end: locend}};
 	}
-	parseEndOfStatement(toks);
+	this.parseEndOfStatement();
 	return result;	
 }
 
-function parseEndOfStatement(toks) {
+Parser.prototype.parseEndOfStatement = function() {
 	// Determine the end of the statement. It must either be ';', a new line, or a closing bracket
-	var lookahead = toks.lookahead();
+	var lookahead = this.tokenizer.lookahead();
 	if (lookahead === undefined || lookahead.value === '}' || lookahead.value === ')' || lookahead.value === ']') {
 		// Do nothing by intention
 	} else if (lookahead.value === ";") {
-		toks.next();
+		this.tokenizer.next();
 	} else {
-		var lookback = toks.lookback();
+		var lookback = this.tokenizer.lookback();
 		if (!lookback || lookback.loc.end.line === lookahead.loc.start.line) {
 			throw "SyntaxError: Expected semicolon";
 		}
 	}
 }
 
-function parseStatement(toks) {
-	var s = toks.lookahead().value;
-	var p = statementKeywords[s];
+Parser.prototype.parseStatement = function() {
+	var s = this.tokenizer.lookahead().value;
+	var p = this.statementKeywords[s];
 	if (p) {
-		toks.next();
-		var result = p(toks);
+		this.tokenizer.next();
+		var result = p();
 		if (typeof result === "string") {
 			var l = lexer.newTokenizer(result);
-			result = parseStatements(l);
+			var tmp = this.tokenizer;
+			this.tokenizer = l;
+			result = this.parseStatements();
+			this.tokenizer = tmp;
 			if (result.length === 0) {
 				return null;
 			} else if (result.length === 1) {
 				return result[0];
 			} else {
+				console.log(JSON.stringify(result, null, "\t"));
 				return {type: "BlockStatement", body: result, loc: {start: result[0].loc.start, end: result[result.length - 1].loc.end}};
 			}
 		} else if (typeof result === "object") {
@@ -1393,78 +1306,102 @@ function parseStatement(toks) {
 		}
 		return result;
 	}
-	return parseExpressionStatement(toks);
+	return this.parseExpressionStatement();
 }
 
-function parseTopLevelStatements(toks) {
-	return { type: "Program", body: parseStatements(toks)};
+Parser.prototype.parseTopLevelStatements = function() {
+	return { type: "Program", body: this.parseStatements()};
 }
 
-function parseStatements(toks) {
+Parser.prototype.parseStatements = function() {
 	var result = [];
-	while( toks.lookahead() !== undefined && toks.lookahead().value !== '}') {
-		var body = parseStatement(toks);
-//		if (body.type.length < 9 || body.type.substr(body.type.length - 9, 9) !== "Statement") {
-//			body = { type: "ExpressionStatement", expression: body};
-//		}
+	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
+		var body = this.parseStatement();
 		result.push(body);
 	}
 	return result;
 }
 
-// Namespace where all compile-time code is executed 
-var compileNS = { };
-
-function compile(toks) {
+Parser.prototype.compile = function() {
 	var result = [];
-	while( toks.lookahead() !== undefined && toks.lookahead().value !== '}') {
-		if (toks.presume("runat", true)) {
-			if (toks.presume("compile", true)) {
-				var code = parseBlockStatement(toks);
+	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
+		if (this.tokenizer.presume("runat", true)) {
+			if (this.tokenizer.presume("compile", true)) {
+				var code = this.parseBlockStatement();
 				var func = {type: "FunctionExpression", params:[], id: null, body: code};
 //				console.log("CODE=", JSON.stringify(code, null, " "));
 				var js = escodegen.generate(func);
-				executeAtCompileTime(js);
+				this.executeAtCompileTime(js);
 			} else {
-				throw "SyntaxError: Unknown run-level '" + toks.next() + "'";
+				throw "SyntaxError: Unknown run-level '" + this.tokenizer.next() + "'";
 			}
 		} else {
-			var body = parseStatement(toks);
+			var body = this.parseStatement();
 			result.push(body);
 		}
 	}
+
+	result.unshift({
+        "type": "VariableDeclaration",
+        "declarations": [
+            {
+                "type": "VariableDeclarator",
+                "id": {
+                    "type": "Identifier",
+                    "name": "__runtime"
+                },
+                "init": {
+                    "type": "CallExpression",
+                    "callee": {
+                        "type": "Identifier",
+                        "name": "require"
+                    },
+                    "arguments": [
+                        {
+                            "type": "Literal",
+                            "value": "./runtime.js",
+                            "raw": "'./runtime.js'"
+                        }
+                    ]
+                }
+            }
+        ],
+        "kind": "var"
+    });
+
 	return { type: "Program", body: result};
 }
 
-function executeAtCompileTime(js) {
+Parser.prototype.executeAtCompileTime = function(js) {
 //	console.log("Executing: ", js);
+	// Populate the scope in which the code will be executed
+	var parser = this;
 	var func = eval("(" + js + ")");
-	func.apply(compileNS);
+	func.apply({});
 }
 
-
-function newStatement(keyword, parser) {
-	if (statementKeywords[keyword]) {
+Parser.prototype.newStatement = function(keyword, parseFunc) {
+	if (this.statementKeywords[keyword]) {
 		throw "ExtensionError: Statement has already been registered: '" + keyword + "'";
 	}
-	statementKeywords[keyword] = parser;
+	this.statementKeywords[keyword] = parseFunc;
 }
 
-compileNS.newOperand = function(keyword, parser) {
+Parser.prototype.newOperand = function(keyword, parseFunc) {
 	// TODO: Check conflicts with existing operands or operators
-	compileNS.tokenizer.registerKeyword(keyword);
-	operators[keyword] = [
+	this.tokenizer.registerKeyword(keyword);
+	this.operators[keyword] = [
 		{
 			associativity: "none",
 			value: keyword,
 			type: "Keyword",
-			parser: parser,
-			level: numericTerminal.level
+			parser: parseFunc,
+			level: this.numericTerminal.level
 		}
 	];
 };
 
-compileNS.newOperator = function(punctuator, options, generator) {
+Parser.prototype.newOperator = function(punctuator, options, generator) {
 	// TODO: Check conflicts with existing operands or operators
 	var associativity = "none";
 	switch (options.associativity) {
@@ -1486,8 +1423,8 @@ compileNS.newOperator = function(punctuator, options, generator) {
 		default:
 			throw "ExtensionError: Unknown associativity '" + options.associativity + "'";
 	}
-	compileNS.tokenizer.registerPunctuator(punctuator);
-	operators[punctuator] = [
+	this.tokenizer.registerPunctuator(punctuator);
+	this.operators[punctuator] = [
 		{
 			associativity: associativity,
 			value: punctuator,
@@ -1498,4 +1435,4 @@ compileNS.newOperator = function(punctuator, options, generator) {
 	];	
 };
 
-exports.foo = foo;
+exports.Parser = Parser;
