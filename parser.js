@@ -1,5 +1,6 @@
 // var esprima = require('esprima');
 var lexer = require("./lexer.js");
+var compiler = require("./compiler.js");
 var escodegen = require('escodegen');
 	
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
@@ -10,8 +11,8 @@ var	Mode_Expression = 1,
 	Mode_ExpressionWithoutCall = 3,
 	Mode_ExpressionWithoutColon = 4
 
-function Parser(tokenizer) {
-	this.tokenizer = tokenizer;
+function Parser() {
+	this.precompSrc = "";
 
 	// The statements supported by this parser
 	this.statementKeywords = {
@@ -796,6 +797,7 @@ function importParser() {
 	if (this.tokenizer.presume('as', true)) {
 		as = this.tokenizer.expectIdentifier();
 	} else {
+		// Infer a module name from the path
 		var filename = name.value;
 		if (name.value.indexOf('/') !== -1 || name.value.indexOf('\\') !== -1) {
 			filename = name.value.replace(/^.*[\\\/]/, '')
@@ -810,6 +812,18 @@ function importParser() {
 		};
 	}
 	this.parseEndOfStatement();
+
+	// Try to locate the JS file
+	try {
+		var jsfile = require.resolve(name.value);
+	} catch(err) {
+		throw "Error: Cannot find module '" + name.value + "'";
+	}
+	// Find the corresponding package.json
+	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
+	var c = new compiler.Compiler(path);
+	c.importModule();
+
 	return {
 		loc: loc,
         "type": "VariableDeclaration",
@@ -1296,7 +1310,7 @@ Parser.prototype.parseStatement = function() {
 			} else if (result.length === 1) {
 				return result[0];
 			} else {
-				console.log(JSON.stringify(result, null, "\t"));
+//				console.log(JSON.stringify(result, null, "\t"));
 				return {type: "BlockStatement", body: result, loc: {start: result[0].loc.start, end: result[result.length - 1].loc.end}};
 			}
 		} else if (typeof result === "object") {
@@ -1322,7 +1336,8 @@ Parser.prototype.parseStatements = function() {
 	return result;
 }
 
-Parser.prototype.compile = function() {
+Parser.prototype.parse = function(tokenizer) {
+	this.tokenizer = tokenizer;
 	var result = [];
 	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
 		if (this.tokenizer.presume("runat", true)) {
@@ -1331,6 +1346,7 @@ Parser.prototype.compile = function() {
 				var func = {type: "FunctionExpression", params:[], id: null, body: code};
 //				console.log("CODE=", JSON.stringify(code, null, " "));
 				var js = escodegen.generate(func);
+				this.precompSrc += "(" + js + "());\n";
 				this.executeAtCompileTime(js);
 			} else {
 				throw "SyntaxError: Unknown run-level '" + this.tokenizer.next() + "'";
@@ -1341,35 +1357,7 @@ Parser.prototype.compile = function() {
 		}
 	}
 
-	result.unshift({
-        "type": "VariableDeclaration",
-        "declarations": [
-            {
-                "type": "VariableDeclarator",
-                "id": {
-                    "type": "Identifier",
-                    "name": "__runtime"
-                },
-                "init": {
-                    "type": "CallExpression",
-                    "callee": {
-                        "type": "Identifier",
-                        "name": "require"
-                    },
-                    "arguments": [
-                        {
-                            "type": "Literal",
-                            "value": "./runtime.js",
-                            "raw": "'./runtime.js'"
-                        }
-                    ]
-                }
-            }
-        ],
-        "kind": "var"
-    });
-
-	return { type: "Program", body: result};
+	return result;
 }
 
 Parser.prototype.executeAtCompileTime = function(js) {

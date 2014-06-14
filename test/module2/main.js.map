@@ -1,0 +1,1 @@
+{"version":3,"sources":["module2"],"names":["module1","console","log","linepos"],"mappings":";AAAA,IAAOA,O,sBAAA,S,CAAP,C;AAEAC,OAAO,CAACC,GAAG,CAAC,eAAD,CAAX,C;AACAD,OAAO,CAACC,GAAG,CAACC,OAAD,CAAX","sourcesContent":["import 'module1';\n\nconsole.log(\"I am module 2\");\nconsole.log(linepos);\n\n\n"]}

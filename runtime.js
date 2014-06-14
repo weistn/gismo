@@ -1,3 +1,3 @@
-exports.__import = function(file) {
+exports.__import = function(pkgname) {
 	return require(file);
 }

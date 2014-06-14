@@ -1,0 +1,11 @@
+{
+  "name": "module2",
+  "version": "0.0.0",
+  "description": "Test me",
+  "main": "main.js",
+  "author": "Torben Weis <torben.weis@gmail.com> (http://vs.uni-due.de/)",
+  "license": "ISC",
+  "gismo": {
+
+  }
+}

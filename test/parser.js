@@ -5,7 +5,7 @@ var fs = require('fs');
 var escodegen = require('escodegen');
 
 describe("My Parser Test", function() {
-	it('compiles', function() {
+	it('parse', function() {
 //	var str = "var b = 12; /[a-z]/; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "var a = 12; runat compile { console.log('Hello Compiler') } console.log('a')";
 //	var str = "const a = 32; debugger";
@@ -42,19 +42,18 @@ describe("My Parser Test", function() {
 
 		var str = fs.readFileSync("in.gismo").toString();
 
-		var p = new parser.Parser(lexer.newTokenizer(str));
-		var parsed = p.compile();
+		var p = new parser.Parser();
+		var program = {type: "Program", body: p.parse(lexer.newTokenizer(str))};
 
 //	console.log(JSON.stringify(parsed, null, '\t'));
 
-		var result = escodegen.generate(parsed, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
-		console.log(JSON.stringify(result.code));
+		var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
+//		console.log(JSON.stringify(result.code));
 
 		var code = result.code + "\n//# sourceMappingURL=out.js.map";
 		fs.writeFileSync('out.js', code);
 		fs.writeFileSync('out.js.map', result.map.toString());
 
-		console.log(module.id);
 //	fs.writeFileSync('in.gismo', str);
 	});
 });

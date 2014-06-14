@@ -1,4 +1,4 @@
-import "x/foobar.js" as bar
+// import "x/foobar.js" as bar
 
 runat compile {
 	parser.newOperand('linepos', function() {
