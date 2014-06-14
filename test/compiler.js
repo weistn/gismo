@@ -3,7 +3,9 @@ var compiler = require('../compiler.js');
 
 describe("Compiler Test", function() {
 	it('compile', function() {
-		var c = new compiler.Compiler('./test/module2');
+		var c = new compiler.Compiler('./test/module1');
+		c.compileModule();
+		c = new compiler.Compiler('./test/module2');
 		c.compileModule();
 	});
 });

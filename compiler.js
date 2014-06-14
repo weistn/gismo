@@ -75,7 +75,7 @@ Compiler.prototype.compileModule = function() {
 		program.body = program.body.concat(p.parse(lexer.newTokenizer(str)));
 	}
 
-	program.body.unshift({
+/*	program.body.unshift({
         "type": "VariableDeclaration",
         "declarations": [
             {
@@ -101,7 +101,7 @@ Compiler.prototype.compileModule = function() {
             }
         ],
         "kind": "var"
-    });
+    }); */
 
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
 //	console.log(JSON.stringify(result.code));

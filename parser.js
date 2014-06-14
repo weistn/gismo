@@ -852,16 +852,8 @@ function importParser() {
                 "init": {
                     "type": "CallExpression",
                     "callee": {
-                        "type": "MemberExpression",
-                        "computed": false,
-                        "object": {
-                            "type": "Identifier",
-                            "name": "__runtime"
-                        },
-                        "property": {
-                            "type": "Identifier",
-                            "name": "__import"
-                        }
+                        "type": "Identifier",
+                        "name": "require"
                     },
                     "arguments": [
                         {
