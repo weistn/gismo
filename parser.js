@@ -13,6 +13,9 @@ var	Mode_Expression = 1,
 
 function Parser() {
 	this.precompSrc = "";
+	this.exports = {
+		syntax: []
+	};
 
 	// The statements supported by this parser
 	this.statementKeywords = {
@@ -32,7 +35,7 @@ function Parser() {
 		'switch' : switchParser.bind(this),
 		'debugger' : debuggerParser.bind(this),
 		'import' : importParser.bind(this)
-	}
+	};
 
 	// Precedence of built-in JS operators
 	var operatorPrecedence = [
@@ -819,10 +822,21 @@ function importParser() {
 	} catch(err) {
 		throw "Error: Cannot find module '" + name.value + "'";
 	}
-	// Find the corresponding package.json
+	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	var c = new compiler.Compiler(path);
-	c.importModule();
+	var exp = c.importModule();
+	// Register exported syntax extensions
+	for(var i = 0; i < exp.syntax.length; i++) {
+		var s = exp.syntax[i];
+		switch (s.type) {
+			case "operand":
+				this.newOperand(s.name, s.parser);
+				break;
+			default:
+				throw "Error: Unsupported syntax extension in imported module '" + path + "'";
+		}
+	}
 
 	return {
 		loc: loc,
@@ -1364,6 +1378,7 @@ Parser.prototype.executeAtCompileTime = function(js) {
 //	console.log("Executing: ", js);
 	// Populate the scope in which the code will be executed
 	var parser = this;
+	var exports = this.exports;
 	var func = eval("(" + js + ")");
 	func.apply({});
 }

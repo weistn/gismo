@@ -7,6 +7,16 @@ function() {
             value: 'NEW OPERAND'
         };
     });
+    exports.syntax.push({
+        type: 'operand',
+        name: 'linepos',
+        parser: function () {
+            return {
+                type: 'Literal',
+                value: 'NEW OPERAND'
+            };
+        }
+    });
 }());
 
 }

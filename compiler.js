@@ -41,7 +41,7 @@ Compiler.prototype.importModule = function() {
 	try {
 		p.executeAtCompileTime(js);
 		// TODO
-		return {exports:{syntax:{}}};
+		return p.exports;
 	} catch(err) {
 		throw "Error: Import of '" + this.path + "' failed: " + err.toString();
 	}
@@ -113,8 +113,7 @@ Compiler.prototype.compileModule = function() {
 	var precompiled = "function() {\n" + p.precompSrc + "\n}\n";
 	fs.writeFileSync(this.precompFile(), precompiled);
 
-	// TODO
-	return {exports:{syntax:{}}};
+	return p.exports;
 }
 
 Compiler.prototype.precompFile = function() {
