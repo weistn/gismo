@@ -40,19 +40,19 @@ describe("My Parser Test", function() {
 //	var tokens = esprima.tokenize("a = b = c", { });
 //	var tokens = esprima.tokenize("a + -x * +b++--", { });
 
-		var str = fs.readFileSync("in.gismo").toString();
+		var str = fs.readFileSync("test/parser_test.gs").toString();
 
 		var p = new parser.Parser();
 		var program = {type: "Program", body: p.parse(lexer.newTokenizer(str))};
 
 //	console.log(JSON.stringify(parsed, null, '\t'));
 
-		var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: "in.gismo", sourceContent: str});
+		var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: "parser_test.gs", sourceContent: str});
 //		console.log(JSON.stringify(result.code));
 
 		var code = result.code + "\n//# sourceMappingURL=out.js.map";
-		fs.writeFileSync('out.js', code);
-		fs.writeFileSync('out.js.map', result.map.toString());
+		fs.writeFileSync('test/parser_test.js', code);
+		fs.writeFileSync('test/parser_test.js.map', result.map.toString());
 
 //	fs.writeFileSync('in.gismo', str);
 	});
