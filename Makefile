@@ -1,3 +1,5 @@
+export NODE_PATH=/Users/weis/Projects/mydummy/test
+
 .PHONY: test
 
 test:

@@ -51,7 +51,7 @@ describe("My Parser Test", function() {
 //		console.log(JSON.stringify(result.code));
 
 		var code = result.code + "\n//# sourceMappingURL=out.js.map";
-		fs.writeFileSync('test/parser_test.js', code);
+		fs.writeFileSync('test/parser_test.js.out', code);
 		fs.writeFileSync('test/parser_test.js.map', result.map.toString());
 
 //	fs.writeFileSync('in.gismo', str);
