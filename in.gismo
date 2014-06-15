@@ -1,20 +1,30 @@
 // import "x/foobar.js" as bar
 
 runat compile {
-	parser.newOperand('linepos', function() {
-		return {
-			type: "Literal",
-			value: "NEW OPERAND"
-		};
+	parser.extendSyntax({
+		type: 'operand',
+		name: 'linepos',
+		parser: function() {
+			return {
+				type: "Literal",
+				value: "NEW OPERAND"
+			};
+		}
 	});
 
-	parser.newOperator("@", {level: 16, associativity: "right"}, function(arg) {
-		return {
-			type: "Literal",
-			value: "@",
-			content: arg,
-			loc: arg.loc
-		};
+	parser.extendSyntax({
+		type: 'operator',
+		name: "@",
+		level: 16,
+		associativity: "right",
+		generator: function(arg) {
+			return {
+				type: "Literal",
+				value: "@",
+				content: arg,
+				loc: arg.loc
+			};
+		}
 	});
 
 	function arrayExpressionFromObject(obj) {
@@ -76,51 +86,67 @@ runat compile {
 		}
 	};
 
-	parser.newOperand("statement", function() {
-		return objectExpressionFromObject(parser.parseBlockStatement());
+	parser.extendSyntax({
+		type: 'operand',
+		name: "statement",
+		parser: function() {
+			return objectExpressionFromObject(parser.parseBlockStatement());
+		}
 	});
 }
 
 runat compile {
-	parser.newStatement("linelog", function() {
-		parser.parseEndOfStatement();
-		return {
-            "type": "ExpressionStatement",
-            "expression": {
-                "type": "CallExpression",
-                "callee": {
-                    "type": "MemberExpression",
-                    "computed": false,
-                    "object": {
-                        "type": "Identifier",
-                        "name": "console"
-                    },
-                    "property": {
-                        "type": "Identifier",
-                        "name": "log"
-                    }
-                },
-                "arguments": [
-                    {
-                        "type": "Literal",
-                        "value": "HERE",
-                        "raw": "\"HERE\""
-                    }
-                ]
-            }
-        };
+	parser.extendSyntax({
+		type: 'statement',
+		name: "linelog",
+		parser: function() {
+			parser.parseEndOfStatement();
+			return {
+	            "type": "ExpressionStatement",
+	            "expression": {
+	                "type": "CallExpression",
+	                "callee": {
+	                    "type": "MemberExpression",
+	                    "computed": false,
+	                    "object": {
+	                        "type": "Identifier",
+	                        "name": "console"
+	                    },
+	                    "property": {
+	                        "type": "Identifier",
+	                        "name": "log"
+	                    }
+	                },
+	                "arguments": [
+	                    {
+	                        "type": "Literal",
+	                        "value": "HERE",
+	                        "raw": "\"HERE\""
+	                    }
+	                ]
+	            }
+	        };
+	    }
 	});
 	
-	parser.newStatement("linelog2", function() {
-		parser.parseEndOfStatement();
-		return 'console.log("Here, too"); let x = 12; console.log(x)';
+	parser.extendSyntax({
+		type: 'statement',
+		name: "linelog2",
+		parser: function() {
+			parser.parseEndOfStatement();
+			return 'console.log("Here, too"); let x = 12; console.log(x)';
+		}
 	});
 
-	parser.newStatement("linelog3", function() {
-		var expr = parser.parseExpression();
-		parser.parseEndOfStatement();
+	parser.extendSyntax({
+		type: 'statement',
+		name: "linelog3",
+		parser: function() {
+			var expr = parser.parseExpression();
+			parser.parseEndOfStatement();
 
-		return statement {console.log("Here, too"); let x = @expr; console.log(x)};
+			return statement {console.log("Here, too"); let x = @expr; console.log(x)};
+		}
 	});
 }
 

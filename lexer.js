@@ -1047,6 +1047,10 @@ exports.newTokenizer = function(source) {
             return tokenizer.peek();
         },
 
+        location : function() {
+            return "line: " + tokenizer.lineNumber + " col: " + (tokenizer.index - tokenizer.lineStart + 1);
+        },
+
         registerKeyword : function(keyword) {
             tokenizer.registerKeyword(keyword);
         },

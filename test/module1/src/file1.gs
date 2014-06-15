@@ -1,13 +1,8 @@
 runat compile {
 	console.log("It's compile time for module1")
-	parser.newOperand('linepos', function() {
-		return {
-			type: "Literal",
-			value: "NEW OPERAND"
-		};
-	});
 
-	exports.syntax.push({
+	parser.extendSyntax({
+		exports: 'true',
 		type: "operand",
 		name: "linepos",
 		parser: function() {

@@ -1,6 +1,5 @@
 // var esprima = require('esprima');
 var lexer = require("./lexer.js");
-var compiler = require("./compiler.js");
 var escodegen = require('escodegen');
 	
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
@@ -11,7 +10,8 @@ var	Mode_Expression = 1,
 	Mode_ExpressionWithoutCall = 3,
 	Mode_ExpressionWithoutColon = 4
 
-function Parser() {
+function Parser(compiler) {
+	this.compiler = compiler;
 	this.precompSrc = "";
 	this.exports = {
 		syntax: []
@@ -824,19 +824,9 @@ function importParser() {
 	}
 	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
-	var c = new compiler.Compiler(path);
-	var exp = c.importModule();
-	// Register exported syntax extensions
-	for(var i = 0; i < exp.syntax.length; i++) {
-		var s = exp.syntax[i];
-		switch (s.type) {
-			case "operand":
-				this.newOperand(s.name, s.parser);
-				break;
-			default:
-				throw "Error: Unsupported syntax extension in imported module '" + path + "'";
-		}
-	}
+	this.importModuleRunning = true;
+	this.compiler.importModule(path);
+	this.importModuleRunning = false;
 
 	return {
 		loc: loc,
@@ -1294,7 +1284,7 @@ Parser.prototype.parseEndOfStatement = function() {
 	} else {
 		var lookback = this.tokenizer.lookback();
 		if (!lookback || lookback.loc.end.line === lookahead.loc.start.line) {
-			throw "SyntaxError: Expected semicolon";
+			throw "SyntaxError: Expected semicolon " + this.tokenizer.location();
 		}
 	}
 }
@@ -1375,31 +1365,52 @@ Parser.prototype.executeAtCompileTime = function(js) {
 	func.apply({});
 }
 
-Parser.prototype.newStatement = function(keyword, parseFunc) {
-	if (this.statementKeywords[keyword]) {
-		throw "ExtensionError: Statement has already been registered: '" + keyword + "'";
+Parser.prototype.extendSyntax = function(s) {
+	// When importing a module, use only exported syntax elements. Ignore everything else
+	if (this.importModuleRunning && !s.exports) {
+		return;
 	}
-	this.statementKeywords[keyword] = parseFunc;
+
+	switch (s.type) {
+		case "operand":
+			this.newOperand(s);
+			break;
+		case "operator":
+			this.newOperator(s);
+			break;
+		case "statement":
+			this.newStatement(s);
+			break;
+		default:
+			throw "Error: Unsupported syntax extension in imported module '" + path + "'";
+	}
+};
+
+Parser.prototype.newStatement = function(s) {
+	if (this.statementKeywords[s.name]) {
+		throw "ExtensionError: Statement has already been registered: '" + s.name + "'";
+	}
+	this.statementKeywords[s.name] = s.parser;
 }
 
-Parser.prototype.newOperand = function(keyword, parseFunc) {
+Parser.prototype.newOperand = function(s) {
 	// TODO: Check conflicts with existing operands or operators
-	this.tokenizer.registerKeyword(keyword);
-	this.operators[keyword] = [
+	this.tokenizer.registerKeyword(s.name);
+	this.operators[s.name] = [
 		{
 			associativity: "none",
-			value: keyword,
+			value: s.name,
 			type: "Keyword",
-			parser: parseFunc,
-			level: this.numericTerminal.level
+			parser: s.parser,
+			level: this.numericTerminal.level // TODO. This is a hack
 		}
 	];
 };
 
-Parser.prototype.newOperator = function(punctuator, options, generator) {
+Parser.prototype.newOperator = function(s) {
 	// TODO: Check conflicts with existing operands or operators
 	var associativity = "none";
-	switch (options.associativity) {
+	switch (s.associativity) {
 		case "none":
 			break;
 		case "right":
@@ -1416,16 +1427,16 @@ Parser.prototype.newOperator = function(punctuator, options, generator) {
 			associativity = "br";
 			break;
 		default:
-			throw "ExtensionError: Unknown associativity '" + options.associativity + "'";
+			throw "ExtensionError: Unknown associativity '" + s.associativity + "'";
 	}
-	this.tokenizer.registerPunctuator(punctuator);
-	this.operators[punctuator] = [
+	this.tokenizer.registerPunctuator(s.name);
+	this.operators[s.name] = [
 		{
 			associativity: associativity,
-			value: punctuator,
+			value: s.name,
 			type: "Punctuator",
-			generator: generator,
-			level: options.level
+			generator: s.generator,
+			level: s.level
 		}
 	];	
 };
