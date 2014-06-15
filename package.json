@@ -17,7 +17,7 @@
     "mocha": "^1.18.2"
   },
   "bin": {
-    "mydummy": "./bin/mydummy"
+    "gismo": "./bin/gismo"
   },
   "dependencies": {
     "commander": "^2.2.0",
