@@ -1,4 +1,4 @@
-export NODE_PATH=/Users/weis/Projects/mydummy/test
+export NODE_PATH=./test
 
 .PHONY: test
 
