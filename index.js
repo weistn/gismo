@@ -3,7 +3,7 @@ var compiler = require('./compiler.js');
 var path = require('path');
 var fs = require('fs');
 
-var pkg = JSON.parse(fs.readFileSync('../package.json', 'utf8'));
+var pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(module.filename), 'package.json'), 'utf8'));
 
 program
   .version(pkg.version)
