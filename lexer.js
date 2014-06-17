@@ -205,7 +205,7 @@ Tokenizer.prototype.skipMultiLineComment = function() {
             ++this.index;
             this.lineStart = this.index;
             if (this.index >= this.length) {
-                throwError(Messages.UnexpectedToken, 'ILLEGAL');
+                this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
             }
         } else if (ch === 0x2A) {
             // Block comment ends with '*/'.
@@ -220,7 +220,7 @@ Tokenizer.prototype.skipMultiLineComment = function() {
         }
     }
 
-    throwError(Messages.UnexpectedToken, 'ILLEGAL');
+    this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
 }
 
 Tokenizer.prototype.skipComment = function() {
@@ -281,12 +281,12 @@ Tokenizer.prototype.getEscapedIdentifier = function() {
     // '\u' (U+005C, U+0075) denotes an escaped character.
     if (ch === 0x5C) {
         if (this.source.charCodeAt(this.index) !== 0x75) {
-            throwError(Messages.UnexpectedToken, 'ILLEGAL');
+            this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
         }
         ++this.index;
         ch = this.scanHexEscape('u');
         if (!ch || ch === '\\' || !isIdentifierStart(ch.charCodeAt(0))) {
-            throwError(Messages.UnexpectedToken, 'ILLEGAL');
+            this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
         }
         id = ch;
     }
@@ -303,12 +303,12 @@ Tokenizer.prototype.getEscapedIdentifier = function() {
         if (ch === 0x5C) {
             id = id.substr(0, id.length - 1);
             if (this.source.charCodeAt(this.index) !== 0x75) {
-                throwError(Messages.UnexpectedToken, 'ILLEGAL');
+                this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
             }
             ++this.index;
             ch = this.scanHexEscape('u');
             if (!ch || ch === '\\' || !isIdentifierPart(ch.charCodeAt(0))) {
-                throwError(Messages.UnexpectedToken, 'ILLEGAL');
+                this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
             }
             id += ch;
         }
@@ -455,7 +455,7 @@ Tokenizer.prototype.scanPunctuator = function() {
         current = p;
     }
     if (this.index === start || !current.complete) {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
     return {
         type: Token.Punctuator,
@@ -480,11 +480,11 @@ Tokenizer.prototype.scanHexLiteral = function(start) {
     }
 
     if (number.length === 0) {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
 
     if (isIdentifierStart(this.source.charCodeAt(this.index))) {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
 
     return {
@@ -507,7 +507,7 @@ Tokenizer.prototype.scanOctalLiteral = function(start) {
     }
 
     if (isIdentifierStart(this.source.charCodeAt(this.index)) || isDecimalDigit(this.source.charCodeAt(this.index))) {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
 
     return {
@@ -547,7 +547,7 @@ Tokenizer.prototype.scanNumericLiteral = function() {
 
             // decimal number starts with '0' such as '09' is illegal.
             if (ch && isDecimalDigit(ch.charCodeAt(0))) {
-                throwError(Messages.UnexpectedToken, 'ILLEGAL');
+                this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
             }
         }
 
@@ -577,12 +577,12 @@ Tokenizer.prototype.scanNumericLiteral = function() {
                 number += this.source[this.index++];
             }
         } else {
-            throwError(Messages.UnexpectedToken, 'ILLEGAL');
+            this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
         }
     }
 
     if (isIdentifierStart(this.source.charCodeAt(this.index))) {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
 
     return {
@@ -691,7 +691,7 @@ Tokenizer.prototype.scanStringLiteral = function() {
     }
 
     if (quote !== '') {
-        throwError(Messages.UnexpectedToken, 'ILLEGAL');
+        this.throwError(Messages.UnexpectedToken, 'ILLEGAL');
     }
 
     return {
@@ -712,7 +712,7 @@ function testRegExp(pattern, flags) {
     try {
         value = new RegExp(pattern, flags);
     } catch (e) {
-        throwError(Messages.InvalidRegExp);
+        this.throwError(Messages.InvalidRegExp);
     }
     return value;
 }
@@ -735,11 +735,11 @@ Tokenizer.prototype.scanRegExpBody = function() {
             ch = this.source[this.index++];
             // ECMA-262 7.8.5
             if (isLineTerminator(ch.charCodeAt(0))) {
-                throwError(Messages.UnterminatedRegExp);
+                this.throwError(Messages.UnterminatedRegExp);
             }
             str += ch;
         } else if (isLineTerminator(ch.charCodeAt(0))) {
-            throwError(Messages.UnterminatedRegExp);
+            this.throwError(Messages.UnterminatedRegExp);
         } else if (classMarker) {
             if (ch === ']') {
                 classMarker = false;
@@ -755,7 +755,7 @@ Tokenizer.prototype.scanRegExpBody = function() {
     }
 
     if (!terminated) {
-        throwError(Messages.UnterminatedRegExp);
+        this.throwError(Messages.UnterminatedRegExp);
     }
 
     // Exclude leading and trailing slash.
@@ -971,7 +971,7 @@ Tokenizer.prototype.peek = function() {
     return this.lookahead;
 }
 
-function throwError(messageFormat) {
+Tokenizer.prototype.throwError = function(messageFormat) {
     var error,
         args = Array.prototype.slice.call(arguments, 1),
         msg = messageFormat.replace(
@@ -982,20 +982,11 @@ function throwError(messageFormat) {
             }
         );
 
-    if (typeof token.lineNumber === 'number') {
-        error = new Error('Line ' + token.lineNumber + ': ' + msg);
-        error.type = ErrorType.SyntaxError;
-        error.index = token.start;
-        error.lineNumber = token.lineNumber;
-        error.column = token.start - lineStart + 1;
-    } else {
-        error = new Error('Line ' + lineNumber + ': ' + msg);
-        error.type = ErrorType.SyntaxError;
-        error.index = index;
-        error.lineNumber = lineNumber;
-        error.column = index - lineStart + 1;
-    }
-
+    error = new Error('Line ' + this.lineNumber + ': ' + msg);
+    error.type = ErrorType.SyntaxError;
+    error.index = this.index;
+    error.lineNumber = this.lineNumber;
+    error.column = this.index - this.lineStart + 1;
     error.description = msg;
     throw error;
 }
@@ -1082,7 +1073,11 @@ exports.newTokenizer = function(source) {
         },
 
         location : function() {
-            return "line: " + tokenizer.lineNumber + " col: " + (tokenizer.index - tokenizer.lineStart + 1);
+            return {
+                lineNumber: tokenizer.lineNumber,
+                column: (tokenizer.index - tokenizer.lineStart + 1),
+                index: tokenizer.index
+            };
         },
 
         registerKeyword : function(keyword) {

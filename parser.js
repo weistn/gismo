@@ -1,7 +1,12 @@
 // var esprima = require('esprima');
 var lexer = require("./lexer.js");
 var escodegen = require('escodegen');
+
 	
+var ErrorType = {
+    SyntaxError: "Syntax Error"
+};
+
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 var	Mode_Expression = 1,
 	Mode_ExpressionWithoutComma = 2,
@@ -604,7 +609,7 @@ function switchParser() {
 			this.tokenizer.expect(":");
 			test = null;
 		} else {
-			throw "SyntaxError: Unexpected token '" + this.tokenizer.lookahead() + "'";
+			this.throwError(this.tokenizer.lookahead(), Messages.UnexpectedToken, this.tokenizer.lookahead().value);
 		}
 		var consequent = [];
 		while( this.tokenizer.lookahead() !== undefined && !this.tokenizer.presume('case', false) && !this.tokenizer.presume('default', false) && !this.tokenizer.presume('}', false)) {
@@ -660,7 +665,7 @@ function throwParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var expression = this.parseExpressionStatement();
 	if (expression === undefined) {
-		throw "SyntaxError: Missing expression in 'throw' statement";
+		this.throwError(this.tokenizer.lookback(), "Missing expression in 'throw' statement");
 	}
 	return {
 		type: "ThrowStatement",
@@ -752,7 +757,8 @@ function doParser() {
 }
 
 function tryCatchParser() {
-	var loc = this.tokenizer.lookback().loc;
+	var token = this.tokenizer.lookback();
+	var loc = token.loc;
 	var block = this.parseBlockStatement();
 	var handlers = [];
 	var guardedHandlers = [];
@@ -770,7 +776,7 @@ function tryCatchParser() {
 		finalizer = this.parseBlockStatement();
 	}
 	if (handlers.length === 0 && finalizer === null) {
-		throw "SyntaxError: Expected 'catch' or 'finally";
+		this.throwError(token, Messages.NoCatchOrFinally);
 	}
 	return {
 		type: "TryStatement",
@@ -791,10 +797,11 @@ function debuggerParser() {
 }
 
 function importParser() {
-	var loc = this.tokenizer.lookback().loc;
+	var token = this.tokenizer.lookback();
+	var loc = token.loc;
 	var name = this.tokenizer.next();
 	if (!name || name.type !== "String") {
-		throw "SyntaxError: Expected string after 'import'";
+		this.throwError(token, "Expected string after 'import'");
 	}
 	var as;
 	if (this.tokenizer.presume('as', true)) {
@@ -807,7 +814,7 @@ function importParser() {
 		}
 		filename = filename.replace(/\.js$/, '');
 		if (filename === "") {
-			throw "SyntaxError: Invalid name for an import path";
+			this.throwError(name, "Invalid name for an import path");
 		}
 		as = {
 			value: filename,
@@ -820,7 +827,7 @@ function importParser() {
 	try {
 		var jsfile = require.resolve(name.value);
 	} catch(err) {
-		throw "Error: Cannot find module '" + name.value + "'";
+		this.throwError(name, "Cannot find module '" + name.value + "'");
 	}
 	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
@@ -948,9 +955,9 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 //		console.log(state.op.value, "... upwards to level", level, " value=", value);
 		if (value === undefined && state.op !== expressionOperator) {
 			if (lookahead !== undefined) {
-				throw "SyntaxError: Unexpected token '" + lookahead.value + "'";				
+				this.throwError(lookahead, Messages.UnexpectedToken, lookahead.value);				
 			}
-			throw "Unexpected end of expression";
+			this.throwError(lookahead, Messages.UnexpectedEOS);
 		}
 		if (state.op.associativity === "ur") {
 			if (state.op.generator) {
@@ -971,7 +978,7 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 				state.value.right = value;
 			}
 		} else {
-			throw "Internal Error: Unknown state in upward recursion";
+			throw new Error("Internal Error: Unknown state in upward recursion");
 		}
 //		console.log("      value changes from", value, "to", state.value);
 		value = state.value;
@@ -1003,7 +1010,7 @@ Parser.prototype.parseObjectExpression = function() {
 		var prop = {type: "Property"};
 		var token = this.tokenizer.next();
 		if (token === undefined) {
-			throw "SyntaxError: Unexpected end of file";
+			this.throwError(token, Messages.UnexpectedEOS);
 		}
 		var lookahead = this.tokenizer.lookahead();
 		if (token.type === "Identifier" && (token.value === "get" || token.value === "set") && lookahead !== undefined && (lookahead.type === "Identifier" || lookahead.type === "String")) {
@@ -1032,7 +1039,7 @@ Parser.prototype.parseObjectExpression = function() {
 			} else if (token.type === "String") {
 				prop.key = {type: "Literal", value: token.value, loc: token.loc };
 			} else {
-				throw "SyntaxError: Unexpected token '" + token.value + "'";
+				this.throwError(token, Messages.UnexpectedToken, token.value);
 			}
 			this.tokenizer.expect(":");
 			prop.value = this.parseExpression(Mode_ExpressionWithoutComma);
@@ -1091,7 +1098,7 @@ Parser.prototype.parseExpression = function(mode) {
 //			console.log(token.value, "closing_bracket");
 			value = this.finishRecursions(-1 ,stack, value, state.op.value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
-				throw "Unexpected closing bracket '" + state.op.value + "'";
+				this.throwError(this.tokenizer.lookback(), Messages.UnexpectedToken, state.op.value);
 			}
 			if (stack[stack.length - 1].op.value === '(' && stack[stack.length - 1].op.associativity === "ul") {
 				if (value && value.type === "SequenceExpression") {
@@ -1104,7 +1111,7 @@ Parser.prototype.parseExpression = function(mode) {
 				value = stack[stack.length - 1].value;
 			} else if (stack[stack.length - 1].op.value === '[' && stack[stack.length - 1].op.associativity === "ul") {
 				if (value === undefined) {
-					throw "SyntaxErrror: Unexpected token ']'";
+					this.throwError(this.tokenizer.lookback(), Messages.UnexpectedToken, ']');
 				}
 				stack[stack.length - 1].value.property = value;
 				value = stack[stack.length - 1].value;
@@ -1148,7 +1155,7 @@ Parser.prototype.parseExpression = function(mode) {
 			stack.push(state);
 			value = undefined;
 		} else {
-			throw "Internal Error: Unknown state in loop";
+			throw new Error("Internal Error: Unknown state in loop");
 		}
 
 		// Determine the next operator based on the next token (if there is any)
@@ -1206,7 +1213,7 @@ Parser.prototype.parseExpression = function(mode) {
 			state = {op: op};
 			value = undefined;
 		} else {
-			throw "Internal Error: Unknown state in loop";
+			throw new Error("Internal Error: Unknown state in loop");
 		}
 
 		// Expressions stop at a colon
@@ -1233,9 +1240,9 @@ Parser.prototype.parseExpression = function(mode) {
 	value = this.finishRecursions(-1, stack, value, lookahead);
 	if (stack.length > 0) {
 		if (this.tokenizer.lookahead() === undefined) {
-			throw "Unexpected end of file";
+			this.throwError(undefined, Messages.UnexpectedEOS);
 		}
-		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
+		this.throwError(this.tokenizer.lookahead(), Messages.UnexpectedToken, this.tokenizer.lookahead());
 	}
 //	if (mode === Mode_Default && this.tokenizer.lookahead() !== undefined) {
 //		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
@@ -1284,13 +1291,14 @@ Parser.prototype.parseEndOfStatement = function() {
 	} else {
 		var lookback = this.tokenizer.lookback();
 		if (!lookback || lookback.loc.end.line === lookahead.loc.start.line) {
-			throw "SyntaxError: Expected semicolon " + this.tokenizer.location();
+			this.throwError(lookback, "Expected ';'");
 		}
 	}
 }
 
 Parser.prototype.parseStatement = function() {
-	var s = this.tokenizer.lookahead().value;
+	var token = this.tokenizer.lookahead();
+	var s = token.value;
 	var p = this.statementKeywords[s];
 	if (p) {
 		this.tokenizer.next();
@@ -1312,7 +1320,7 @@ Parser.prototype.parseStatement = function() {
 		} else if (typeof result === "object") {
 			// TODO: Check that the object tree is ok
 		} else {
-			throw "ExtensionError: Parser for statement '" + s + "' must return a string or an AST object";
+			this.throwError(token, "Parser for statement '" + s + "' must return a string or an AST object");
 		}
 		return result;
 	}
@@ -1345,7 +1353,7 @@ Parser.prototype.parse = function(tokenizer) {
 				this.precompSrc += "(" + js + "());\n";
 				this.executeAtCompileTime(js);
 			} else {
-				throw "SyntaxError: Unknown run-level '" + this.tokenizer.next() + "'";
+				this.throwError(this.tokenizer.lookahead(), "Unknown run-level '" + this.tokenizer.next() + "'");
 			}
 		} else {
 			var body = this.parseStatement();
@@ -1382,13 +1390,13 @@ Parser.prototype.extendSyntax = function(s) {
 			this.newStatement(s);
 			break;
 		default:
-			throw "Error: Unsupported syntax extension in imported module '" + path + "'";
+			throw new Error("Unsupported syntax extension in imported module '" + path + "'");
 	}
 };
 
 Parser.prototype.newStatement = function(s) {
 	if (this.statementKeywords[s.name]) {
-		throw "ExtensionError: Statement has already been registered: '" + s.name + "'";
+		throw new Error("ExtensionError: Statement has already been registered: '" + s.name + "'");
 	}
 	this.statementKeywords[s.name] = s.parser;
 }
@@ -1427,7 +1435,7 @@ Parser.prototype.newOperator = function(s) {
 			associativity = "br";
 			break;
 		default:
-			throw "ExtensionError: Unknown associativity '" + s.associativity + "'";
+			throw new Error("ExtensionError: Unknown associativity '" + s.associativity + "'");
 	}
 	this.tokenizer.registerPunctuator(s.name);
 	this.operators[s.name] = [
@@ -1440,5 +1448,35 @@ Parser.prototype.newOperator = function(s) {
 		}
 	];	
 };
+
+Parser.prototype.throwError = function(token, messageFormat) {
+    var error,
+        args = Array.prototype.slice.call(arguments, 2),
+        msg = messageFormat.replace(
+            /%(\d)/g,
+            function (whole, index) {
+                assert(index < args.length, 'Message reference must be in range');
+                return args[index];
+            }
+        );
+
+    if (token && typeof token.lineNumber === 'number') {
+        error = new Error('Line ' + token.lineNumber + ': ' + msg);
+        error.type = ErrorType.SyntaxError;
+        error.index = token.start;
+        error.lineNumber = token.lineNumber;
+        error.column = token.start - lineStart + 1;
+    } else {
+    	var loc = this.tokenizer.location();
+        error = new Error('Line ' + loc.lineNumber + ': ' + msg);
+        error.type = ErrorType.SyntaxError;
+        error.index = loc.index;
+        error.lineNumber = loc.lineNumber;
+        error.column = loc.column;
+    }
+
+    error.description = msg;
+    throw error;
+}
 
 exports.Parser = Parser;
