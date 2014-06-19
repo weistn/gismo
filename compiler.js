@@ -6,7 +6,7 @@ var parser = require('./parser.js');
 function Compiler(path) {
 	this.path = path;
 	if (this.path === "") {
-		throw "Error: Illegal path for a module";
+		throw new Error("Illegal path for a module: " + path);
 	}
 	if (this.path[this.path.length - 1] != "/") {
 		this.path += "/";
@@ -24,7 +24,7 @@ function Compiler(path) {
 // Called from the parser that is launched on behalf of compileModule().
 Compiler.prototype.importModule = function(path) {
 	if (path === "") {
-		throw "Error: Illegal path for a module";
+		throw new Error("Implementation Error: Illegal path for a module.");
 	}
 	if (path[path.length - 1] != "/") {
 		path += "/";
@@ -37,7 +37,7 @@ Compiler.prototype.importModule = function(path) {
 	}
 
 	// No gismo section? -> a normal node module
-	if (!pkg.gismo) {
+	if (!pkg.gismo || typeof pkg.gismo !== "object") {
 		// Return an empty module
 		return;
 	}
@@ -49,27 +49,24 @@ Compiler.prototype.importModule = function(path) {
 	// Check whether the precompiled file exists and read it. If not, compile it and try again
 	for(var i = 0; i < 2; i++) {
 		try {
-			console.log("Try to read precompiled import ", precompfile);
+//			console.log("Try to read precompiled import ", precompfile);
 			var js = fs.readFileSync(precompfile).toString();
 			break;
 		} catch(err) {
-			console.log("No precompFile. Will compile instead");
+//			console.log("No precompFile. Will compile instead");
 			var c = new Compiler(path);
 			c.compileModule();
 		}
 	}
 	// Execute the precompile filed
-	try {
-		this.parser.executeAtCompileTime(js);
-	} catch(err) {
-		throw "Error: Import of '" + path + "' failed: " + err.toString();
-	}
+	this.parser.executeAtCompileTime(js);
 };
 
 // precompfile is optional
 Compiler.prototype.compileModule = function() {
+	// If it is a normal node package, do nothing
 	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
-		throw "Error: '" + this.path + "' is not a gismo package";
+		return;
 	}
 	var srcfiles = this.pkg.gismo.src;
 	if (!srcfiles || typeof srcfiles !== "object") {
@@ -88,7 +85,7 @@ Compiler.prototype.compileModule = function() {
 		try {
 			str = fs.readFileSync(this.path + "src/" + fname).toString();
 		} catch(err) {
-			throw "Error: Could not read '" + this.path + "src/" + fname + "'";
+			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
 		}
 		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str)));
 	}

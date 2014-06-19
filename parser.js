@@ -7,6 +7,31 @@ var ErrorType = {
     SyntaxError: "Syntax Error"
 };
 
+// Error messages should be identical to V8.
+Messages = {
+    UnexpectedToken:  'Unexpected token %0',
+    UnexpectedNumber:  'Unexpected number',
+    UnexpectedString:  'Unexpected string',
+    UnexpectedIdentifier:  'Unexpected identifier',
+    UnexpectedReserved:  'Unexpected reserved word',
+    UnexpectedEOS:  'Unexpected end of input',
+    NewlineAfterThrow:  'Illegal newline after throw',
+    InvalidRegExp: 'Invalid regular expression',
+    UnterminatedRegExp:  'Invalid regular expression: missing /',
+    InvalidLHSInAssignment:  'Invalid left-hand side in assignment',
+    InvalidLHSInForIn:  'Invalid left-hand side in for-in',
+    MultipleDefaultsInSwitch: 'More than one default clause in switch statement',
+    NoCatchOrFinally:  'Missing catch or finally after try',
+    UnknownLabel: 'Undefined label \'%0\'',
+    Redeclaration: '%0 \'%1\' has already been declared',
+    IllegalContinue: 'Illegal continue statement',
+    IllegalBreak: 'Illegal break statement',
+    IllegalReturn: 'Illegal return statement',
+    AccessorDataProperty:  'Object literal may not have data and accessor property with the same name',
+    AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
+    ImportFailed: 'Failed to import module %0: %1'
+};
+
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 var	Mode_Expression = 1,
 	Mode_ExpressionWithoutComma = 2,
@@ -665,7 +690,7 @@ function throwParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var expression = this.parseExpressionStatement();
 	if (expression === undefined) {
-		this.throwError(this.tokenizer.lookback(), "Missing expression in 'throw' statement");
+		this.throwError(this.tokenizer.lookback(), Messages.NewlineAfterThrow);
 	}
 	return {
 		type: "ThrowStatement",
@@ -832,7 +857,11 @@ function importParser() {
 	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
-	this.compiler.importModule(path);
+	try {
+		this.compiler.importModule(path);
+	} catch(err) {
+		this.throwError(name, Messages.ImportFailed, name.value, err);
+	}
 	this.importModuleRunning = false;
 
 	return {
