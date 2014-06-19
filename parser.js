@@ -1484,7 +1484,8 @@ Parser.prototype.throwError = function(token, messageFormat) {
         msg = messageFormat.replace(
             /%(\d)/g,
             function (whole, index) {
-                assert(index < args.length, 'Message reference must be in range');
+                if (index >= args.length)
+                	throw new Error('Implementation Error: Message reference must be in range');
                 return args[index];
             }
         );
@@ -1494,7 +1495,7 @@ Parser.prototype.throwError = function(token, messageFormat) {
         error.type = ErrorType.SyntaxError;
         error.index = token.start;
         error.lineNumber = token.lineNumber;
-        error.column = token.start - lineStart + 1;
+        error.column = token.start - token.lineStart + 1;
     } else {
     	var loc = this.tokenizer.location();
         error = new Error('Line ' + loc.lineNumber + ': ' + msg);
