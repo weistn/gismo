@@ -1491,20 +1491,21 @@ Parser.prototype.throwError = function(token, messageFormat) {
         );
 
     if (token && typeof token.lineNumber === 'number') {
-        error = new Error('Line ' + token.lineNumber + ': ' + msg);
+        error = new Error(this.tokenizer.location().filename + ':' + token.lineNumber + ':' + (token.start - token.lineStart + 1) + ': ' + msg);
         error.type = ErrorType.SyntaxError;
         error.index = token.start;
         error.lineNumber = token.lineNumber;
         error.column = token.start - token.lineStart + 1;
     } else {
     	var loc = this.tokenizer.location();
-        error = new Error('Line ' + loc.lineNumber + ': ' + msg);
+        error = new Error(this.tokenizer.loc.filename() + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
         error.type = ErrorType.SyntaxError;
         error.index = loc.index;
         error.lineNumber = loc.lineNumber;
         error.column = loc.column;
     }
 
+    error.filename = this.tokenizer.filename;
     error.description = msg;
     throw error;
 }

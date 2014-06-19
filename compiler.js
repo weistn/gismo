@@ -87,7 +87,7 @@ Compiler.prototype.compileModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
 		}
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str)));
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
 	}
 
 /*	program.body.unshift({
