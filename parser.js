@@ -140,12 +140,8 @@ function Parser(compiler) {
 		[{
 			type: 'Punctuator',
 			value: "?",
-			associativity: "br"
-		},
-		{
-			type: 'Punctuator',
-			value: ":",
-			associativity: "br"
+			associativity: "br",
+			parser: conditionalParser.bind(this)
 		}],
 		[{
 			type: 'Punctuator',
@@ -489,6 +485,20 @@ function regexParser() {
 	var t = this.tokenizer.expectRegExp();
 	t.type = "Literal";
 	return t;
+}
+
+function conditionalParser(test) {
+	var loc = this.tokenizer.lookback().loc;
+	var consequent = this.parseExpression(Mode_ExpressionWithoutColon);
+	this.tokenizer.expect(':');
+	var alternate = this.parseExpression(Mode_Expression);
+	return {
+		type: "ConditionalExpression",
+		test: test,
+		consequent: consequent,
+		alternate: alternate,
+		loc: loc
+	};
 }
 
 function functionDeclParser() {
@@ -1103,7 +1113,7 @@ Parser.prototype.parseExpression = function(mode) {
 
 	do {
 		// Process the current token (token[index]) with the current operator (state.op)
-		if (state.op.parser) {
+		if (state.op.parser && state.op.associativity === "none") {
 //			console.log(token.value, "parser");
 			value = state.op.parser();
 		} else if (state.op.bracket && state.op.associativity === "none") {
@@ -1178,6 +1188,8 @@ Parser.prototype.parseExpression = function(mode) {
 			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression", loc: token.loc};
 			stack.push(state);
 			value = undefined;
+		} else if (state.op.associativity === "br" && state.op.parser) {
+			value = state.op.parser(value);
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 //			console.log(token.value, "bl or br");	
 			if (state.op.value === ",") {
@@ -1221,7 +1233,7 @@ Parser.prototype.parseExpression = function(mode) {
 			}
 			state = {op: op};
 			value = undefined;
-		} else if (state.op.associativity === "none") {
+		} else if (state.op.associativity === "none" || (state.op.parser && state.op.associativity === "br")) {
 			var op = this.findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				break
