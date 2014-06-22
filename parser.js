@@ -42,10 +42,8 @@ var	Mode_Expression = 1,
 
 function Parser(compiler) {
 	this.compiler = compiler;
-	this.precompSrc = "";
-	this.exports = {
-		syntax: []
-	};
+	this.keywords = [];
+	this.punctuators = [];
 
 	// The statements supported by this parser
 	this.statementKeywords = {
@@ -858,7 +856,7 @@ function importParser() {
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
 	try {
-		this.compiler.importModule(path);
+		this.compiler.importMetaModule(path);
 	} catch(err) {
 		this.throwError(name, Messages.ImportFailed, name.value, err);
 	}
@@ -1371,35 +1369,20 @@ Parser.prototype.parseStatements = function() {
 
 Parser.prototype.parse = function(tokenizer) {
 	this.tokenizer = tokenizer;
+	for(var i = 0; i < this.keywords.length; i++) {
+		this.tokenizer.registerKeyword(this.keywords[i]);
+	}
+	for(var i = 0; i < this.punctuators.length; i++) {
+		this.tokenizer.registerPunctuator(this.punctuators[i]);
+	}
+
 	var result = [];
 	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
-		if (this.tokenizer.presume("runat", true)) {
-			if (this.tokenizer.presume("compile", true)) {
-				var code = this.parseBlockStatement();
-				var func = {type: "FunctionExpression", params:[], id: null, body: code};
-//				console.log("CODE=", JSON.stringify(code, null, " "));
-				var js = escodegen.generate(func);
-				this.precompSrc += "(" + js + "());\n";
-				this.executeAtCompileTime(js);
-			} else {
-				this.throwError(this.tokenizer.lookahead(), "Unknown run-level '" + this.tokenizer.next() + "'");
-			}
-		} else {
-			var body = this.parseStatement();
-			result.push(body);
-		}
+		var body = this.parseStatement();
+		result.push(body);
 	}
 
 	return result;
-}
-
-Parser.prototype.executeAtCompileTime = function(js) {
-//	console.log("Executing: ", js);
-	// Populate the scope in which the code will be executed
-	var parser = this;
-	var exports = this.exports;
-	var func = eval("(" + js + ")");
-	func.apply({});
 }
 
 Parser.prototype.extendSyntax = function(s) {
@@ -1407,7 +1390,7 @@ Parser.prototype.extendSyntax = function(s) {
 	if (this.importModuleRunning && !s.exports) {
 		return;
 	}
-
+//	console.log("extend", s);
 	switch (s.type) {
 		case "operand":
 			this.newOperand(s);
@@ -1432,7 +1415,10 @@ Parser.prototype.newStatement = function(s) {
 
 Parser.prototype.newOperand = function(s) {
 	// TODO: Check conflicts with existing operands or operators
-	this.tokenizer.registerKeyword(s.name);
+	this.keywords.push(s.name);
+	if (this.tokenizer) {
+		this.tokenizer.registerKeyword(s.name);
+	}
 	this.operators[s.name] = [
 		{
 			associativity: "none",
@@ -1466,7 +1452,10 @@ Parser.prototype.newOperator = function(s) {
 		default:
 			throw new Error("ExtensionError: Unknown associativity '" + s.associativity + "'");
 	}
-	this.tokenizer.registerPunctuator(s.name);
+	this.punctuators.push(s.name);
+	if (this.tokenizer) {
+		this.tokenizer.registerPunctuator(s.name);
+	}
 	this.operators[s.name] = [
 		{
 			associativity: associativity,

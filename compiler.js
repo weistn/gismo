@@ -17,12 +17,10 @@ function Compiler(path) {
 	} catch(err) {
 		this.pkg = { };
 	}
-
-	this.parser = new parser.Parser(this)
 }
 
 // Called from the parser that is launched on behalf of compileModule().
-Compiler.prototype.importModule = function(path) {
+Compiler.prototype.importMetaModule = function(path) {
 	if (path === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
@@ -30,10 +28,15 @@ Compiler.prototype.importModule = function(path) {
 		path += "/";
 	}
 	// Try to read the package.json
+	var pkg;
 	try {
-		var pkg = JSON.parse(fs.readFileSync(path + 'package.json', 'utf8'));
+		if (path === this.path) {
+			pkg = this.pkg;
+		} else {
+			pkg = JSON.parse(fs.readFileSync(path + 'package.json', 'utf8'));
+		}
 	} catch(err) {
-		var pkg = { };
+		pkg = { };
 	}
 
 	// No gismo section? -> a normal node module
@@ -41,33 +44,28 @@ Compiler.prototype.importModule = function(path) {
 		// Return an empty module
 		return;
 	}
-	// Which file contains the precompiled import?
-	var precompfile = pkg.gismo.precompiled;
-	if (typeof precompfile !== "string" || precompfile === "") {
-		precompfile = path + "_precomp.js";
+	// Which file contains the metailed import?
+	var metafile = path + "_meta.js";
+	if (!fs.existsSync(metafile)) {
+		var c = new Compiler(path);
+		c.compileMetaModule();
 	}
-	// Check whether the precompiled file exists and read it. If not, compile it and try again
-	for(var i = 0; i < 2; i++) {
-		try {
-//			console.log("Try to read precompiled import ", precompfile);
-			var js = fs.readFileSync(precompfile).toString();
-			break;
-		} catch(err) {
-//			console.log("No precompFile. Will compile instead");
-			var c = new Compiler(path);
-			c.compileModule();
-		}
+
+	try {
+		var m = require(metafile);
+		m.extendParser(this.parser);
+	} catch(err) {
+		throw new Error("Import Error while importing " + metafile + "\n" + err.stack);
 	}
-	// Execute the precompile filed
-	this.parser.executeAtCompileTime(js);
 };
 
-// precompfile is optional
 Compiler.prototype.compileModule = function() {
 	// If it is a normal node package, do nothing
 	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
 		return;
 	}
+	this.compileMetaModule();
+
 	var srcfiles = this.pkg.gismo.src;
 	if (!srcfiles || typeof srcfiles !== "object") {
 		srcfiles = fs.readdirSync(this.path + "src").sort();
@@ -87,55 +85,79 @@ Compiler.prototype.compileModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
 		}
+		this.parser = new parser.Parser(this)
+		this.importMetaModule(this.path);
 		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
 	}
 
-/*	program.body.unshift({
-        "type": "VariableDeclaration",
-        "declarations": [
-            {
-                "type": "VariableDeclarator",
-                "id": {
-                    "type": "Identifier",
-                    "name": "__runtime"
-                },
-                "init": {
-                    "type": "CallExpression",
-                    "callee": {
-                        "type": "Identifier",
-                        "name": "require"
-                    },
-                    "arguments": [
-                        {
-                            "type": "Literal",
-                            "value": "./runtime.js",
-                            "raw": "'./runtime.js'"
-                        }
-                    ]
-                }
-            }
-        ],
-        "kind": "var"
-    }); */
-
-	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
+	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name});
 //	console.log(JSON.stringify(result.code));
 	var main = this.pkg.name ? this.pkg.name : "index.js";
 	var code = result.code + "\n//# sourceMappingURL=" + this.pkg.main + ".map";
 	fs.writeFileSync(this.path + this.pkg.main, code);
 	fs.writeFileSync(this.path + this.pkg.main + '.map', result.map.toString());
-
-	var precompiled = "function() {\n" + this.parser.precompSrc + "\n}\n";
-	fs.writeFileSync(this.precompFile(), precompiled);
-}
-
-Compiler.prototype.precompFile = function() {
-	// Which file contains the precompiled import?
-	var precompfile = this.pkg.gismo.precompiled;
-	if (typeof precompfile !== "string" || precompfile === "") {
-		precompfile = this.path + "_precomp.js";
-	}
-	return precompfile;
 };
 
+Compiler.prototype.compileMetaModule = function() {
+	// If it is a normal node package, do nothing
+	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
+		return;
+	}
+
+	var srcfiles = this.pkg.gismo.compiler;
+	if (!srcfiles || typeof srcfiles !== "object") {
+		try {
+			srcfiles = fs.readdirSync(this.path + "compiler").sort();
+		} catch(err) {
+			srcfiles = [];
+		}
+	}
+
+	var program = {type: "Program", body: []};
+
+	// Parse and compile all files
+	for(var i = 0; i < srcfiles.length; i++) {
+		var fname = srcfiles[i];
+		if (fname[0] === '.' || fname.length < 4 || fname.substr(fname.length - 3, 3) !== ".gs") {
+			continue;
+		}
+		var str;
+		try {
+			str = fs.readFileSync(this.path + "compiler/" + fname).toString();
+		} catch(err) {
+			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
+		}
+		this.parser = new parser.Parser(this)
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
+	}
+
+	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
+//	console.log(JSON.stringify(result.code));
+	var main = this.pkg.name ? this.pkg.name : "index.js";
+	var code = "exports.extendParser = function(parser) { "+ result.code + "\n}\n//# sourceMappingURL=_meta.js.map";
+	fs.writeFileSync(this.metaFile(), code);
+	fs.writeFileSync(this.metaFile() + '.map', result.map.toString());
+};
+
+Compiler.prototype.metaFile = function() {
+	// Which file contains the metailed import?
+	var metafile = this.pkg.gismo.metafile;
+	if (typeof metafile !== "string" || metafile === "") {
+		metafile = this.path + "_meta.js";
+	}
+	return metafile;
+};
+
+function MetaCompiler(path) {
+	Compiler.call(this, path);
+}
+
+MetaCompiler.prototype.compileModule = function() {
+
+};
+
+MetaCompiler.prototype.metaFile = Compiler.prototype.metaFile;
+MetaCompiler.prototype.importModule = Compiler.prototype.importModule;
+
+exports.MetaCompiler = MetaCompiler;
 exports.Compiler = Compiler;
