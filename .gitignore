@@ -1,1 +1,13 @@
 node_modules
+test/module1/main.js
+test/module1/_meta.js
+test/module1/main.js.map
+test/module1/_meta.js.map
+test/module2/main.js
+test/module2/_meta.js
+test/module2/main.js.map
+test/module2/_meta.js.map
+test/parser_test.js.map
+test/parser_test.js.out
+scratch.js
+
