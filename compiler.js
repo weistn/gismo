@@ -44,11 +44,12 @@ Compiler.prototype.importMetaModule = function(path) {
 		// Return an empty module
 		return;
 	}
-	// Which file contains the metailed import?
+	// Which file contains the meta code?
 	var metafile = path + "_meta.js";
 	if (!fs.existsSync(metafile)) {
-		var c = new Compiler(path);
-		c.compileMetaModule();
+		throw new Error("Import Error: The module '" + path + "' has not been compiled");
+//		var c = new Compiler(path);
+//		c.compileMetaModule();
 	}
 
 	try {
