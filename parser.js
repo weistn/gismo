@@ -432,6 +432,10 @@ function Parser(compiler) {
 
 function functionParser() {
 	var loc = this.tokenizer.lookback().loc;
+	var generator = false;
+	if (this.tokenizer.presume("*", true)) {
+		generator = true;
+	}
 	var name = this.tokenizer.presumeIdentifier(true);
 	if (name) {
 		name = {type: "Identifier", name: name.value, loc: name.loc};
@@ -452,7 +456,8 @@ function functionParser() {
 		params: parameters,
 		body: code,
 		id: name,
-		loc: loc
+		loc: loc,
+		generator: generator
 	};
 }
 
@@ -488,6 +493,10 @@ function regexParser() {
 
 function functionDeclParser() {
 	var loc = this.tokenizer.lookback().loc;
+	var generator = false;
+	if (this.tokenizer.presume("*", true)) {
+		generator = true;
+	}
 	var tok = this.tokenizer.expectIdentifier();
 	var name = {type: "Identifier", name: tok.value, loc: tok.loc};
 	this.tokenizer.expect("(");
@@ -506,7 +515,8 @@ function functionDeclParser() {
 		params: parameters,
 		body: code,
 		id: name,
-		loc: loc
+		loc: loc,
+		generator: generator
 	};
 }
 
