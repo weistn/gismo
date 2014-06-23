@@ -6,4 +6,10 @@ linelog2
 linelog3 "Doedel" + "Hudel"
 console.log(linepos);
 
+function Statemachine() {
 
+}
+
+statemachine x {
+
+}

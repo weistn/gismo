@@ -1040,7 +1040,7 @@ exports.newTokenizer = function(source, filename) {
             if (errorMsg) {
                 throw errorMsg;
             }   
-            throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
+            throw "Expected an identifier but got " + (t ? t.value : " EOF");
         },
 
         expectRegExp : function(errorMsg) {

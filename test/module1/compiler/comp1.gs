@@ -1,4 +1,4 @@
-console.log("Compiler code of module1, here called", parser.importAlias());
+console.log("Compiler code of module1, here called", parser.importAlias(module));
 
 parser.extendSyntax({
 	exports: true,

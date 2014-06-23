@@ -1408,8 +1408,8 @@ Parser.prototype.parse = function(tokenizer) {
 }
 
 // modulePath is optional
-Parser.prototype.importAlias = function(modulePath) {
-	return this.compiler.importAlias(modulePath);
+Parser.prototype.importAlias = function(m) {
+	return this.compiler.importAlias(m);
 };
 
 Parser.prototype.extendSyntax = function(s) {

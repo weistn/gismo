@@ -54,8 +54,7 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 //		c.compileMetaModule();
 	}
 
-	this.imports[path] = {module: m, alias: alias};
-	this.currentImportPath = path;
+	this.imports[metafile] = {module: m, alias: alias};
 
 	var m;
 	try {
@@ -63,17 +62,11 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 		m.extendParser(this.parser);
 	} catch(err) {
 		throw new Error("Import Error while importing " + metafile + "\n" + err.stack);
-	} finally {
-		this.currentImportPath = undefined;
 	}
 };
 
-// modulePath is optional
-Compiler.prototype.importAlias = function(modulePath) {
-	if (!modulePath) {
-		modulePath = this.currentImportPath;
-	}
-	var m = this.imports[modulePath];
+Compiler.prototype.importAlias = function(m) {
+	var m = this.imports[m.filename];
 	if (!m) {
 		return null;
 	}
