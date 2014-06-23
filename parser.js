@@ -876,7 +876,7 @@ function importParser() {
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
 	try {
-		this.compiler.importMetaModule(path);
+		this.compiler.importMetaModule(path, as.value);
 	} catch(err) {
 		this.throwError(name, Messages.ImportFailed, name.value, err);
 	}
@@ -1406,6 +1406,11 @@ Parser.prototype.parse = function(tokenizer) {
 
 	return result;
 }
+
+// modulePath is optional
+Parser.prototype.importAlias = function(modulePath) {
+	return this.compiler.importAlias(modulePath);
+};
 
 Parser.prototype.extendSyntax = function(s) {
 	// When importing a module, use only exported syntax elements. Ignore everything else

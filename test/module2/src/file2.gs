@@ -1,4 +1,4 @@
-import 'module1';
+import 'module1' as funky;
 
 console.log("I am module 2");
 linelog

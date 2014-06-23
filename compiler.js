@@ -17,10 +17,12 @@ function Compiler(path) {
 	} catch(err) {
 		this.pkg = { };
 	}
+	this.imports = { };
+	this.currentImportPath = undefined;
 }
 
 // Called from the parser that is launched on behalf of compileModule().
-Compiler.prototype.importMetaModule = function(path) {
+Compiler.prototype.importMetaModule = function(path, alias) {
 	if (path === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
@@ -52,12 +54,30 @@ Compiler.prototype.importMetaModule = function(path) {
 //		c.compileMetaModule();
 	}
 
+	this.imports[path] = {module: m, alias: alias};
+	this.currentImportPath = path;
+
+	var m;
 	try {
-		var m = require(metafile);
+		m = require(metafile);
 		m.extendParser(this.parser);
 	} catch(err) {
 		throw new Error("Import Error while importing " + metafile + "\n" + err.stack);
+	} finally {
+		this.currentImportPath = undefined;
 	}
+};
+
+// modulePath is optional
+Compiler.prototype.importAlias = function(modulePath) {
+	if (!modulePath) {
+		modulePath = this.currentImportPath;
+	}
+	var m = this.imports[modulePath];
+	if (!m) {
+		return null;
+	}
+	return m.alias;
 };
 
 Compiler.prototype.compileModule = function() {
@@ -87,7 +107,7 @@ Compiler.prototype.compileModule = function() {
 			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
 		}
 		this.parser = new parser.Parser(this)
-		this.importMetaModule(this.path);
+		this.importMetaModule(this.path, "module");
 		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
 	}
 
