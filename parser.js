@@ -38,7 +38,8 @@ var	Mode_Expression = 1,
 	// Parses an expression, but stops at call operation. Required when parsing "new ... ()"" since "..." must not contain
 	// a function call at top-level.
 	Mode_ExpressionWithoutCall = 3,
-	Mode_ExpressionWithoutColon = 4
+	Mode_ExpressionWithoutColon = 4,
+	Mode_Term = 5
 
 function Parser(compiler) {
 	this.compiler = compiler;
@@ -721,8 +722,8 @@ function varParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = this.tokenizer.expectIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		var name = this.parseIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
 		if (this.tokenizer.presume('=', true)) {
 			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
 			v.loc.end = this.tokenizer.lookback().loc.end;
@@ -1033,6 +1034,23 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 	return value;
 };
 
+Parser.prototype.parseTerm = function() {
+	return this.parseExpression(Mode_Term);
+};
+
+Parser.prototype.parseIdentifier = function() {
+	var ident = this.tokenizer.presumeIdentifier(true);
+	if (ident) {
+		return {type: "Identifier", name: ident.value, loc: ident.loc};
+	}
+	var token = this.tokenizer.lookahead();
+	var ident = this.parseExpression(Mode_Term);
+	if (!ident || ident.type !== "Identifier") {
+		this.throwError(token, Messages.UnexpectedToken, token.value);
+	}
+	return ident;
+};
+
 Parser.prototype.parseArrayExpression = function() {
 	var elements = [];
 //	var loc1 = this.tokenizer.expect("[").loc;
@@ -1218,6 +1236,13 @@ Parser.prototype.parseExpression = function(mode) {
 			break;
 		}
 
+		if (mode === Mode_Term && state.op.associativity === "none" && bracketCount === 0) {
+			if (state.op.closingBracket) {	
+				stack.pop();
+			}
+			break;
+		}
+
 		if (state.op.closingBracket) {
 			state = stack.pop();
 			var op = this.findOperatorUpwards(lookahead, state.op.level);
@@ -1283,7 +1308,6 @@ Parser.prototype.parseExpression = function(mode) {
 		if (mode === Mode_ExpressionWithoutCall && state.op.value === "(" && state.op.associativity === "ul" && bracketCount === 0) {
 			break;
 		}
-
 	} while(token = this.tokenizer.next());
 	// Finish all recursions upwards
 	value = this.finishRecursions(-1, stack, value, lookahead);
@@ -1441,20 +1465,41 @@ Parser.prototype.newStatement = function(s) {
 }
 
 Parser.prototype.newOperand = function(s) {
+	if (lexer.isIdentifier(s.name)) {
+		// TODO: Check conflicts with existing operands or operators
+		this.keywords.push(s.name);
+		if (this.tokenizer) {
+			this.tokenizer.registerKeyword(s.name);
+		}
+		this.operators[s.name] = [
+			{
+				associativity: "none",
+				value: s.name,
+				type: "Keyword",
+				parser: s.parser,
+				level: this.numericTerminal.level // TODO. This is a hack
+			}
+		];
+		return;
+	}
+	if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
+		throw new Error("Operand name is neither an identifier nor a punctuator");
+	}
+
 	// TODO: Check conflicts with existing operands or operators
-	this.keywords.push(s.name);
+	this.punctuators.push(s.name);
 	if (this.tokenizer) {
-		this.tokenizer.registerKeyword(s.name);
+		this.tokenizer.registerPunctuator(s.name);
 	}
 	this.operators[s.name] = [
 		{
 			associativity: "none",
 			value: s.name,
-			type: "Keyword",
+			type: "Punctuator",
 			parser: s.parser,
 			level: this.numericTerminal.level // TODO. This is a hack
 		}
-	];
+	];	
 };
 
 Parser.prototype.newOperator = function(s) {

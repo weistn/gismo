@@ -14,16 +14,15 @@ parser.extendSyntax({
 
 parser.extendSyntax({
 	exports: true,
-	type: 'operator',
+	type: 'operand',
 	name: "@",
-	level: 16,
-	associativity: "right",
-	generator: function(arg) {
+	parser: function() {
+		var content = parser.parseTerm();
 		return {
-			type: "Literal",
-			value: "@",
-			content: arg,
-			loc: arg.loc
+			type: "Identifier",
+			name: "@",
+			content: content,
+			loc: content.loc
 		};
 	}
 });
@@ -41,7 +40,7 @@ function arrayExpressionFromObject(obj) {
 }
 
 function objectExpressionFromObject(obj) {
-	if (obj.type === "Literal" && obj.value === "@") {
+	if (obj.type === "Identifier" && obj.name === "@") {
 		return obj.content;
 	}
 	var props = [];
@@ -69,7 +68,7 @@ function objectExpressionFromObject(obj) {
 				};
 				break;
 			default:
-				throw "Implementation Error: " + typeof value;
+				throw "Implementation Error: key=" + key + ", typeof value=" + typeof value;
 		}
 		props.push({
             "type": "Property",

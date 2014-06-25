@@ -153,6 +153,18 @@ function isIdentifierPart(ch) {
         ((ch >= 0x80) && Regex.NonAsciiIdentifierPart.test(String.fromCharCode(ch)));
 }
 
+function isIdentifier(str) {
+    if (str == "" || !isIdentifierStart(str.charCodeAt(0))) {
+        return false;
+    }
+    for(var i = 1; i < str.length; i++) {
+        if (!isIdentifierPart(str.charCodeAt(i))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // 7.6.1.1 Keywords
 
 Tokenizer.prototype.registerESKeywords = function() {
@@ -1091,4 +1103,8 @@ exports.newTokenizer = function(source, filename) {
             tokenizer.registerPunctuator(punctuator);
         }
     };
-}
+};
+
+exports.isIdentifierStart = isIdentifierStart;
+
+exports.isIdentifier = isIdentifier;
