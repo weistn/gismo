@@ -508,8 +508,7 @@ function functionDeclParser() {
 	if (this.tokenizer.presume("*", true)) {
 		generator = true;
 	}
-	var tok = this.tokenizer.expectIdentifier();
-	var name = {type: "Identifier", name: tok.value, loc: tok.loc};
+	var name = this.parseIdentifier();
 	this.tokenizer.expect("(");
 	var parameters = this.parseExpression(Mode_Expression);
 	if (parameters === undefined) {
@@ -542,9 +541,9 @@ function forParser() {
 		var declarations = [];
 		do {
 			count++;
-			var name = this.tokenizer.expectIdentifier();
-			if (count === 1 && name !== undefined && this.tokenizer.presume("in", true)) {
-				var left = {type: "VariableDeclaration", loc: vartoken.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: {type: "Identifier", name: name.value, loc: name.loc}}]};
+			var name = this.parseIdentifier();
+			if (count === 1 && this.tokenizer.presume("in", true)) {
+				var left = {type: "VariableDeclaration", loc: vartoken.loc, kind: "var", declarations: [{type: "VariableDeclarator", loc: name.loc, init: null, id: name}]};
 				var right = this.parseExpression();
 				this.tokenizer.expect(")");
 				var code = this.parseStatementOrBlockStatement();
@@ -557,7 +556,7 @@ function forParser() {
 					loc: loc
 				};
 			}
-			var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+			var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
 			if (this.tokenizer.presume('=', true)) {
 				v.init = this.parseExpression(Mode_ExpressionWithoutComma);
 				v.loc.end = this.tokenizer.lookback().loc.end;
@@ -745,8 +744,8 @@ function letParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = this.tokenizer.expectIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		var name = this.parseIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
 		if (this.tokenizer.presume('=', true)) {
 			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
 			v.loc.end = this.tokenizer.lookback().loc.end;
@@ -768,8 +767,8 @@ function constParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var declarations = [];
 	do {
-		var name = this.tokenizer.expectIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: {type: "Identifier", name: name.value, loc: name.loc}, loc: {start: name.loc.start}};
+		var name = this.parseIdentifier();
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
 		this.tokenizer.expect('=');
 		v.init = this.parseExpression(Mode_ExpressionWithoutComma);
 		v.loc.end = this.tokenizer.lookback().loc.end;
@@ -810,10 +809,10 @@ function tryCatchParser() {
 	var c;
 	while (c = this.tokenizer.presume('catch', true)) {
 		this.tokenizer.expect("(");
-		var param = this.tokenizer.expectIdentifier();
+		var param = this.parserIdentifier();
 		this.tokenizer.expect(")");
 		var body = this.parseBlockStatement();
-		var handler = {type: "CatchClause", body: body, param: {type: "Identifier", name: param.value, loc: param.loc}, loc: c.loc};
+		var handler = {type: "CatchClause", body: body, param: param, loc: c.loc};
 		handlers.push(handler);
 	}
 	if (this.tokenizer.presume('finally', true)) {
@@ -849,7 +848,7 @@ function importParser() {
 	}
 	var as;
 	if (this.tokenizer.presume('as', true)) {
-		as = this.tokenizer.expectIdentifier();
+		as = this.parseIdentifier();
 	} else {
 		// Infer a module name from the path
 		var filename = name.value;
@@ -861,7 +860,7 @@ function importParser() {
 			this.throwError(name, "Invalid name for an import path");
 		}
 		as = {
-			value: filename,
+			name: filename,
 			loc: name.loc
 		};
 	}
@@ -877,7 +876,7 @@ function importParser() {
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
 	try {
-		this.compiler.importMetaModule(path, as.value);
+		this.compiler.importMetaModule(path, as.name);
 	} catch(err) {
 		this.throwError(name, Messages.ImportFailed, name.value, err);
 	}
@@ -891,7 +890,7 @@ function importParser() {
                 "type": "VariableDeclarator",
                 "id": {
                     "type": "Identifier",
-                    "name": as.value,
+                    "name": as.name,
                     loc: as.loc
                 },
                 "init": {
