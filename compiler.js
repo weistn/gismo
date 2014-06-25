@@ -1,4 +1,5 @@
 var fs = require('fs');
+var libpath = require('path');
 var escodegen = require('escodegen');
 var lexer = require('./lexer.js');
 var parser = require('./parser.js');
@@ -47,7 +48,7 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 		return;
 	}
 	// Which file contains the meta code?
-	var metafile = path + "_meta.js";
+	var metafile = libpath.resolve(libpath.join(path, "_meta.js"));
 	if (!fs.existsSync(metafile)) {
 		throw new Error("Import Error: The module '" + path + "' has not been compiled");
 //		var c = new Compiler(path);
@@ -99,7 +100,7 @@ Compiler.prototype.compileModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
 		}
-		this.parser = new parser.Parser(this)
+		this.parser = new parser.Parser(this);
 		this.importMetaModule(this.path, "module");
 		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
 	}
