@@ -41,7 +41,25 @@ function arrayExpressionFromObject(obj) {
 
 function objectExpressionFromObject(obj) {
 	if (obj.type === "Identifier" && obj.name === "@") {
-		return obj.content;
+        return {
+            "type": "CallExpression",
+            "callee": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                    "type": "Identifier",
+                    "name": parser.importAlias(module)
+                },
+                "property": {
+                    "type": "Identifier",
+                    "name": "toAST"
+                }
+            },
+            "arguments": [
+            	obj.content
+            ]
+        };
+//		return obj.content;
 	}
 	var props = [];
 	for(var key in obj) {

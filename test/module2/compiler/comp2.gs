@@ -50,8 +50,8 @@ parser.extendSyntax({
 	parser: function() {
 		var expr = parser.parseExpression();
 		parser.parseEndOfStatement();
-
-		return statement {console.log("Here, too"); let x = @expr; console.log(x)};
+        var tmp = "somestring";
+		return statement {console.log("Here, too"); let x = @expr; console.log(x, @tmp)};
 	}
 });
 
