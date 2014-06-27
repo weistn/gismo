@@ -22,3 +22,9 @@ operator #a { }
 operator not a { }
 operator a \square { }
 operator a mod b { }
+
+statement struct {
+	parser.parseIdentifier();
+	parser.tokenizer.expect('{');
+	parser.tokenizer.expect('}');
+}

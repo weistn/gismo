@@ -195,3 +195,20 @@ parser.extendSyntax({
         }); }
     }
 });
+
+parser.extendSyntax({
+    exports: true,
+    type: 'statement',
+    name: 'statement',
+    parser: function() {
+        var id = parser.parseIdentifier();
+        var code = parser.parseBlockStatement();
+
+        return template { parser.extendSyntax({
+            exports: true,
+            type: 'statement',
+            name: @(id.name),
+            parser: function() {@code}
+        }); }        
+    }
+});
