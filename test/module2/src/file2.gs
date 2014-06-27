@@ -18,7 +18,7 @@ statemachine x {
 operator select {}
 operator a # b {}
 operator a# { }
-operator #a { }
+operator #a { return template (@a.length) }
 operator not a { }
 operator a \square { }
 operator a mod b { }
