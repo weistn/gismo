@@ -1,7 +1,6 @@
 console.log("Compiler code of module1, here called", parser.importAlias(module));
 
-parser.extendSyntax({
-	exports: true,
+export parser.extendSyntax({
 	type: "operator",
 	associativity: "none",
 	name: "linepos",
@@ -13,8 +12,7 @@ parser.extendSyntax({
 	}	 
 });
 
-parser.extendSyntax({
-	exports: true,
+export parser.extendSyntax({
 	type: 'operator',
 	associativity: "none",
 	name: "@",
@@ -158,8 +156,7 @@ function objectExpressionFromObject(obj) {
 	}
 };
 
-parser.extendSyntax({
-	exports: true,
+export parser.extendSyntax({
 	type: 'operator',
 	associativity: 'none',
 	name: "template",

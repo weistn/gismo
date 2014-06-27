@@ -84,8 +84,7 @@ function isOperator(str) {
     return true;
 }
 
-parser.extendSyntax({
-    exports: true,
+export parser.extendSyntax({
     type: 'statement',
     name: 'operator',
     generator: function() {
@@ -193,8 +192,7 @@ parser.extendSyntax({
     }
 });
 
-parser.extendSyntax({
-    exports: true,
+export parser.extendSyntax({
     type: 'statement',
     name: 'statement',
     generator: function() {

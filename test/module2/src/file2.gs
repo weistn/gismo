@@ -20,7 +20,7 @@ export statemachine x {
 
 }
 
-operator select {}
+export operator select {}
 operator a # b {}
 operator a# { }
 operator #a { return template (@a.length) }

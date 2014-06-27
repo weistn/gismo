@@ -981,6 +981,11 @@ function exportParser() {
     		        statements.push(code);
 				}
 				break;
+			case "ExpressionStatement":
+				if (s.expression.type === "CallExpression" && s.expression.callee.type === "MemberExpression" && !s.expression.callee.computed && s.expression.callee.object.name === "parser" && s.expression.callee.property.name === "extendSyntax") {
+					exported = true;
+					s.expression.callee.property.name = "exportAndExtendSyntax";
+				}
 		}
 	}
 	if (!exported) {
@@ -1519,12 +1524,7 @@ Parser.prototype.importAlias = function(m) {
 	return this.compiler.importAlias(m);
 };
 
-Parser.prototype.extendSyntax = function(s) {
-	// When importing a module, use only exported syntax elements. Ignore everything else
-	if (this.importModuleRunning && !s.exports) {
-		return;
-	}
-//	console.log("extend", s);
+Parser.prototype.exportAndExtendSyntax = function(s) {
 	switch (s.type) {
 		case "operator":
 			this.newOperator(s);
@@ -1535,6 +1535,14 @@ Parser.prototype.extendSyntax = function(s) {
 		default:
 			throw new Error("Unsupported syntax extension in imported module '" + path + "'");
 	}
+};
+
+Parser.prototype.extendSyntax = function(s) {
+	// When importing a module, use only exported syntax elements. Ignore everything else
+	if (this.importModuleRunning) {
+		return;
+	}
+	this.exportAndExtendSyntax(s);
 };
 
 Parser.prototype.newStatement = function(s) {
