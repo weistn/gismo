@@ -7,11 +7,16 @@ linelog3 "Doedel" + "Hudel"
 console.log(linepos);
 console.log(square 2 + 5);
 
+export function useme() {
+}
+
+export var answer = 42;
+
 function Statemachine() {
 
 }
 
-statemachine x {
+export statemachine x {
 
 }
 

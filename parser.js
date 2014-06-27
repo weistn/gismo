@@ -29,7 +29,8 @@ Messages = {
     IllegalReturn: 'Illegal return statement',
     AccessorDataProperty:  'Object literal may not have data and accessor property with the same name',
     AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
-    ImportFailed: 'Failed to import module %0: %1'
+    ImportFailed: 'Failed to import module %0: %1',
+    CannotExport: 'Statement cannot be used in conjunction with export'
 };
 
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
@@ -63,7 +64,8 @@ function Parser(compiler) {
 		'if' : ifParser.bind(this),
 		'switch' : switchParser.bind(this),
 		'debugger' : debuggerParser.bind(this),
-		'import' : importParser.bind(this)
+		'import' : importParser.bind(this),
+		'export' : exportParser.bind(this)
 	};
 
 	// Precedence of built-in JS operators
@@ -913,6 +915,78 @@ function importParser() {
         ],
         "kind": "var"
     };
+}
+
+function exportParser() {
+	var token = this.tokenizer.lookback();
+	var loc = token.loc;
+	var statements = [].concat(this.parseStatement());
+	var exported = false;
+	for(var i = 0; i < statements.length; i++) {
+		var s = statements[i];
+		switch (s.type) {
+			case "FunctionDeclaration":
+				exported = true;
+				var code = {
+		            "type": "ExpressionStatement",
+		            "expression": {
+		                "type": "AssignmentExpression",
+		                "operator": "=",
+		                "left": {
+		                    "type": "MemberExpression",
+		                    "computed": false,
+		                    "object": {
+		                        "type": "Identifier",
+		                        "name": "exports"
+		                    },
+		                    "property": {
+		                        "type": "Identifier",
+		                        "name": s.id.name
+		                    }
+		                },
+		                "right": {
+		                    "type": "Identifier",
+		                    "name": s.id.name
+		                }
+		            }
+		        }
+		        statements.push(code);
+				break;
+			case "VariableDeclaration":
+				exported = true;
+				for(var k = 0; k < s.declarations.length; k++) {
+					var code = {
+			            "type": "ExpressionStatement",
+			            "expression": {
+			                "type": "AssignmentExpression",
+			                "operator": "=",
+			                "left": {
+			                    "type": "MemberExpression",
+			                    "computed": false,
+			                    "object": {
+			                        "type": "Identifier",
+			                        "name": "exports"
+			                    },
+			                    "property": {
+			                        "type": "Identifier",
+			                        "name": s.declarations[k].id.name
+			                    }
+			                },
+			                "right": {
+			                    "type": "Identifier",
+			                    "name": s.declarations[k].id.name
+			                }
+			            }
+			        }
+    		        statements.push(code);
+				}
+				break;
+		}
+	}
+	if (!exported) {
+		this.throwError(token, Messages.CannotExport);
+	}
+	return statements;
 }
 
 var expressionOperator = {
