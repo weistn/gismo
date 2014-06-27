@@ -122,8 +122,6 @@ parser.extendSyntax({
             words.push(str);
         }
 
-        console.log(JSON.stringify(words));
-
         var params = [];
         var opname, associativity;
         switch (words.length) {
@@ -133,7 +131,7 @@ parser.extendSyntax({
                 if (!isOperator(words[0])) {
                     throw new Error("The word '" + words[0] + "' is not a valid operator");                 
                 }
-                console.log(1, words[0]);
+//                console.log(1, words[0]);
                 opname = words[0];
                 associativity = "none";
                 break;
@@ -149,7 +147,7 @@ parser.extendSyntax({
                     if (!isOperator(words[1])) {
                         throw new Error("The word '" + words[1] + "' is not a valid operator");                 
                     }
-                    console.log("2 post", words[0], words[1]);
+//                    console.log("2 post", words[0], words[1]);
                     opname = words[1];
                     params = {type: "Identifier", name: words[0]};
                     associativity = "left";
@@ -160,7 +158,7 @@ parser.extendSyntax({
                     if (!parser.isIdentifier(words[1])) {
                         throw new Error("The word '" + words[1] + "' must be an identifier");
                     }                   
-                    console.log("2 prefix", words[0], words[1]);
+//                    console.log("2 prefix", words[0], words[1]);
                     opname = words[0];
                     params = {type: "Identifier", name: words[1]};
                     associativity = "right";
@@ -176,7 +174,7 @@ parser.extendSyntax({
                 if (!parser.isIdentifier(words[2])) {
                     throw new Error("The word '" + words[2] + "' must be an identifier");
                 }
-                console.log("2 infix", words[0], words[1], words[2]);
+//                console.log("2 infix", words[0], words[1], words[2]);
                 opname = words[1];
                 params = [{type: "Identifier", name: words[0]}, {type: "Identifier", name: words[2]}];
                 associativity = "binary";
@@ -184,8 +182,6 @@ parser.extendSyntax({
         }
 
         var code = parser.parseBlockStatement();
-//      console.log("===============");
-//      return code;
 
         return template { parser.extendSyntax({
             exports: true,

@@ -1503,15 +1503,18 @@ Parser.prototype.newOperator = function(s) {
 		if (this.tokenizer) {
 			this.tokenizer.registerKeyword(s.name);
 		}
-		this.operators[s.name] = [
-			{
-				associativity: associativity,
-				value: s.name,
-				type: "Keyword",
-				generator: s.generator,
-				level: level
-			}
-		];
+		var op = {
+			associativity: associativity,
+			value: s.name,
+			type: "Keyword",
+			generator: s.generator,
+			level: level
+		};
+		if (this.operators[s.name]) {
+			this.operators[s.name].push(op);
+		} else {
+			this.operators[s.name] = [op];
+		}
 		return;
 	}
 	if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
@@ -1522,15 +1525,18 @@ Parser.prototype.newOperator = function(s) {
 	if (this.tokenizer) {
 		this.tokenizer.registerPunctuator(s.name);
 	}
-	this.operators[s.name] = [
-		{
-			associativity: associativity,
-			value: s.name,
-			type: "Punctuator",
-			generator: s.generator,
-			level: level
-		}
-	];	
+	var op = {
+		associativity: associativity,
+		value: s.name,
+		type: "Punctuator",
+		generator: s.generator,
+		level: level
+	};	
+	if (this.operators[s.name]) {
+		this.operators[s.name].push(op);
+	} else {
+		this.operators[s.name] = [op];
+	}
 };
 
 Parser.prototype.isIdentifierStart = lexer.isIdentifierStart;
