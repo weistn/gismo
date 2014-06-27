@@ -16,6 +16,6 @@ for(var i = 0; i < program.args.length; i++) {
 		var c = new compiler.Compiler(arg);
 		c.compileModule();
 	} catch(err) {
-		console.log(err.stack);
+		console.log(err.stack ? err.stack : err);
 	}
 }

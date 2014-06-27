@@ -404,6 +404,7 @@ Tokenizer.prototype.registerPunctuator = function(str) {
     current.complete = true;
 }
 
+// Registers the standard JS punctuators
 Tokenizer.prototype.registerESPunctuators = function() {
     this.registerPunctuator(".");    
     this.registerPunctuator("(");
@@ -984,6 +985,51 @@ Tokenizer.prototype.peek = function() {
     return this.lookahead;
 }
 
+// Line-Ends are collapsed to 10, and EOF is returned as null.
+Tokenizer.prototype.nextChar = function() {
+    if (this.lookahead) {
+        this.lookahead = null;        
+    }
+
+    if (this.lookback != null) {
+        this.lineNumber = this.lookback.lineNumber;
+        this.lineStart = this.lookback.lineStart;
+        this.index = this.lookback.end;
+        this.lookback = null;
+    }
+
+    if (this.index === this.source.length) {
+        return null;
+    }
+
+    var ch = this.source.charCodeAt(this.index++);
+
+    if (isLineTerminator(ch)) {
+        if (ch === 13 && this.source.charCodeAt(this.index) === 10) {
+            this.index++;
+        }
+        this.lineNumber++;
+        this.lineStart = this.index;
+        ch = 10;
+    }
+
+    return ch;
+};
+
+Tokenizer.prototype.peekChar = function() {
+    var idx = this.index;
+    if (this.lookback != null) {
+        idx = this.lookback.end;
+    }
+    var ch = this.source.charCodeAt(idx);
+
+    if (isLineTerminator(ch)) {
+        return 10
+    }
+
+    return ch;
+};
+
 Tokenizer.prototype.throwError = function(messageFormat) {
     var error,
         args = Array.prototype.slice.call(arguments, 1),
@@ -1082,6 +1128,14 @@ exports.newTokenizer = function(source, filename) {
             return tokenizer.next();
         },
 
+        nextChar : function() {
+            return tokenizer.nextChar();
+        },
+
+        peekChar : function() {
+            return tokenizer.peekChar();
+        },
+
         lookahead : function() {
             return tokenizer.peek();
         },
@@ -1095,6 +1149,21 @@ exports.newTokenizer = function(source, filename) {
             };
         },
 
+        skipComment : function() {
+            if (tokenizer.lookahead) {
+                tokenizer.lookahead = null;        
+            }
+
+            if (tokenizer.lookback != null) {
+                tokenizer.lineNumber = tokenizer.lookback.lineNumber;
+                tokenizer.lineStart = tokenizer.lookback.lineStart;
+                tokenizer.index = tokenizer.lookback.end;
+                tokenizer.lookback = null;
+            }
+
+            tokenizer.skipComment();
+        },
+
         registerKeyword : function(keyword) {
             tokenizer.registerKeyword(keyword);
         },
@@ -1106,5 +1175,10 @@ exports.newTokenizer = function(source, filename) {
 };
 
 exports.isIdentifierStart = isIdentifierStart;
-
+exports.isIdentifierPart = isIdentifierPart;
 exports.isIdentifier = isIdentifier;
+exports.isDecimalDigit = isDecimalDigit;
+exports.isHexDigit = isHexDigit;
+exports.isOctalDigit = isOctalDigit;
+exports.isWhiteSpace = isWhiteSpace
+exports.isLineTerminator = isLineTerminator;

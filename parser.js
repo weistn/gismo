@@ -436,6 +436,8 @@ function functionParser() {
 	var name = this.tokenizer.presumeIdentifier(true);
 	if (name) {
 		name = {type: "Identifier", name: name.value, loc: name.loc};
+	} else {
+		name = null;
 	}
 	this.tokenizer.expect("(");
 	var parameters = this.parseExpression(Mode_Expression);
@@ -1537,6 +1539,16 @@ Parser.prototype.newOperator = function(s) {
 		}
 	];	
 };
+
+Parser.prototype.isIdentifierStart = lexer.isIdentifierStart;
+Parser.prototype.isIdentifierPart = lexer.isIdentifierPart;
+Parser.prototype.isIdentifier = lexer.isIdentifier;
+Parser.prototype.isDecimalDigit = lexer.isDecimalDigit;
+Parser.prototype.isHexDigit = lexer.isHexDigit;
+Parser.prototype.isOctalDigit = lexer.isOctalDigit;
+Parser.prototype.isWhiteSpace = lexer.isWhiteSpace
+Parser.prototype.isLineTerminator = lexer.isLineTerminator;
+
 
 Parser.prototype.throwError = function(token, messageFormat) {
     var error,

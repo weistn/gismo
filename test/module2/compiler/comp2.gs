@@ -66,3 +66,123 @@ parser.extendSyntax({
         return statement {var @name = new @x.Statemachine()}
     }
 });
+
+function isOperator(str) {
+    if (parser.isIdentifierStart(str.charCodeAt(0))) {
+        return parser.isIdentifier(str);
+    }
+    return true;
+}
+
+parser.extendSyntax({
+    exports: true,
+    type: 'statement',
+    name: 'operator',
+    parser: function() {
+        var words = [];
+        var ch;
+        for(var i = 0; i < 3; i++) {
+            parser.tokenizer.skipComment();
+            var str = "";
+            var j = 0;
+            var isIdent = false;
+            while(true) {
+                ch = parser.tokenizer.peekChar();
+//              console.log(ch, parser.tokenizer.location().index);
+                if (ch === null || ch === 123) {
+                    break;
+                }
+                if (j === 0 && parser.isIdentifierStart(ch)) {
+                    isIdent = true;
+                } else if (j > 0 && isIdent && !parser.isIdentifierPart(ch)) {
+                    break;
+                } else if (j > 0 && !isIdent && parser.isIdentifierStart(ch)) {
+                    break;
+                }
+                parser.tokenizer.nextChar();
+                if (parser.isWhiteSpace(ch) || parser.isLineTerminator(ch)) {
+                    break;
+                }
+                str += String.fromCharCode(ch);
+                j++;
+            }
+            if (ch === null || ch === 123) {
+                break;
+            }
+            words.push(str);
+        }
+
+        console.log(JSON.stringify(words));
+
+        var params = [];
+        var opname, associativity;
+        switch (words.length) {
+            case 0:
+                throw new Error("Missing operator name");
+            case 1:
+                if (!isOperator(words[0])) {
+                    throw new Error("The word '" + words[0] + "' is not a valid operator");                 
+                }
+                console.log(1, words[0]);
+                opname = words[0];
+                associativity = "none";
+                break;
+            case 2:
+                ch = words[1].charCodeAt(0);
+                if (!parser.isIdentifierStart(ch) || ch === 92) {
+                    if (ch === 92) {
+                        words[1] = words[1].slice(1);
+                    }
+                    if (!parser.isIdentifier(words[0])) {
+                        throw new Error("The word '" + words[0] + "' must be an identifier");
+                    }
+                    if (!isOperator(words[1])) {
+                        throw new Error("The word '" + words[1] + "' is not a valid operator");                 
+                    }
+                    console.log("2 post", words[0], words[1]);
+                    opname = words[1];
+                    params = {type: "Identifier", name: words[0]};
+                    associativity = "left";
+                } else {
+                    if (!isOperator(words[0])) {
+                        throw new Error("The word '" + words[0] + "' is not a valid operator");                 
+                    }
+                    if (!parser.isIdentifier(words[1])) {
+                        throw new Error("The word '" + words[1] + "' must be an identifier");
+                    }                   
+                    console.log("2 prefix", words[0], words[1]);
+                    opname = words[0];
+                    params = {type: "Identifier", name: words[1]};
+                    associativity = "right";
+                }
+                break;
+            case 3:
+                if (!parser.isIdentifier(words[0])) {
+                    throw new Error("The word '" + words[0] + "' must be an identifier");
+                }
+                if (!isOperator(words[1])) {
+                    throw new Error("The word '" + words[1] + "' is not a valid operator");                 
+                }
+                if (!parser.isIdentifier(words[2])) {
+                    throw new Error("The word '" + words[2] + "' must be an identifier");
+                }
+                console.log("2 infix", words[0], words[1], words[2]);
+                opname = words[1];
+                params = [{type: "Identifier", name: words[0]}, {type: "Identifier", name: words[2]}];
+                associativity = "binary";
+                break;  
+        }
+
+        var code = parser.parseBlockStatement();
+//      console.log("===============");
+//      return code;
+
+        return statement { parser.extendSyntax({
+            exports: true,
+            type: 'operator',
+            name: @opname,
+            associativity: @associativity,
+            parser: function(@params) {@code}
+        }); }
+    }
+});

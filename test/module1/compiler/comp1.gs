@@ -40,7 +40,7 @@ function arrayExpressionFromObject(obj) {
 }
 
 function objectExpressionFromObject(obj) {
-	if (obj.type === "Identifier" && obj.name === "@") {
+	if (typeof obj === "object" && obj.type === "Identifier" && obj.name === "@") {
         return {
             "type": "CallExpression",
             "callee": {
@@ -59,8 +59,28 @@ function objectExpressionFromObject(obj) {
             	obj.content
             ]
         };
-//		return obj.content;
 	}
+	if (typeof obj === "object" && obj.type === "ExpressionStatement" && typeof obj.expression === "object" && obj.expression.type === "Identifier" && obj.expression.name === "@") {
+        return {
+            "type": "CallExpression",
+            "callee": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                    "type": "Identifier",
+                    "name": parser.importAlias(module)
+                },
+                "property": {
+                    "type": "Identifier",
+                    "name": "toStatement"
+                }
+            },
+            "arguments": [
+            	obj.expression.content
+            ]
+        };
+	}
+
 	var props = [];
 	for(var key in obj) {
 		if (key === "loc") {
@@ -70,6 +90,38 @@ function objectExpressionFromObject(obj) {
 		switch (typeof value) {
 			case "object":
 				if (value !== null) {
+					if ((obj.type === "FunctionDeclaration" || obj.type === "FunctionExpression") && key === "params") {
+						var params = [];
+						var special = false;
+						for(var i = 0; i < value.length; i++) {
+							var v = value[i];
+							if (typeof v === "object" && v.type === "Identifier" && v.name === "@") {
+								special = true;
+								params.push(v.content);
+							} else {
+								params.push(objectExpressionFromObject(v));
+							}
+						}
+						if (special) {
+							value = {
+					            "type": "CallExpression",
+					            "callee": {
+					                "type": "MemberExpression",
+					                "computed": false,
+					                "object": {
+					                    "type": "Identifier",
+					                    "name": parser.importAlias(module)
+					                },
+					                "property": {
+					                    "type": "Identifier",
+					                    "name": "toFunctionParameters"
+					                }
+					            },
+					            "arguments": params
+					        };
+					        break;
+						}
+					}
 					if (value.length === undefined) {
 						value = objectExpressionFromObject(value);
 					} else {
@@ -86,7 +138,7 @@ function objectExpressionFromObject(obj) {
 				};
 				break;
 			default:
-				throw "Implementation Error: key=" + key + ", typeof value=" + typeof value;
+				throw "Implementation Error: key=" + key + ", typeof value=" + typeof value + " obj=" + JSON.stringify(obj);
 		}
 		props.push({
             "type": "Property",
@@ -112,3 +164,4 @@ parser.extendSyntax({
 		return objectExpressionFromObject(parser.parseBlockStatement());
 	}
 });
+

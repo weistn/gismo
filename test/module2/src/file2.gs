@@ -13,3 +13,11 @@ function Statemachine() {
 statemachine x {
 
 }
+
+operator select {}
+operator a # b {}
+operator a# { }
+operator #a { }
+operator not a { }
+operator a \square { }
+operator a mod b { }
