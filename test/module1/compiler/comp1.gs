@@ -161,7 +161,12 @@ parser.extendSyntax({
 	type: 'operand',
 	name: "statement",
 	parser: function() {
-		return objectExpressionFromObject(parser.parseBlockStatement());
+		var s = parser.parseBlockStatement();
+		if (s.body.length === 1 ) {
+			return objectExpressionFromObject(s.body[0]);
+		}
+		return arrayExpressionFromObject(s.body);
+//		return objectExpressionFromObject(parser.parseBlockStatement());
 	}
 });
 

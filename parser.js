@@ -658,7 +658,7 @@ function switchParser() {
 		}
 		var consequent = [];
 		while( this.tokenizer.lookahead() !== undefined && !this.tokenizer.presume('case', false) && !this.tokenizer.presume('default', false) && !this.tokenizer.presume('}', false)) {
-			consequent.push(this.parseStatement());
+			consequent = consequent.concat(this.parseStatement());
 		}
 		cases.push( {type: "SwitchCase", test: test, consequent: consequent, loc: token.loc} );
 	}
@@ -1322,21 +1322,28 @@ Parser.prototype.parseExpression = function(mode) {
 //		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
 //	}
 	return value.argument;
-}
+};
 
 Parser.prototype.parseStatementOrBlockStatement = function() {
 	if (this.tokenizer.lookahead().value === "{") {
 		return this.parseBlockStatement();
 	}
-	return this.parseStatement();
-}
+	var s = this.parseStatement();
+	if (s.length !== undefined) {
+		return {
+			type: "BlockStatement",
+			body: s
+		};
+	}
+	return s;
+};
 
 Parser.prototype.parseBlockStatement = function() {
 	var loc1 = this.tokenizer.expect("{").loc;
 	var statements = this.parseStatements();
 	var loc2 = this.tokenizer.expect("}").loc;
 	return {type: "BlockStatement", body: statements, loc: {start: loc1.start, end: loc2.end}};
-}
+};
 
 Parser.prototype.parseExpressionStatement = function() {
 	var lookahead = this.tokenizer.lookahead();
@@ -1409,7 +1416,7 @@ Parser.prototype.parseStatements = function() {
 	var result = [];
 	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
 		var body = this.parseStatement();
-		result.push(body);
+		result = result.concat(body);
 	}
 	return result;
 }
@@ -1426,7 +1433,7 @@ Parser.prototype.parse = function(tokenizer) {
 	var result = [];
 	while( this.tokenizer.lookahead() !== undefined && this.tokenizer.lookahead().value !== '}') {
 		var body = this.parseStatement();
-		result.push(body);
+		result = result.concat(body);
 	}
 
 	return result;
