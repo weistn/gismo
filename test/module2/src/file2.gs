@@ -5,7 +5,7 @@ linelog
 linelog2
 linelog3 "Doedel" + "Hudel"
 console.log(linepos);
-square 2 + 5;
+console.log(square 2 + 5);
 
 function Statemachine() {
 
