@@ -51,8 +51,17 @@ parser.extendSyntax({
 		var expr = parser.parseExpression();
 		parser.parseEndOfStatement();
         var tmp = "somestring";
-		return statement {console.log("Here, too"); let x = @expr; console.log(x, @tmp)};
+		return template {console.log("Here, too"); let x = @expr; console.log(x, @tmp)};
 	}
+});
+
+parser.extendSyntax({
+    type: 'operand',
+    name: "square",
+    parser: function() {
+        var expr = parser.parseExpression();
+        return template (@expr * @expr);
+    }
 });
 
 parser.extendSyntax({
@@ -63,7 +72,7 @@ parser.extendSyntax({
         parser.tokenizer.expect('{');
         parser.tokenizer.expect('}');
         var x = {type: 'Identifier', name: parser.importAlias(module)};
-        return statement {var @name = new @x.Statemachine()}
+        return template {var @name = new @x.Statemachine()}
     }
 });
 
@@ -177,7 +186,7 @@ parser.extendSyntax({
 //      console.log("===============");
 //      return code;
 
-        return statement { parser.extendSyntax({
+        return template { parser.extendSyntax({
             exports: true,
             type: 'operator',
             name: @opname,

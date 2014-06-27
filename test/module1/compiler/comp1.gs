@@ -159,14 +159,16 @@ function objectExpressionFromObject(obj) {
 parser.extendSyntax({
 	exports: true,
 	type: 'operand',
-	name: "statement",
+	name: "template",
 	parser: function() {
+		if (parser.tokenizer.presume('(', false)) {
+			return objectExpressionFromObject(parser.parseTerm());
+		}
 		var s = parser.parseBlockStatement();
 		if (s.body.length === 1 ) {
 			return objectExpressionFromObject(s.body[0]);
 		}
 		return arrayExpressionFromObject(s.body);
-//		return objectExpressionFromObject(parser.parseBlockStatement());
 	}
 });
 

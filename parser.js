@@ -1124,6 +1124,9 @@ Parser.prototype.parseObjectExpression = function() {
 }
 
 Parser.prototype.parseExpression = function(mode) {
+	if (!mode) {
+		mode = Mode_Expression;
+	}
 	var stack = [];
 	var value, lookahead;
 	var state = {op: expressionOperator};
