@@ -2,9 +2,10 @@ console.log("Compiler code of module1, here called", parser.importAlias(module))
 
 parser.extendSyntax({
 	exports: true,
-	type: "operand",
+	type: "operator",
+	associativity: "none",
 	name: "linepos",
-	parser: function() {
+	generator: function() {
 		return {
 			type: "Literal",
 			value: "NEW OPERAND"
@@ -14,9 +15,10 @@ parser.extendSyntax({
 
 parser.extendSyntax({
 	exports: true,
-	type: 'operand',
+	type: 'operator',
+	associativity: "none",
 	name: "@",
-	parser: function() {
+	generator: function() {
 		var content = parser.parseTerm();
 		return {
 			type: "Identifier",
@@ -158,9 +160,10 @@ function objectExpressionFromObject(obj) {
 
 parser.extendSyntax({
 	exports: true,
-	type: 'operand',
+	type: 'operator',
+	associativity: 'none',
 	name: "template",
-	parser: function() {
+	generator: function() {
 		if (parser.tokenizer.presume('(', false)) {
 			return objectExpressionFromObject(parser.parseTerm());
 		}

@@ -142,7 +142,7 @@ function Parser(compiler) {
 			type: 'Punctuator',
 			value: "?",
 			associativity: "br",
-			parser: conditionalParser.bind(this)
+			generator: conditionalParser.bind(this)
 		}],
 		[{
 			type: 'Punctuator',
@@ -338,7 +338,7 @@ function Parser(compiler) {
 			type: 'Punctuator',
 			value: '/',
 			associativity: "none",
-			parser: regexParser.bind(this)
+			generator: regexParser.bind(this)
 		},
 		{
 			type: 'String',
@@ -363,7 +363,7 @@ function Parser(compiler) {
 			type: 'Keyword',
 			value: "new",
 			associativity: "none",
-			parser: newParser.bind(this)
+			generator: newParser.bind(this)
 		},
 		{
 			type: 'Keyword',
@@ -374,7 +374,7 @@ function Parser(compiler) {
 			type: 'Keyword',
 			value: "function",
 			associativity: "none",
-			parser: functionParser.bind(this)
+			generator: functionParser.bind(this)
 		},
 		{
 			type: 'Punctuator',
@@ -1135,9 +1135,9 @@ Parser.prototype.parseExpression = function(mode) {
 
 	do {
 		// Process the current token (token[index]) with the current operator (state.op)
-		if (state.op.parser && state.op.associativity === "none") {
+		if (state.op.generator && state.op.associativity === "none") {
 //			console.log(token.value, "parser");
-			value = state.op.parser();
+			value = state.op.generator();
 		} else if (state.op.bracket && state.op.associativity === "none") {
 //			console.log(token.value, "bracket");
 			if (state.op.value === '{') {
@@ -1210,8 +1210,6 @@ Parser.prototype.parseExpression = function(mode) {
 			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression", loc: token.loc};
 			stack.push(state);
 			value = undefined;
-		} else if (state.op.associativity === "br" && state.op.parser) {
-			value = state.op.parser(value);
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 //			console.log(token.value, "bl or br");	
 			if (state.op.value === ",") {
@@ -1262,7 +1260,7 @@ Parser.prototype.parseExpression = function(mode) {
 			}
 			state = {op: op};
 			value = undefined;
-		} else if (state.op.associativity === "none" || (state.op.parser && state.op.associativity === "br")) {
+		} else if (state.op.associativity === "none") {
 			var op = this.findOperatorUpwards(lookahead, state.op.level);
 			if (!op) {
 				break
@@ -1454,9 +1452,6 @@ Parser.prototype.extendSyntax = function(s) {
 	}
 //	console.log("extend", s);
 	switch (s.type) {
-		case "operand":
-			this.newOperand(s);
-			break;
 		case "operator":
 			this.newOperator(s);
 			break;
@@ -1472,52 +1467,18 @@ Parser.prototype.newStatement = function(s) {
 	if (this.statementKeywords[s.name]) {
 		throw new Error("ExtensionError: Statement has already been registered: '" + s.name + "'");
 	}
-	this.statementKeywords[s.name] = s.parser;
+	this.statementKeywords[s.name] = s.generator;
 }
-
-Parser.prototype.newOperand = function(s) {
-	if (lexer.isIdentifier(s.name)) {
-		// TODO: Check conflicts with existing operands or operators
-		this.keywords.push(s.name);
-		if (this.tokenizer) {
-			this.tokenizer.registerKeyword(s.name);
-		}
-		this.operators[s.name] = [
-			{
-				associativity: "none",
-				value: s.name,
-				type: "Keyword",
-				parser: s.parser,
-				level: this.numericTerminal.level // TODO. This is a hack
-			}
-		];
-		return;
-	}
-	if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
-		throw new Error("Operand name is neither an identifier nor a punctuator");
-	}
-
-	// TODO: Check conflicts with existing operands or operators
-	this.punctuators.push(s.name);
-	if (this.tokenizer) {
-		this.tokenizer.registerPunctuator(s.name);
-	}
-	this.operators[s.name] = [
-		{
-			associativity: "none",
-			value: s.name,
-			type: "Punctuator",
-			parser: s.parser,
-			level: this.numericTerminal.level // TODO. This is a hack
-		}
-	];	
-};
 
 Parser.prototype.newOperator = function(s) {
 	// TODO: Check conflicts with existing operands or operators
 	var associativity = "none";
+	var level = s.level;
 	switch (s.associativity) {
 		case "none":
+			if (level === undefined) {
+				level = this.numericTerminal.level;
+			}
 			break;
 		case "right":
 			associativity = "ur";
@@ -1535,6 +1496,28 @@ Parser.prototype.newOperator = function(s) {
 		default:
 			throw new Error("ExtensionError: Unknown associativity '" + s.associativity + "'");
 	}
+
+	if (lexer.isIdentifier(s.name)) {
+		// TODO: Check conflicts with existing operands or operators
+		this.keywords.push(s.name);
+		if (this.tokenizer) {
+			this.tokenizer.registerKeyword(s.name);
+		}
+		this.operators[s.name] = [
+			{
+				associativity: associativity,
+				value: s.name,
+				type: "Keyword",
+				generator: s.generator,
+				level: level
+			}
+		];
+		return;
+	}
+	if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
+		throw new Error("Operator name '" + s.name + "' is neither a valid identifier nor a punctuator");
+	}
+
 	this.punctuators.push(s.name);
 	if (this.tokenizer) {
 		this.tokenizer.registerPunctuator(s.name);
@@ -1545,7 +1528,7 @@ Parser.prototype.newOperator = function(s) {
 			value: s.name,
 			type: "Punctuator",
 			generator: s.generator,
-			level: s.level
+			level: level
 		}
 	];	
 };

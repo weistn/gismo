@@ -5,7 +5,7 @@ console.log("Compiler code of module2, here called", parser.importAlias(module))
 parser.extendSyntax({
 	type: 'statement',
 	name: "linelog",
-	parser: function() {
+	generator: function() {
 		parser.parseEndOfStatement();
 		return {
             "type": "ExpressionStatement",
@@ -38,7 +38,7 @@ parser.extendSyntax({
 parser.extendSyntax({
 	type: 'statement',
 	name: "linelog2",
-	parser: function() {
+	generator: function() {
 		parser.parseEndOfStatement();
 		return 'console.log("Here, too"); let x = 12; console.log(x)';
 	}
@@ -47,7 +47,7 @@ parser.extendSyntax({
 parser.extendSyntax({
 	type: 'statement',
 	name: "linelog3",
-	parser: function() {
+	generator: function() {
 		var expr = parser.parseExpression();
 		parser.parseEndOfStatement();
         var tmp = "somestring";
@@ -56,9 +56,10 @@ parser.extendSyntax({
 });
 
 parser.extendSyntax({
-    type: 'operand',
+    type: 'operator',
+    associativity: 'none',
     name: "square",
-    parser: function() {
+    generator: function() {
         var expr = parser.parseExpression();
         return template (@expr * @expr);
     }
@@ -67,7 +68,7 @@ parser.extendSyntax({
 parser.extendSyntax({
     type: 'statement',
     name: 'statemachine',
-    parser: function() {
+    generator: function() {
         var name = parser.parseIdentifier();
         parser.tokenizer.expect('{');
         parser.tokenizer.expect('}');
@@ -87,7 +88,7 @@ parser.extendSyntax({
     exports: true,
     type: 'statement',
     name: 'operator',
-    parser: function() {
+    generator: function() {
         var words = [];
         var ch;
         for(var i = 0; i < 3; i++) {
@@ -191,7 +192,7 @@ parser.extendSyntax({
             type: 'operator',
             name: @opname,
             associativity: @associativity,
-            parser: function(@params) {@code}
+            generator: function(@params) {@code}
         }); }
     }
 });
@@ -200,7 +201,7 @@ parser.extendSyntax({
     exports: true,
     type: 'statement',
     name: 'statement',
-    parser: function() {
+    generator: function() {
         var id = parser.parseIdentifier();
         var code = parser.parseBlockStatement();
 
@@ -208,7 +209,7 @@ parser.extendSyntax({
             exports: true,
             type: 'statement',
             name: @(id.name),
-            parser: function() {@code}
+            generator: function() {@code}
         }); }        
     }
 });
