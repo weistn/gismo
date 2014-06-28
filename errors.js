@@ -25,8 +25,9 @@ var Messages = {
     IllegalReturn: 'Illegal return statement',
     AccessorDataProperty:  'Object literal may not have data and accessor property with the same name',
     AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
-    ImportFailed: 'Failed to import module %0: %1',
-    CannotExport: 'Statement cannot be used in conjunction with export'
+    ImportFailed: 'Failed to import %0: %1',
+    CannotExport: 'Statement cannot be used in conjunction with export',
+    UnknownModuile: 'Unknown module %0'
 };
 
 // Thrown when parsing failes

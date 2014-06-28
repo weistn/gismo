@@ -7,8 +7,9 @@
     "test": "make test"
   },
   "keywords": [
-    "foo",
-    "bar"
+    "gismo",
+    "transpiler",
+    "javascript"
   ],
   "author": "Torben Weis <torben.weis@gmail.com> (http://vs.uni-due.de/)",
   "license": "ISC",
@@ -22,6 +23,7 @@
   "dependencies": {
     "colors": "^0.6.2",
     "commander": "^2.2.0",
-    "escodegen": "^1.3.2"
+    "escodegen": "^1.3.2",
+    "promptly": "^0.2.0"
   }
 }

@@ -844,7 +844,7 @@ function importParser() {
 	try {
 		var jsfile = require.resolve(name.value);
 	} catch(err) {
-		this.throwError(name, "Cannot find module '" + name.value + "'");
+		this.throwError(name, Messages.UnknownModule, name.value);
 	}
 	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
@@ -852,7 +852,10 @@ function importParser() {
 	try {
 		this.compiler.importMetaModule(path, as.name);
 	} catch(err) {
-		this.throwError(name, errors.Messages.ImportFailed, name.value, err);
+		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
+			throw err;
+		}
+		this.throwError(name, errors.Messages.ImportFailed, name.value, err.toString());
 	}
 	this.importModuleRunning = false;
 
@@ -1618,6 +1621,9 @@ Parser.prototype.execGenerator = function(generator) {
 	try {
 		return generator();
 	} catch(err) {
+		if (err instanceof errors.SyntaxError) {
+			throw err;
+		}
 		var e = new errors.CompilerError(err.toString());
 		e.stack = err.stack;
 		throw e;
@@ -1628,6 +1634,9 @@ Parser.prototype.execUnaryGenerator = function(generator, a) {
 	try {
 		return generator(a);
 	} catch(err) {
+		if (err instanceof errors.SyntaxError) {
+			throw err;
+		}
 		var e = new errors.CompilerError(err.toString());
 		e.stack = err.stack;
 		throw e;
@@ -1638,6 +1647,9 @@ Parser.prototype.execBinaryGenerator = function(generator, a, b) {
 	try {
 		return generator(a, b);
 	} catch(err) {
+		if (err instanceof errors.SyntaxError) {
+			throw err;
+		}
 		var e = new errors.CompilerError(err.toString());
 		e.stack = err.stack;
 		throw e;

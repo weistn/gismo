@@ -8,7 +8,7 @@ var errors = require('./errors.js');
 function Compiler(path) {
 	this.path = path;
 	if (this.path === "") {
-		throw new Error("Illegal path for a module: " + path);
+		throw new errors.SyntaxError("Illegal path for a module: " + path);
 	}
 	if (this.path[this.path.length - 1] != "/") {
 		this.path += "/";
@@ -17,7 +17,7 @@ function Compiler(path) {
 	try {
 		this.pkg = JSON.parse(fs.readFileSync(this.path + 'package.json', 'utf8'));
 	} catch(err) {
-		this.pkg = { };
+		throw new errors.SyntaxError("Unknown module " + path);
 	}
 	this.imports = { };
 	this.currentImportPath = undefined;
@@ -51,9 +51,7 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 	// Which file contains the meta code?
 	var metafile = libpath.resolve(libpath.join(path, "_meta.js"));
 	if (!fs.existsSync(metafile)) {
-		throw new errors.CompilerError("Import Error: The module '" + path + "' has not been compiled");
-//		var c = new Compiler(path);
-//		c.compileMetaModule();
+		throw new Error("The module '" + path + "' has not yet been compiled");
 	}
 
 	this.imports[metafile] = {module: m, alias: alias};
@@ -63,7 +61,9 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 		m = require(metafile);
 		m.extendParser(this.parser);
 	} catch(err) {
-//		throw new errors.CompilerError("Import Error while importing " + metafile);
+		if (err instanceof errors.SyntaxError) {
+			throw err;
+		}
 		var e = new errors.CompilerError(err.toString());
 		e.stack = err.stack;
 		throw e;
@@ -83,6 +83,7 @@ Compiler.prototype.compileModule = function() {
 	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
 		return;
 	}
+
 	this.compileMetaModule();
 
 	var srcfiles = this.pkg.gismo.src;
@@ -146,13 +147,12 @@ Compiler.prototype.compileMetaModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
 		}
-		this.parser = new parser.Parser(this)
+		this.parser = new parser.Parser(this);
 		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
 	}
 
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
 //	console.log(JSON.stringify(result.code));
-	var main = this.pkg.name ? this.pkg.name : "index.js";
 	var code = "exports.extendParser = function(parser) { "+ result.code + "\n}\n//# sourceMappingURL=_meta.js.map";
 	fs.writeFileSync(this.metaFile(), code);
 	fs.writeFileSync(this.metaFile() + '.map', result.map.toString());
