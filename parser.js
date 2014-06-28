@@ -1,37 +1,7 @@
 // var esprima = require('esprima');
 var lexer = require("./lexer.js");
 var escodegen = require('escodegen');
-
-	
-var ErrorType = {
-    SyntaxError: "Syntax Error"
-};
-
-// Error messages should be identical to V8.
-Messages = {
-    UnexpectedToken:  'Unexpected token %0',
-    UnexpectedNumber:  'Unexpected number',
-    UnexpectedString:  'Unexpected string',
-    UnexpectedIdentifier:  'Unexpected identifier',
-    UnexpectedReserved:  'Unexpected reserved word',
-    UnexpectedEOS:  'Unexpected end of input',
-    NewlineAfterThrow:  'Illegal newline after throw',
-    InvalidRegExp: 'Invalid regular expression',
-    UnterminatedRegExp:  'Invalid regular expression: missing /',
-    InvalidLHSInAssignment:  'Invalid left-hand side in assignment',
-    InvalidLHSInForIn:  'Invalid left-hand side in for-in',
-    MultipleDefaultsInSwitch: 'More than one default clause in switch statement',
-    NoCatchOrFinally:  'Missing catch or finally after try',
-    UnknownLabel: 'Undefined label \'%0\'',
-    Redeclaration: '%0 \'%1\' has already been declared',
-    IllegalContinue: 'Illegal continue statement',
-    IllegalBreak: 'Illegal break statement',
-    IllegalReturn: 'Illegal return statement',
-    AccessorDataProperty:  'Object literal may not have data and accessor property with the same name',
-    AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
-    ImportFailed: 'Failed to import module %0: %1',
-    CannotExport: 'Statement cannot be used in conjunction with export'
-};
+var errors = require("./errors");
 
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 var	Mode_Expression = 1,
@@ -143,7 +113,7 @@ function Parser(compiler) {
 		[{
 			type: 'Punctuator',
 			value: "?",
-			associativity: "br",
+			associativity: "ul",
 			generator: conditionalParser.bind(this)
 		}],
 		[{
@@ -656,7 +626,7 @@ function switchParser() {
 			this.tokenizer.expect(":");
 			test = null;
 		} else {
-			this.throwError(this.tokenizer.lookahead(), Messages.UnexpectedToken, this.tokenizer.lookahead().value);
+			this.throwError(this.tokenizer.lookahead(), errors.Messages.UnexpectedToken, this.tokenizer.lookahead().value);
 		}
 		var consequent = [];
 		while( this.tokenizer.lookahead() !== undefined && !this.tokenizer.presume('case', false) && !this.tokenizer.presume('default', false) && !this.tokenizer.presume('}', false)) {
@@ -712,7 +682,7 @@ function throwParser() {
 	var loc = this.tokenizer.lookback().loc;
 	var expression = this.parseExpressionStatement();
 	if (expression === undefined) {
-		this.throwError(this.tokenizer.lookback(), Messages.NewlineAfterThrow);
+		this.throwError(this.tokenizer.lookback(), errors.Messages.NewlineAfterThrow);
 	}
 	return {
 		type: "ThrowStatement",
@@ -823,7 +793,7 @@ function tryCatchParser() {
 		finalizer = this.parseBlockStatement();
 	}
 	if (handlers.length === 0 && finalizer === null) {
-		this.throwError(token, Messages.NoCatchOrFinally);
+		this.throwError(token, errors.Messages.NoCatchOrFinally);
 	}
 	return {
 		type: "TryStatement",
@@ -882,7 +852,7 @@ function importParser() {
 	try {
 		this.compiler.importMetaModule(path, as.name);
 	} catch(err) {
-		this.throwError(name, Messages.ImportFailed, name.value, err);
+		this.throwError(name, errors.Messages.ImportFailed, name.value, err);
 	}
 	this.importModuleRunning = false;
 
@@ -989,7 +959,7 @@ function exportParser() {
 		}
 	}
 	if (!exported) {
-		this.throwError(token, Messages.CannotExport);
+		this.throwError(token, errors.Messages.CannotExport);
 	}
 	return statements;
 }
@@ -1083,9 +1053,9 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 //		console.log(state.op.value, "... upwards to level", level, " value=", value);
 		if (value === undefined && state.op !== expressionOperator) {
 			if (lookahead !== undefined) {
-				this.throwError(lookahead, Messages.UnexpectedToken, lookahead.value);				
+				this.throwError(lookahead, errors.Messages.UnexpectedToken, lookahead.value);				
 			}
-			this.throwError(lookahead, Messages.UnexpectedEOS);
+			this.throwError(lookahead, errors.Messages.UnexpectedEOS);
 		}
 		if (state.op.associativity === "ur") {
 			if (state.op.generator) {
@@ -1094,7 +1064,9 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 				state.value.argument = value;
 			}
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
-			if (state.op.value === ',') {
+			if (state.op.generator) {
+				state.value = state.op.generator(state.value, value);
+			} else if (state.op.value === ',') {
 				if (value.type === "SequenceExpression") {
 					state.value.expressions = state.value.expressions.concat(value.expressions);
 				} else {
@@ -1126,7 +1098,7 @@ Parser.prototype.parseIdentifier = function() {
 	var token = this.tokenizer.lookahead();
 	var ident = this.parseExpression(Mode_Term);
 	if (!ident || ident.type !== "Identifier") {
-		this.throwError(token, Messages.UnexpectedToken, token.value);
+		this.throwError(token, errors.Messages.UnexpectedToken, token.value);
 	}
 	return ident;
 };
@@ -1155,7 +1127,7 @@ Parser.prototype.parseObjectExpression = function() {
 		var prop = {type: "Property"};
 		var token = this.tokenizer.next();
 		if (token === undefined) {
-			this.throwError(token, Messages.UnexpectedEOS);
+			this.throwError(token, errors.Messages.UnexpectedEOS);
 		}
 		var lookahead = this.tokenizer.lookahead();
 		if (token.type === "Identifier" && (token.value === "get" || token.value === "set") && lookahead !== undefined && (lookahead.type === "Identifier" || lookahead.type === "String")) {
@@ -1184,7 +1156,7 @@ Parser.prototype.parseObjectExpression = function() {
 			} else if (token.type === "String") {
 				prop.key = {type: "Literal", value: token.value, loc: token.loc };
 			} else {
-				this.throwError(token, Messages.UnexpectedToken, token.value);
+				this.throwError(token, errors.Messages.UnexpectedToken, token.value);
 			}
 			this.tokenizer.expect(":");
 			prop.value = this.parseExpression(Mode_ExpressionWithoutComma);
@@ -1246,10 +1218,12 @@ Parser.prototype.parseExpression = function(mode) {
 //			console.log(token.value, "closing_bracket");
 			value = this.finishRecursions(-1 ,stack, value, state.op.value);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
-				this.throwError(this.tokenizer.lookback(), Messages.UnexpectedToken, state.op.value);
+				this.throwError(this.tokenizer.lookback(), errors.Messages.UnexpectedToken, state.op.value);
 			}
 			if (stack[stack.length - 1].op.value === '(' && stack[stack.length - 1].op.associativity === "ul") {
-				if (value && value.type === "SequenceExpression") {
+				if (stack[stack.length - 1].op.generator) {
+					// TODO
+				} else if (value && value.type === "SequenceExpression") {
 					stack[stack.length - 1].value.arguments = value.expressions;
 				} else if (value) {
 					stack[stack.length - 1].value.arguments = [value];
@@ -1258,13 +1232,19 @@ Parser.prototype.parseExpression = function(mode) {
 				}
 				value = stack[stack.length - 1].value;
 			} else if (stack[stack.length - 1].op.value === '[' && stack[stack.length - 1].op.associativity === "ul") {
+				if (stack[stack.length - 1].op.generator) {
+					// TODO
+				}
 				if (value === undefined) {
-					this.throwError(this.tokenizer.lookback(), Messages.UnexpectedToken, ']');
+					this.throwError(this.tokenizer.lookback(), errors.Messages.UnexpectedToken, ']');
 				}
 				stack[stack.length - 1].value.property = value;
 				value = stack[stack.length - 1].value;
 			} else if (stack[stack.length - 1].op.value === '(' && stack[stack.length - 1].op.associativity === "none") {
 				// Do not change value by intention
+				if (stack[stack.length - 1].op.generator) {
+					value = stack[stack.length - 1].op.generator(value);
+				}
 			} else {
 				stack[stack.length - 1].value.content = value;
 				value = stack[stack.length - 1].value;
@@ -1283,7 +1263,11 @@ Parser.prototype.parseExpression = function(mode) {
 			}
 		} else if (state.op.associativity === "ul") {
 //			console.log(token.value, "ul");
-			value = {operator: state.op.value, argument: value, prefix: false, loc: token.loc, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
+			if (state.op.generator) {
+				value = state.op.generator(value);
+			} else {
+				value = {operator: state.op.value, argument: value, prefix: false, loc: token.loc, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
+			}
 		} else if (state.op.associativity === "ur") {
 //			console.log(token.value, "ur");
 			state.value = {operator: state.op.value, prefix: true, type: "UnaryExpression", loc: token.loc};
@@ -1394,9 +1378,9 @@ Parser.prototype.parseExpression = function(mode) {
 	value = this.finishRecursions(-1, stack, value, lookahead);
 	if (stack.length > 0) {
 		if (this.tokenizer.lookahead() === undefined) {
-			this.throwError(undefined, Messages.UnexpectedEOS);
+			this.throwError(undefined, errors.Messages.UnexpectedEOS);
 		}
-		this.throwError(this.tokenizer.lookahead(), Messages.UnexpectedToken, this.tokenizer.lookahead());
+		this.throwError(this.tokenizer.lookahead(), errors.Messages.UnexpectedToken, this.tokenizer.lookahead());
 	}
 //	if (mode === Mode_Default && this.tokenizer.lookahead() !== undefined) {
 //		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
@@ -1644,15 +1628,15 @@ Parser.prototype.throwError = function(token, messageFormat) {
         );
 
     if (token && typeof token.lineNumber === 'number') {
-        error = new Error(this.tokenizer.location().filename + ':' + token.lineNumber + ':' + (token.start - token.lineStart + 1) + ': ' + msg);
-        error.type = ErrorType.SyntaxError;
+        error = new errors.SyntaxError(this.tokenizer.location().filename + ':' + token.lineNumber + ':' + (token.start - token.lineStart + 1) + ': ' + msg);
+        error.type = errors.ErrorType.SyntaxError;
         error.index = token.start;
         error.lineNumber = token.lineNumber;
         error.column = token.start - token.lineStart + 1;
     } else {
     	var loc = this.tokenizer.location();
-        error = new Error(this.tokenizer.loc.filename() + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
-        error.type = ErrorType.SyntaxError;
+        error = new errors.SyntaxError(this.tokenizer.loc.filename() + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
+        error.type = errors.ErrorType.SyntaxError;
         error.index = loc.index;
         error.lineNumber = loc.lineNumber;
         error.column = loc.column;
