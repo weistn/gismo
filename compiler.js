@@ -3,6 +3,7 @@ var libpath = require('path');
 var escodegen = require('escodegen');
 var lexer = require('./lexer.js');
 var parser = require('./parser.js');
+var errors = require('./errors.js');
 
 function Compiler(path) {
 	this.path = path;
@@ -50,7 +51,7 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 	// Which file contains the meta code?
 	var metafile = libpath.resolve(libpath.join(path, "_meta.js"));
 	if (!fs.existsSync(metafile)) {
-		throw new Error("Import Error: The module '" + path + "' has not been compiled");
+		throw new errors.CompilerError("Import Error: The module '" + path + "' has not been compiled");
 //		var c = new Compiler(path);
 //		c.compileMetaModule();
 	}
@@ -62,7 +63,10 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 		m = require(metafile);
 		m.extendParser(this.parser);
 	} catch(err) {
-		throw new Error("Import Error while importing " + metafile + "\n" + err.stack);
+//		throw new errors.CompilerError("Import Error while importing " + metafile);
+		var e = new errors.CompilerError(err.toString());
+		e.stack = err.stack;
+		throw e;
 	}
 };
 
@@ -143,7 +147,7 @@ Compiler.prototype.compileMetaModule = function() {
 			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
 		}
 		this.parser = new parser.Parser(this)
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
 	}
 
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
@@ -163,16 +167,4 @@ Compiler.prototype.metaFile = function() {
 	return metafile;
 };
 
-function MetaCompiler(path) {
-	Compiler.call(this, path);
-}
-
-MetaCompiler.prototype.compileModule = function() {
-
-};
-
-MetaCompiler.prototype.metaFile = Compiler.prototype.metaFile;
-MetaCompiler.prototype.importModule = Compiler.prototype.importModule;
-
-exports.MetaCompiler = MetaCompiler;
 exports.Compiler = Compiler;

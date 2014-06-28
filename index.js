@@ -20,8 +20,24 @@ for(var i = 0; i < program.args.length; i++) {
 	} catch(err) {
 		if (err instanceof errors.SyntaxError) {
 			console.log(err.toString().yellow);
+		} else if (err instanceof errors.CompilerError) {
+			var parsed = errors.parseStackTrace(err.stack);
+			console.log(parsed.message.blue);
+			for(var k = 0; k < parsed.stack.length; k++) {
+				var line = parsed.stack[k];
+				if (line.function === "Compiler.importMetaModule") {
+					break;
+				}
+				console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
+			}
+//				console.log(JSON.stringify(errors.parseStackTrace(err.stack)));
 		} else {
-			console.log(err.stack ? err.stack.toString().red : err.toString().red);
+			if (err.stack) {
+				console.log(err.stack.toString().red);
+				console.log(JSON.stringify(errors.parseStackTrace(err.stack)));
+			} else {
+				console.log(err.toString().red);
+			}
 		}
 	}
 }

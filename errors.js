@@ -29,6 +29,7 @@ var Messages = {
     CannotExport: 'Statement cannot be used in conjunction with export'
 };
 
+// Thrown when parsing failes
 function SyntaxError(message) {
     this.message = message;
 }
@@ -41,6 +42,38 @@ SyntaxError.prototype.toString = function() {
     return this.message;
 };
 
+// Thrown when importing a meta module raises a runtime error
+function CompilerError(message) {
+    this.message = message;
+}
+
+CompilerError.prototype.valueOf = function() {
+    return this.message;
+};
+
+CompilerError.prototype.toString = function() {
+    return this.message;
+};
+
+function parseStackTrace(str) {
+    var lines = str.split('\n');
+    var message = lines[0];
+    var stack = [];
+    for(var i = 1; i < lines.length; i++) {
+        var line = lines[i].trim().split(' ');
+        var tmp = line[2].slice(1, line[2].length - 1).split(':');
+        var loc = {
+            filename: tmp[0],
+            lineNumber: parseInt(tmp[1]),
+            column: parseInt(tmp[2])
+        }
+        stack.push({function: line[1], loc: loc});
+    }
+    return {message: message, stack: stack}
+};
+
 exports.ErrorType = ErrorType;
 exports.Messages = Messages;
 exports.SyntaxError = SyntaxError;
+exports.CompilerError = CompilerError;
+exports.parseStackTrace = parseStackTrace;
