@@ -7,6 +7,10 @@ test/module2/main.js
 test/module2/_meta.js
 test/module2/main.js.map
 test/module2/_meta.js.map
+test/module3/main.js
+test/module3/_meta.js
+test/module3/main.js.map
+test/module3/_meta.js.map
 test/parser_test.js.map
 test/parser_test.js.out
 scratch.js

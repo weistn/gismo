@@ -30,8 +30,8 @@ function initModule() {
 				"gismo": { }
 			};
 			fs.writeFileSync(path.join(value, "package.json"), JSON.stringify(pkg, null, '    '));
-			fs.writeFileSync(path.join(value, "src", path.basename(value) + ".js"), "");
-			fs.writeFileSync(path.join(value, "compiler", path.basename(value) + ".js"), "");
+			fs.writeFileSync(path.join(value, "src", path.basename(value) + ".gs"), "");
+			fs.writeFileSync(path.join(value, "compiler", "compiler_" + path.basename(value) + ".gs"), "");
 		} catch(err) {
 			console.log("Failed to create module\n".yellow, err.toString());
 		}
@@ -82,7 +82,6 @@ program
 				} else {
 					if (err.stack) {
 						console.log(err.stack.toString().red);
-						console.log(JSON.stringify(errors.parseStackTrace(err.stack)));
 					} else {
 						console.log(err.toString().red);
 					}

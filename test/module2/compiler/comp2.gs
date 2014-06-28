@@ -40,7 +40,7 @@ parser.extendSyntax({
 	name: "linelog2",
 	generator: function() {
 		parser.parseEndOfStatement();
-		return 'console.log("Here, too"); let x = 12; console.log(x)';
+		return 'console.log("Here, too"); var x = 12; console.log(x)';
 	}
 });
 
@@ -51,7 +51,7 @@ parser.extendSyntax({
 		var expr = parser.parseExpression();
 		parser.parseEndOfStatement();
         var tmp = "somestring";
-		return template {console.log("Here, too"); let x = @expr; console.log(x, @tmp)};
+		return template {console.log("Here, too"); var x = @expr; console.log(x, @tmp)};
 	}
 });
 
@@ -65,7 +65,7 @@ parser.extendSyntax({
     }
 });
 
-parser.extendSyntax({
+export parser.extendSyntax({
     type: 'statement',
     name: 'statemachine',
     generator: function() {
@@ -183,7 +183,6 @@ export parser.extendSyntax({
         var code = parser.parseBlockStatement();
 
         return template { parser.extendSyntax({
-            exports: true,
             type: 'operator',
             name: @opname,
             associativity: @associativity,
@@ -200,7 +199,6 @@ export parser.extendSyntax({
         var code = parser.parseBlockStatement();
 
         return template { parser.extendSyntax({
-            exports: true,
             type: 'statement',
             name: @(id.name),
             generator: function() {@code}

@@ -1068,7 +1068,7 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 			}
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			if (state.op.generator) {
-				state.value = this.execBinaryGenerator(state.op.generator, state.value, value);
+				state.value = this.execBinaryGenerator(state.op.generator, state.value.left, value);
 			} else if (state.op.value === ',') {
 				if (value.type === "SequenceExpression") {
 					state.value.expressions = state.value.expressions.concat(value.expressions);
@@ -1550,16 +1550,28 @@ Parser.prototype.newOperator = function(s) {
 			}
 			break;
 		case "right":
+			if (level === undefined) {
+				level = 16; // TODO
+			}
 			associativity = "ur";
 			break;
 		case "left":
+			if (level === undefined) {
+				level = 16; // TODO
+			}
 			associativity = "ul";
 			break;
 		case "binary":
 		case "binary-left":
+			if (level === undefined) {
+				level = 16; // TODO
+			}
 			associativity = "bl";
 			break;
 		case "binary-right":
+			if (level === undefined) {
+				level = 16; // TODO
+			}
 			associativity = "br";
 			break;
 		default:
