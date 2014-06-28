@@ -33,9 +33,13 @@ function SyntaxError(message) {
     this.message = message;
 }
 
+SyntaxError.prototype.valueOf = function() {
+    return this.message;
+};
+
 SyntaxError.prototype.toString = function() {
     return this.message;
-}
+};
 
 exports.ErrorType = ErrorType;
 exports.Messages = Messages;

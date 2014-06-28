@@ -1642,7 +1642,7 @@ Parser.prototype.throwError = function(token, messageFormat) {
         error.column = loc.column;
     }
 
-    error.filename = this.tokenizer.filename;
+    error.filename = this.tokenizer.location().filename;
     error.description = msg;
     throw error;
 }
