@@ -28,9 +28,17 @@ for(var i = 0; i < program.args.length; i++) {
 				if (line.function === "Compiler.importMetaModule") {
 					break;
 				}
+				if (line.function === "Parser.execGenerator") {
+					break;
+				}
+				if (line.function === "Parser.execUnaryGenerator") {
+					break;
+				}
+				if (line.function === "Parser.execBinaryGenerator") {
+					break;
+				}
 				console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
 			}
-//				console.log(JSON.stringify(errors.parseStackTrace(err.stack)));
 		} else {
 			if (err.stack) {
 				console.log(err.stack.toString().red);

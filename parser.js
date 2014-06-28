@@ -1059,13 +1059,13 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 		}
 		if (state.op.associativity === "ur") {
 			if (state.op.generator) {
-				state.value = state.op.generator(value);
+				state.value = this.execUnaryGenerator(state.op.generator, value);
 			} else {
 				state.value.argument = value;
 			}
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
 			if (state.op.generator) {
-				state.value = state.op.generator(state.value, value);
+				state.value = this.execBinaryGenerator(state.op.generator, state.value, value);
 			} else if (state.op.value === ',') {
 				if (value.type === "SequenceExpression") {
 					state.value.expressions = state.value.expressions.concat(value.expressions);
@@ -1188,7 +1188,7 @@ Parser.prototype.parseExpression = function(mode) {
 		// Process the current token (token[index]) with the current operator (state.op)
 		if (state.op.generator && state.op.associativity === "none") {
 //			console.log(token.value, "parser");
-			value = state.op.generator();
+			value = this.execGenerator(state.op.generator);
 		} else if (state.op.bracket && state.op.associativity === "none") {
 //			console.log(token.value, "bracket");
 			if (state.op.value === '{') {
@@ -1243,7 +1243,7 @@ Parser.prototype.parseExpression = function(mode) {
 			} else if (stack[stack.length - 1].op.value === '(' && stack[stack.length - 1].op.associativity === "none") {
 				// Do not change value by intention
 				if (stack[stack.length - 1].op.generator) {
-					value = stack[stack.length - 1].op.generator(value);
+					value = thios.execUnaryGenerator(stack[stack.length - 1].op.generator, value);
 				}
 			} else {
 				stack[stack.length - 1].value.content = value;
@@ -1264,7 +1264,7 @@ Parser.prototype.parseExpression = function(mode) {
 		} else if (state.op.associativity === "ul") {
 //			console.log(token.value, "ul");
 			if (state.op.generator) {
-				value = state.op.generator(value);
+				value = this.execUnaryGenerator(state.op.generator, value);
 			} else {
 				value = {operator: state.op.value, argument: value, prefix: false, loc: token.loc, type: state.op.value === "++" || state.op.value === "--" ? "UpdateExpression" : "UnaryExpression"};
 			}
@@ -1447,7 +1447,7 @@ Parser.prototype.parseStatement = function() {
 	var p = this.statementKeywords[s];
 	if (p) {
 		this.tokenizer.next();
-		var result = p();
+		var result = this.execGenerator(p);
 		if (typeof result === "string") {
 			var l = lexer.newTokenizer(result);
 			var tmp = this.tokenizer;
@@ -1614,6 +1614,35 @@ Parser.prototype.isOctalDigit = lexer.isOctalDigit;
 Parser.prototype.isWhiteSpace = lexer.isWhiteSpace
 Parser.prototype.isLineTerminator = lexer.isLineTerminator;
 
+Parser.prototype.execGenerator = function(generator) {
+	try {
+		return generator();
+	} catch(err) {
+		var e = new errors.CompilerError(err.toString());
+		e.stack = err.stack;
+		throw e;
+	}
+};
+
+Parser.prototype.execUnaryGenerator = function(generator, a) {
+	try {
+		return generator(a);
+	} catch(err) {
+		var e = new errors.CompilerError(err.toString());
+		e.stack = err.stack;
+		throw e;
+	}
+};
+
+Parser.prototype.execBinaryGenerator = function(generator, a, b) {
+	try {
+		return generator(a, b);
+	} catch(err) {
+		var e = new errors.CompilerError(err.toString());
+		e.stack = err.stack;
+		throw e;
+	}
+};
 
 Parser.prototype.throwError = function(token, messageFormat) {
     var error,

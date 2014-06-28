@@ -61,6 +61,10 @@ function parseStackTrace(str) {
     var stack = [];
     for(var i = 1; i < lines.length; i++) {
         var line = lines[i].trim().split(' ');
+        if (line.length == 2) {
+            line[2] = line[1];
+            line[1] = "";
+        }
         var tmp = line[2].slice(1, line[2].length - 1).split(':');
         var loc = {
             filename: tmp[0],
