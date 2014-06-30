@@ -7,5 +7,7 @@ describe("Compiler Test", function() {
 		c.compileModule();
 		var c = new compiler.Compiler('./test/module2');
 		c.compileModule();
+		var c = new compiler.Compiler('./test/module3');
+		c.compileModule();
 	});
 });

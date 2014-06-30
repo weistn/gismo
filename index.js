@@ -61,6 +61,10 @@ program
 				if (err instanceof errors.SyntaxError) {
 					console.log(err.toString().yellow);
 				} else if (err instanceof errors.CompilerError) {
+					if (!err.stack) {
+						console.log("FUCK", err.toString());
+						process.exit();
+					}
 					var parsed = errors.parseStackTrace(err.stack);
 					console.log(parsed.message.blue);
 					for(var k = 0; k < parsed.stack.length; k++) {

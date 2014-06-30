@@ -1688,7 +1688,7 @@ Parser.prototype.throwError = function(token, messageFormat) {
         error.column = token.start - token.lineStart + 1;
     } else {
     	var loc = this.tokenizer.location();
-        error = new errors.SyntaxError(this.tokenizer.loc.filename() + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
+        error = new errors.SyntaxError(loc.filename + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
         error.type = errors.ErrorType.SyntaxError;
         error.index = loc.index;
         error.lineNumber = loc.lineNumber;
