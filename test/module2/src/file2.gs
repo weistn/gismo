@@ -12,6 +12,6 @@ export function useme() {
 
 export var answer = 42;
 
-function Statemachine() {
+export function Statemachine() {
 
 }
