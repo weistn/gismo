@@ -530,12 +530,12 @@ function forParser() {
 					loc: loc
 				};
 			}
-			var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
+			var v = {type: "VariableDeclarator", init: null, id: name, loc: name.loc};
 			if (this.tokenizer.presume('=', true)) {
 				v.init = this.parseExpression(Mode_ExpressionWithoutComma);
-				v.loc.end = this.tokenizer.lookback().loc.end;
-			} else {
-				v.loc.end = name.loc.end;
+//				v.loc.end = this.tokenizer.lookback().loc.end;
+//			} else {
+//				v.loc.end = name.loc.end;
 			}
 			declarations.push(v);
 		} while( this.tokenizer.presume(',', true) );
@@ -696,12 +696,12 @@ function varParser() {
 	var declarations = [];
 	do {
 		var name = this.parseIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: name.loc};
 		if (this.tokenizer.presume('=', true)) {
 			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
-			v.loc.end = this.tokenizer.lookback().loc.end;
-		} else {
-			v.loc.end = name.loc.end;
+//			v.loc.end = this.tokenizer.lookback().loc.end;
+//		} else {
+//			v.loc.end = name.loc.end;
 		}
 		declarations.push(v);
 	} while( this.tokenizer.presume(',', true) );
@@ -719,12 +719,12 @@ function letParser() {
 	var declarations = [];
 	do {
 		var name = this.parseIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: name.loc};
 		if (this.tokenizer.presume('=', true)) {
 			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
-			v.loc.end = this.tokenizer.lookback().loc.end;
-		} else {
-			v.loc.end = name.loc.end;
+//			v.loc.end = this.tokenizer.lookback().loc.end;
+//		} else {
+//			v.loc.end = name.loc.end;
 		}
 		declarations.push(v);
 	} while( this.tokenizer.presume(',', true) );
@@ -742,10 +742,10 @@ function constParser() {
 	var declarations = [];
 	do {
 		var name = this.parseIdentifier();
-		var v = {type: "VariableDeclarator", init: null, id: name, loc: {start: name.loc.start}};
+		var v = {type: "VariableDeclarator", init: null, id: name, loc: name.loc};
 		this.tokenizer.expect('=');
 		v.init = this.parseExpression(Mode_ExpressionWithoutComma);
-		v.loc.end = this.tokenizer.lookback().loc.end;
+//		v.loc.end = this.tokenizer.lookback().loc.end;
 		declarations.push(v);
 	} while( this.tokenizer.presume(',', true) );
 	this.parseEndOfStatement();
@@ -1117,7 +1117,7 @@ Parser.prototype.parseArrayExpression = function() {
 		}
 	}
 	var loc2 = this.tokenizer.expect("]").loc;	
-	return {type: "ArrayExpression", elements: elements, loc: {start: loc1.start, end: loc2.end}};
+	return {type: "ArrayExpression", elements: elements, loc: {source: loc1.source, start: loc1.start, end: loc2.end}};
 }
 
 Parser.prototype.parseObjectExpression = function() {
@@ -1167,14 +1167,14 @@ Parser.prototype.parseObjectExpression = function() {
 		}
 		var lookback = this.tokenizer.lookback();
 		var loc2 = lookback ? lookback.loc : undefined;
-		prop.loc = {start: loc1.start, end: loc2.end};
+		prop.loc = {source: loc1.source, start: loc1.start, end: loc2.end};
 		properties.push(prop);
 		if (!this.tokenizer.presume(",", true)) {
 			break;
 		}
 	}
 	var loc2 = this.tokenizer.expect("}").loc;
-	return {type: "ObjectExpression", properties: properties, loc: {start: loc1.start, end: loc2.end}};
+	return {type: "ObjectExpression", properties: properties, loc: {source: loc1.source, start: loc1.start, end: loc2.end}};
 }
 
 Parser.prototype.parseExpression = function(mode) {
@@ -1409,7 +1409,7 @@ Parser.prototype.parseBlockStatement = function() {
 	var loc1 = this.tokenizer.expect("{").loc;
 	var statements = this.parseStatements();
 	var loc2 = this.tokenizer.expect("}").loc;
-	return {type: "BlockStatement", body: statements, loc: {start: loc1.start, end: loc2.end}};
+	return {type: "BlockStatement", body: statements, loc: {source: loc1.source, start: loc1.start, end: loc2.end}};
 };
 
 Parser.prototype.parseExpressionStatement = function() {
@@ -1421,9 +1421,9 @@ Parser.prototype.parseExpressionStatement = function() {
 	var body = this.parseExpression(Mode_Expression);
 	var locend = this.tokenizer.lookback().loc.end;
 	if (body === undefined) {
-		result = {type: "EmptyStatement", loc: {start: lookahead.loc.start, end: locend}};
+		result = {type: "EmptyStatement", loc: {source: lookahead.loc.source, start: lookahead.loc.start, end: locend}};
 	} else {
-		result = { type: "ExpressionStatement", expression: body, loc: {start: lookahead.loc.start, end: locend}};
+		result = { type: "ExpressionStatement", expression: body, loc: {source: lookahead.loc.source, start: lookahead.loc.start, end: locend}};
 	}
 	this.parseEndOfStatement();
 	return result;	
@@ -1463,7 +1463,7 @@ Parser.prototype.parseStatement = function() {
 				return result[0];
 			} else {
 //				console.log(JSON.stringify(result, null, "\t"));
-				return {type: "BlockStatement", body: result, loc: {start: result[0].loc.start, end: result[result.length - 1].loc.end}};
+				return {type: "BlockStatement", body: result, loc: {source: result[0].loc.source, start: result[0].loc.start, end: result[result.length - 1].loc.end}};
 			}
 		} else if (typeof result === "object") {
 			// TODO: Check that the object tree is ok
@@ -1680,22 +1680,23 @@ Parser.prototype.throwError = function(token, messageFormat) {
             }
         );
 
+	var loc = this.tokenizer.location();
     if (token && typeof token.lineNumber === 'number') {
-        error = new errors.SyntaxError(this.tokenizer.location().filename + ':' + token.lineNumber + ':' + (token.start - token.lineStart + 1) + ': ' + msg);
+        error = new errors.SyntaxError(loc.filename + ':' + token.lineNumber + ':' + (token.start - token.lineStart + 1) + ': ' + msg);
         error.type = errors.ErrorType.SyntaxError;
         error.index = token.start;
         error.lineNumber = token.lineNumber;
         error.column = token.start - token.lineStart + 1;
+        error.filename = token.source;
     } else {
-    	var loc = this.tokenizer.location();
         error = new errors.SyntaxError(loc.filename + ':' + loc.lineNumber + ':' + loc.column + ': ' + msg);
         error.type = errors.ErrorType.SyntaxError;
         error.index = loc.index;
         error.lineNumber = loc.lineNumber;
         error.column = loc.column;
+        error.filename = loc.source;
     }
 
-    error.filename = this.tokenizer.location().filename;
     error.description = msg;
     throw error;
 }

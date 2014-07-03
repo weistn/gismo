@@ -818,10 +818,10 @@ Tokenizer.prototype.collectRegExpToken = function() {
     var loc, token;
 
     loc = {
+        source: this.filename,
         start: {
             line: this.lineNumber,
-            column: this.index - this.lineStart - 1,
-            source: this.source
+            column: this.index - this.lineStart - 1
         }
     };
 
@@ -829,8 +829,7 @@ Tokenizer.prototype.collectRegExpToken = function() {
     token.loc = loc;
     token.loc.end = {
         line: this.lineNumber,
-        column: this.index - this.lineStart,
-        source: this.source
+        column: this.index - this.lineStart
     };
 
     return token;
@@ -896,10 +895,10 @@ Tokenizer.prototype.collectToken = function() {
 
     this.skipComment();
     loc = {
+        source: this.filename,
         start: {
             line: this.lineNumber,
-            column: this.index - this.lineStart,
-            source: this.source
+            column: this.index - this.lineStart
         }
     };
 
@@ -907,8 +906,7 @@ Tokenizer.prototype.collectToken = function() {
     token.loc = loc;
     token.loc.end = {
         line: this.lineNumber,
-        column: this.index - this.lineStart,
-        source: this.source
+        column: this.index - this.lineStart
     };
 
     return token;

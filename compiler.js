@@ -107,15 +107,15 @@ Compiler.prototype.compileModule = function() {
 		}
 		this.parser = new parser.Parser(this);
 		this.importMetaModule(this.path, "module");
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "src/" + fname)));
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, libpath.join(this.path, "src/", fname))));
 	}
 
-	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name});
+	var main = this.pkg.main ? this.pkg.main : "index.js";
+	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, file: main});
 //	console.log(JSON.stringify(result.code));
-	var main = this.pkg.name ? this.pkg.name : "index.js";
-	var code = result.code + "\n//# sourceMappingURL=" + this.pkg.main + ".map";
-	fs.writeFileSync(this.path + this.pkg.main, code);
-	fs.writeFileSync(this.path + this.pkg.main + '.map', result.map.toString());
+	var code = result.code + "\n//# sourceMappingURL=" + main + ".map";
+	fs.writeFileSync(libpath.join(this.path, main), code);
+	fs.writeFileSync(libpath.join(this.path, main + '.map'), result.map.toString());
 };
 
 Compiler.prototype.compileMetaModule = function() {
