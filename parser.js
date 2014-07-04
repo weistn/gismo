@@ -1595,42 +1595,52 @@ Parser.prototype.newOperator = function(s) {
 			throw new Error("ExtensionError: Unknown associativity '" + s.associativity + "'");
 	}
 
+	// The new operator is an identifier?
+	var op;
 	if (lexer.isIdentifier(s.name)) {
-		// TODO: Check conflicts with existing operands or operators
 		this.keywords.push(s.name);
 		if (this.tokenizer) {
 			this.tokenizer.registerKeyword(s.name);
 		}
-		var op = {
+		op = {
 			associativity: associativity,
 			value: s.name,
 			type: "Keyword",
 			generator: s.generator,
 			level: level
 		};
-		if (this.operators[s.name]) {
-			this.operators[s.name].push(op);
-		} else {
-			this.operators[s.name] = [op];
+	} else {
+		// The new operator has to be a punctuator
+		if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
+			throw new Error("Operator name '" + s.name + "' is neither a valid identifier nor a punctuator");
 		}
-		return;
-	}
-	if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
-		throw new Error("Operator name '" + s.name + "' is neither a valid identifier nor a punctuator");
+
+		this.punctuators.push(s.name);
+		if (this.tokenizer) {
+			this.tokenizer.registerPunctuator(s.name);
+		}
+		var op = {
+			associativity: associativity,
+			value: s.name,
+			type: "Punctuator",
+			generator: s.generator,
+			level: level
+		};			
 	}
 
-	this.punctuators.push(s.name);
-	if (this.tokenizer) {
-		this.tokenizer.registerPunctuator(s.name);
-	}
-	var op = {
-		associativity: associativity,
-		value: s.name,
-		type: "Punctuator",
-		generator: s.generator,
-		level: level
-	};	
 	if (this.operators[s.name]) {
+		// TODO: Check conflicts with existing operands or operators
+		var existingOps = this.operators[s.name];
+		for(var i = 0; i < existingOps.length; i++) {
+			var existingOp = existingOps[i];
+			if (existingOp.associativity === "none" || op.associativity === "none" || op.associativity === existingOp.associativity) {
+				throw new Error("Conflicting operator '" + s.name + "'");
+			}
+			if (((existingOp.associativity === "bl" || existingOp.associativity === "br") && op.associativity == "ul" && op.level != existingOp.level) ||
+				((op.associativity === "bl" || op.associativity === "br") && existingOp.associativity == "ul" && op.level != existingOp.level)) {
+				throw new Error("The operator exists as infix and postfix. Both must have the same precedence");
+			}
+		}
 		this.operators[s.name].push(op);
 	} else {
 		this.operators[s.name] = [op];
