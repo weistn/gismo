@@ -162,9 +162,63 @@ Compiler.prototype.metaFile = function() {
 	// Which file contains the metailed import?
 	var metafile = this.pkg.gismo.metafile;
 	if (typeof metafile !== "string" || metafile === "") {
-		metafile = this.path + "_meta.js";
+		metafile = libpath.join(this.path, "_meta.js");
 	}
 	return metafile;
+};
+
+Compiler.prototype.isUpToDate = function() {
+	// If it is a normal node package then it's ok because it does not need compilation
+	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
+		return true;
+	}
+
+	var srcfiles = this.pkg.gismo.src;
+	if (!srcfiles || typeof srcfiles !== "object") {
+		try {
+			srcfiles = fs.readdirSync(libpath.join(this.path, "src"));
+			for(var i = 0; i < srcfiles.length; i++) {
+				srcfiles[i] = libpath.join(this.path, "src", srcfiles[i]);
+			}
+		}
+		catch(err) {
+			srcfiles = [];
+		}
+	}
+
+	var cmpfiles = this.pkg.gismo.compiler;
+	if (!cmpfiles || typeof cmpfiles !== "object") {
+		try {
+			cmpfiles = fs.readdirSync(libpath.joion(this.path, "compiler"));
+			for(var i = 0; i < cmpfiles.length; i++) {
+				cmpfiles[i] = libpath.join(this.path, "compiler", cmpfiles[i]);
+			}
+		}
+		catch(err) {
+			cmpfiles = [];
+		}
+	}
+
+	var main = libpath.join(this.path, this.pkg.main ? this.pkg.main : "index.js");
+	var meta = this.metaFile();
+
+	return this.checkMTime(main, srcfiles) && this.checkMTime(meta, cmpfiles);
+};
+
+Compiler.prototype.checkMTime = function(dest, sources) {
+	try {
+		var mtime = fs.statSync(dest).mtime.getTime();
+		for(var i = 0; i < sources.length; i++) {	
+			var mtime2 = fs.statSync(sources[i]).mtime.getTime();
+			if (mtime2 > mtime) {
+				return false;
+			}
+		}
+	} catch(err) {
+		console.log(err.toString().red)
+		return false;
+	}
+	return true;
 };
 
 exports.Compiler = Compiler;

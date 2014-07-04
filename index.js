@@ -48,44 +48,53 @@ function compileModules() {
 	var args = Array.prototype.slice.call(arguments, 0);
 	for(var i = 0; i < args.length - 1; i++) {
 		var arg = path.resolve(args[i]);
-		try {
-			var c = new compiler.Compiler(arg);
-			c.compileModule();
-		} catch(err) {
-			if (err instanceof errors.SyntaxError) {
-				console.log(err.toString().yellow);
-			} else if (err instanceof errors.CompilerError) {
-				if (!err.stack) {
-					console.log("Oooops", err.toString());
-					process.exit();
-				}
-				var parsed = errors.parseStackTrace(err.stack);
-				console.log(parsed.message.blue);
-				for(var k = 0; k < parsed.stack.length; k++) {
-					var line = parsed.stack[k];
-					if (line.function === "Compiler.importMetaModule") {
-						break;
-					}
-					if (line.function === "Parser.execGenerator") {
-						break;
-					}
-					if (line.function === "Parser.execUnaryGenerator") {
-						break;
-					}
-					if (line.function === "Parser.execBinaryGenerator") {
-						break;
-					}
-					console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
-				}
-			} else {
-				if (err.stack) {
-					console.log(err.stack.toString().red);
-				} else {
-					console.log(err.toString().red);
-				}
-			}
+		if (!compileModule(arg)) {
+			return false;
 		}
 	}
+	return true;
+}
+
+function compileModule(arg) {
+	try {
+		var c = new compiler.Compiler(arg);
+		c.compileModule();
+	} catch(err) {
+		if (err instanceof errors.SyntaxError) {
+			console.log(err.toString().yellow);
+		} else if (err instanceof errors.CompilerError) {
+			if (!err.stack) {
+				console.log("Oooops", err.toString());
+				process.exit();
+			}
+			var parsed = errors.parseStackTrace(err.stack);
+			console.log(parsed.message.blue);
+			for(var k = 0; k < parsed.stack.length; k++) {
+				var line = parsed.stack[k];
+				if (line.function === "Compiler.importMetaModule") {
+					break;
+				}
+				if (line.function === "Parser.execGenerator") {
+					break;
+				}
+				if (line.function === "Parser.execUnaryGenerator") {
+					break;
+				}
+				if (line.function === "Parser.execBinaryGenerator") {
+					break;
+				}
+				console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
+			}
+		} else {
+			if (err.stack) {
+				console.log(err.stack.toString().red);
+			} else {
+				console.log(err.toString().red);
+			}
+		}
+		return false;
+	}
+	return true;
 }
 
 function execModule() {
@@ -95,9 +104,18 @@ function execModule() {
 		process.exit();
 	}
 	var modulePath = args[0];
+	// If it is not an absolute path, treat it as a relative path
 	if (modulePath[0] != path.sep) {
 		modulePath = "." + path.sep + modulePath;
 	}
+	// Does the module need compilation?
+	var c = new compiler.Compiler(modulePath);
+	if (!c.isUpToDate()) {
+		if (!compileModule(modulePath)) {
+			return;
+		}
+	}
+	// Load and execute the module
 	try {
 		require(modulePath);
 	} catch(err) {
