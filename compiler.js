@@ -7,18 +7,35 @@ var errors = require('./errors.js');
 
 function Compiler(modulePath) {
 	this.path = modulePath;
-	if (this.path === "") {
-		throw new errors.SyntaxError("Illegal path for a module: " + this.path);
-	}
-	if (this.path[this.path.length - 1] != "/") {
-		this.path += "/";
-	}
-	// Try to read the package.json
+	
+	// Is it a file or a single module?
 	try {
-		this.pkg = JSON.parse(fs.readFileSync(this.path + 'package.json', 'utf8'));
+		this.isFile = fs.statSync(modulePath).isFile();
 	} catch(err) {
 		throw new errors.SyntaxError("Unknown module " + this.path);
 	}
+
+	// Read package information if available
+	if (this.isFile) {
+		if (path.extname(this.path) != ".gs") {
+			throw new errors.SyntaxError("Not a gismo file " + this.path);			
+		}
+		this.pkg = {};
+	} else {
+		if (this.path === "") {
+			throw new errors.SyntaxError("Illegal path for a module: " + this.path);
+		}
+		if (this.path[this.path.length - 1] != path.sep) {
+			this.path += path.sep;
+		}
+		// Try to read the package.json
+		try {
+			this.pkg = JSON.parse(fs.readFileSync(this.path + 'package.json', 'utf8'));
+		} catch(err) {
+			throw new errors.SyntaxError("Unknown module " + this.path);
+		}
+	}
+
 	this.imports = { };
 }
 
@@ -27,8 +44,8 @@ Compiler.prototype.importMetaModule = function(modulePath, alias) {
 	if (modulePath === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
-	if (modulePath[modulePath.length - 1] != "/") {
-		modulePath += "/";
+	if (modulePath[modulePath.length - 1] != path.sep) {
+		modulePath += path.sep;
 	}
 	// Try to read the package.json
 	var pkg;
@@ -78,16 +95,29 @@ Compiler.prototype.importAlias = function(m) {
 };
 
 Compiler.prototype.compileModule = function() {
-	// If it is a normal node package, do nothing
-	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
-		return;
-	}
+	var srcfiles = [];
 
-	this.compileMetaModule();
+	if (this.isFile) {
+		srcfiles = [this.path];
+	} else {
+		// If it is a normal node package, do nothing
+		if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
+			return;
+		}
 
-	var srcfiles = this.pkg.gismo.src;
-	if (!srcfiles || typeof srcfiles !== "object") {
-		srcfiles = fs.readdirSync(this.path + "src").sort();
+		this.compileMetaModule();
+
+		srcfiles = this.pkg.gismo.src;
+		if (!srcfiles || typeof srcfiles !== "object") {
+			srcfiles = fs.readdirSync(this.path + "src").sort();
+		}
+		for(var i = 0; i < srcfiles.length; i++) {
+			var fname = srcfiles[i];
+			if (fname[0] === '.' || fname.length < 4 || fname.substr(fname.length - 3, 3) !== ".gs") {
+				continue;
+			}
+			srcfiles[i] = path.join(this.path, "src", fname);
+		}
 	}
 
 	var program = {type: "Program", body: []};
@@ -95,26 +125,28 @@ Compiler.prototype.compileModule = function() {
 	// Parse and compile all files
 	for(var i = 0; i < srcfiles.length; i++) {
 		var fname = srcfiles[i];
-		if (fname[0] === '.' || fname.length < 4 || fname.substr(fname.length - 3, 3) !== ".gs") {
-			continue;
-		}
 		var str;
 		try {
-			str = fs.readFileSync(this.path + "src/" + fname).toString();
+			str = fs.readFileSync(fname).toString();
 		} catch(err) {
-			throw new Error("Could not read '" + this.path + "src/" + fname + "'");
+			throw new Error("Could not read '" + fname + "'");
 		}
 		this.parser = new parser.Parser(this);
 		this.importMetaModule(this.path, "module");
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, path.join(this.path, "src/", fname))));
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, fname)));
 	}
 
-	var main = this.pkg.main ? this.pkg.main : "index.js";
+	// In which file should the generated JS be saved?
+	var main = this.mainFile();
+
+	// Generate JS code and source-map
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, file: main});
 //	console.log(JSON.stringify(result.code));
 	var code = result.code + "\n//# sourceMappingURL=" + main + ".map";
-	fs.writeFileSync(path.join(this.path, main), code);
-	fs.writeFileSync(path.join(this.path, main + '.map'), result.map.toString());
+
+	// Write JS code and source-map to disk
+	fs.writeFileSync(main, code);
+	fs.writeFileSync(main + '.map', result.map.toString());
 };
 
 Compiler.prototype.compileMetaModule = function() {
@@ -157,7 +189,23 @@ Compiler.prototype.compileMetaModule = function() {
 	fs.writeFileSync(this.metaFile() + '.map', result.map.toString());
 };
 
+Compiler.prototype.mainFile = function() {
+	var main;
+	if (this.isFile) {
+		var dir = path.dirname(this.path);
+		var base = path.basename(this.path);
+		main = path.join(dir, "." + base.slice(0, base.length - 3) + ".js");
+	} else {
+		main = path.join(this.path, this.pkg.main ? this.pkg.main : "index.js");
+	}
+	main = path.resolve(main);
+	return main;
+};
+
 Compiler.prototype.metaFile = function() {
+	if (this.isFile) {
+		return null;
+	}
 	// Which file contains the metailed import?
 	var metafile = this.pkg.gismo.metafile;
 	if (typeof metafile !== "string" || metafile === "") {
@@ -167,6 +215,16 @@ Compiler.prototype.metaFile = function() {
 };
 
 Compiler.prototype.isUpToDate = function() {
+	if (this.isFile) {
+		try {
+			var mtime = fs.statSync(this.path).mtime.getTime();
+			var mtime2 = fs.statSync(this.mainFile()).mtime.getTime();
+		} catch(err) {
+			return false;
+		}
+		return mtime <= mtime2;
+	}
+
 	// If it is a normal node package then it's ok because it does not need compilation
 	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
 		return true;

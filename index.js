@@ -59,6 +59,7 @@ function compileModule(arg) {
 	try {
 		var c = new compiler.Compiler(arg);
 		c.compileModule();
+		return true;
 	} catch(err) {
 		if (err instanceof errors.SyntaxError) {
 			console.log(err.toString().yellow);
@@ -92,9 +93,8 @@ function compileModule(arg) {
 				console.log(err.toString().red);
 			}
 		}
-		return false;
 	}
-	return true;
+	return false;
 }
 
 function execModule() {
@@ -104,10 +104,10 @@ function execModule() {
 		process.exit();
 	}
 	var modulePath = args[0];
-	// If it is not an absolute path, treat it as a relative path
-	if (modulePath[0] != path.sep) {
-		modulePath = "." + path.sep + modulePath;
-	}
+//	// If it is not an absolute path, treat it as a relative path
+//	if (modulePath[0] != path.sep) {
+//		modulePath = "." + path.sep + modulePath;
+//	}
 	// Does the module need compilation?
 	var c = new compiler.Compiler(modulePath);
 	if (!c.isUpToDate()) {
@@ -115,6 +115,7 @@ function execModule() {
 			return;
 		}
 	}
+	modulePath = c.mainFile();
 	// Load and execute the module
 	try {
 		require(modulePath);
