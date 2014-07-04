@@ -92,7 +92,7 @@ export parser.extendSyntax({
         var ch;
         var parsed_precedence = false;
         for(var i = 0; i < 4; i++) {
-            parser.tokenizer.skipComment();
+            parser.tokenizer.skipWhitespace();
             var str = "";
             var j = 0;
             var isIdent = false;
@@ -136,7 +136,7 @@ export parser.extendSyntax({
                 if (!isOperator(words[0])) {
                     parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");                 
                 }
-//                console.log(1, words[0]);
+//                console.log("none", words[0]);
                 opname = words[0];
                 associativity = "none";
                 precedence = 17;
