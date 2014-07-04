@@ -1,14 +1,14 @@
 var fs = require('fs');
-var libpath = require('path');
+var path = require('path');
 var escodegen = require('escodegen');
 var lexer = require('./lexer.js');
 var parser = require('./parser.js');
 var errors = require('./errors.js');
 
-function Compiler(path) {
-	this.path = path;
+function Compiler(modulePath) {
+	this.path = modulePath;
 	if (this.path === "") {
-		throw new errors.SyntaxError("Illegal path for a module: " + path);
+		throw new errors.SyntaxError("Illegal path for a module: " + this.path);
 	}
 	if (this.path[this.path.length - 1] != "/") {
 		this.path += "/";
@@ -17,26 +17,26 @@ function Compiler(path) {
 	try {
 		this.pkg = JSON.parse(fs.readFileSync(this.path + 'package.json', 'utf8'));
 	} catch(err) {
-		throw new errors.SyntaxError("Unknown module " + path);
+		throw new errors.SyntaxError("Unknown module " + this.path);
 	}
 	this.imports = { };
 }
 
 // Called from the parser that is launched on behalf of compileModule().
-Compiler.prototype.importMetaModule = function(path, alias) {
-	if (path === "") {
+Compiler.prototype.importMetaModule = function(modulePath, alias) {
+	if (modulePath === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
-	if (path[path.length - 1] != "/") {
-		path += "/";
+	if (modulePath[modulePath.length - 1] != "/") {
+		modulePath += "/";
 	}
 	// Try to read the package.json
 	var pkg;
 	try {
-		if (path === this.path) {
+		if (modulePath === this.path) {
 			pkg = this.pkg;
 		} else {
-			pkg = JSON.parse(fs.readFileSync(path + 'package.json', 'utf8'));
+			pkg = JSON.parse(fs.readFileSync(modulePath + 'package.json', 'utf8'));
 		}
 	} catch(err) {
 		pkg = { };
@@ -48,9 +48,9 @@ Compiler.prototype.importMetaModule = function(path, alias) {
 		return;
 	}
 	// Which file contains the meta code?
-	var metafile = libpath.resolve(libpath.join(path, "_meta.js"));
+	var metafile = path.resolve(path.join(modulePath, "_meta.js"));
 	if (!fs.existsSync(metafile)) {
-		throw new Error("The module '" + path + "' has not yet been compiled");
+		throw new Error("The module '" + modulePath + "' has not yet been compiled");
 	}
 
 	this.imports[metafile] = {module: m, alias: alias};
@@ -106,15 +106,15 @@ Compiler.prototype.compileModule = function() {
 		}
 		this.parser = new parser.Parser(this);
 		this.importMetaModule(this.path, "module");
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, libpath.join(this.path, "src/", fname))));
+		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, path.join(this.path, "src/", fname))));
 	}
 
 	var main = this.pkg.main ? this.pkg.main : "index.js";
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, file: main});
 //	console.log(JSON.stringify(result.code));
 	var code = result.code + "\n//# sourceMappingURL=" + main + ".map";
-	fs.writeFileSync(libpath.join(this.path, main), code);
-	fs.writeFileSync(libpath.join(this.path, main + '.map'), result.map.toString());
+	fs.writeFileSync(path.join(this.path, main), code);
+	fs.writeFileSync(path.join(this.path, main + '.map'), result.map.toString());
 };
 
 Compiler.prototype.compileMetaModule = function() {
@@ -161,7 +161,7 @@ Compiler.prototype.metaFile = function() {
 	// Which file contains the metailed import?
 	var metafile = this.pkg.gismo.metafile;
 	if (typeof metafile !== "string" || metafile === "") {
-		metafile = libpath.join(this.path, "_meta.js");
+		metafile = path.join(this.path, "_meta.js");
 	}
 	return metafile;
 };
@@ -175,9 +175,9 @@ Compiler.prototype.isUpToDate = function() {
 	var srcfiles = this.pkg.gismo.src;
 	if (!srcfiles || typeof srcfiles !== "object") {
 		try {
-			srcfiles = fs.readdirSync(libpath.join(this.path, "src"));
+			srcfiles = fs.readdirSync(path.join(this.path, "src"));
 			for(var i = 0; i < srcfiles.length; i++) {
-				srcfiles[i] = libpath.join(this.path, "src", srcfiles[i]);
+				srcfiles[i] = path.join(this.path, "src", srcfiles[i]);
 			}
 		}
 		catch(err) {
@@ -188,9 +188,9 @@ Compiler.prototype.isUpToDate = function() {
 	var cmpfiles = this.pkg.gismo.compiler;
 	if (!cmpfiles || typeof cmpfiles !== "object") {
 		try {
-			cmpfiles = fs.readdirSync(libpath.joion(this.path, "compiler"));
+			cmpfiles = fs.readdirSync(path.joion(this.path, "compiler"));
 			for(var i = 0; i < cmpfiles.length; i++) {
-				cmpfiles[i] = libpath.join(this.path, "compiler", cmpfiles[i]);
+				cmpfiles[i] = path.join(this.path, "compiler", cmpfiles[i]);
 			}
 		}
 		catch(err) {
@@ -198,7 +198,7 @@ Compiler.prototype.isUpToDate = function() {
 		}
 	}
 
-	var main = libpath.join(this.path, this.pkg.main ? this.pkg.main : "index.js");
+	var main = path.join(this.path, this.pkg.main ? this.pkg.main : "index.js");
 	var meta = this.metaFile();
 
 	return this.checkMTime(main, srcfiles) && this.checkMTime(meta, cmpfiles);
