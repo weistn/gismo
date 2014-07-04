@@ -20,7 +20,6 @@ function Compiler(path) {
 		throw new errors.SyntaxError("Unknown module " + path);
 	}
 	this.imports = { };
-	this.currentImportPath = undefined;
 }
 
 // Called from the parser that is launched on behalf of compileModule().
