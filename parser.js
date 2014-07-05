@@ -834,6 +834,7 @@ function debuggerParser() {
 }
 
 function importParser() {
+	// Parse the import statement
 	var loc = this.tokenizer.location();
 	var name = this.tokenizer.next();
 	if (!name || name.type !== "String") {
@@ -868,8 +869,9 @@ function importParser() {
 	// Import the gismo module
 	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
+//	this,importModuleName = name.value;
 	try {
-		this.compiler.importMetaModule(path, as.name);
+		this.compiler.importMetaModule(this, path, as.name);
 	} catch(err) {
 		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 			throw err;
@@ -877,6 +879,8 @@ function importParser() {
 		this.throwError(name, errors.Messages.ImportFailed, name.value, err.toString());
 	}
 	this.importModuleRunning = false;
+//	this.importModuleName = undefined;
+
 	var endloc = this.tokenizer.location();
 	return {
 		loc: {source: loc.filename, start: loc.loc, end: endloc.loc},
@@ -1551,9 +1555,10 @@ Parser.prototype.extendSyntax = function(s) {
 
 Parser.prototype.newStatement = function(s) {
 	if (this.statementKeywords[s.name]) {
-		throw new Error("ExtensionError: Statement has already been registered: '" + s.name + "'");
+		throw new Error("Conflicting statement '" + s.name + "', defined in " + this.statementKeywords[s.name].module + " and redefined in " + this.importModuleName);
 	}
 	this.statementKeywords[s.name] = s.generator;
+	s.generator.module = this.importModuleName;
 }
 
 Parser.prototype.newOperator = function(s) {
@@ -1607,7 +1612,8 @@ Parser.prototype.newOperator = function(s) {
 			value: s.name,
 			type: "Keyword",
 			generator: s.generator,
-			level: level
+			level: level,
+			module: this.importModuleName
 		};
 	} else {
 		// The new operator has to be a punctuator
@@ -1624,7 +1630,8 @@ Parser.prototype.newOperator = function(s) {
 			value: s.name,
 			type: "Punctuator",
 			generator: s.generator,
-			level: level
+			level: level,
+			module: this.importModuleName
 		};			
 	}
 
@@ -1634,7 +1641,7 @@ Parser.prototype.newOperator = function(s) {
 		for(var i = 0; i < existingOps.length; i++) {
 			var existingOp = existingOps[i];
 			if (existingOp.associativity === "none" || op.associativity === "none" || op.associativity === existingOp.associativity) {
-				throw new Error("Conflicting operator '" + s.name + "'");
+				throw new Error("Conflicting operator '" + s.name + "', defined in " + existingOp.module + " and redefined in " + op.module);
 			}
 			if (((existingOp.associativity === "bl" || existingOp.associativity === "br") && op.associativity == "ul" && op.level != existingOp.level) ||
 				((op.associativity === "bl" || op.associativity === "br") && existingOp.associativity == "ul" && op.level != existingOp.level)) {

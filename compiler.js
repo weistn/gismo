@@ -40,7 +40,7 @@ function Compiler(modulePath) {
 }
 
 // Called from the parser that is launched on behalf of compileModule().
-Compiler.prototype.importMetaModule = function(modulePath, alias) {
+Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
 	if (modulePath === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
@@ -75,7 +75,9 @@ Compiler.prototype.importMetaModule = function(modulePath, alias) {
 	var m;
 	try {
 		m = require(metafile);
-		m.extendParser(this.parser);
+//		console.log("extend " + this.path + " with " + modulePath + " importModuleName == " + parser.importModuleName);
+		parser.importModuleName = modulePath;
+		m.extendParser(parser);
 	} catch(err) {
 		if (err instanceof errors.SyntaxError) {
 			throw err;
@@ -131,9 +133,10 @@ Compiler.prototype.compileModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + fname + "'");
 		}
-		this.parser = new parser.Parser(this);
-		this.importMetaModule(this.path, "module");
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, fname)));
+		var p = new parser.Parser(this);
+//		p.importModuleName = this.path;
+		this.importMetaModule(p, this.path, "module");
+		program.body = program.body.concat(p.parse(lexer.newTokenizer(str, fname)));
 	}
 
 	// In which file should the generated JS be saved?
@@ -178,8 +181,8 @@ Compiler.prototype.compileMetaModule = function() {
 		} catch(err) {
 			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
 		}
-		this.parser = new parser.Parser(this);
-		program.body = program.body.concat(this.parser.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
+		var p = new parser.Parser(this);
+		program.body = program.body.concat(p.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
 	}
 
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});

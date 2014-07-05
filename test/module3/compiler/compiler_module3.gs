@@ -23,8 +23,6 @@ export operator /// {
 	return template(console.log(@str));
 }
 
-//export operator #a { return template (@a.length) }
-
 export statement struct {
 	var name = parser.parseIdentifier();
 	parser.tokenizer.expect('{');

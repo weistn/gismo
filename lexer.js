@@ -144,7 +144,7 @@ Tokenizer.prototype.registerESKeywords = function() {
 
 Tokenizer.prototype.registerKeyword = function(str) {
     if (this.keywords.indexOf(str) !== -1) {
-        throw "LexerError: Keyword " + str + " is already registered";
+        return;
     }
     this.keywords.push(str);
 }
