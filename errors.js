@@ -27,7 +27,7 @@ var Messages = {
     AccessorGetSet:  'Object literal may not have multiple get/set accessors with the same name',
     ImportFailed: 'Failed to import %0: %1',
     CannotExport: 'Statement cannot be used in conjunction with export',
-    UnknownModuile: 'Unknown module %0'
+    UnknownModule: 'Unknown module \'%0\''
 };
 
 // Thrown when parsing failes

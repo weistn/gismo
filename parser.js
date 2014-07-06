@@ -861,15 +861,16 @@ function importParser() {
 	this.parseEndOfStatement();
 
 	// Try to locate the JS file
-	try {
-		var jsfile = require.resolve(name.value);
-	} catch(err) {
-		this.throwError(name, Messages.UnknownModule, name.value);
-	}
+//	try {
+//		var jsfile = require.resolve(name.value);
+//	} catch(err) {
+//		this.throwError(name, Messages.UnknownModule, name.value);
+//	}
+	var tmp = this.compiler.resolveModule(this, name.value);
 	// Import the gismo module
-	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
+	var path = tmp.jsfile.substr(0, tmp.jsfile.lastIndexOf('/') + 1);
+//	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
-//	this,importModuleName = name.value;
 	try {
 		this.compiler.importMetaModule(this, path, as.name);
 	} catch(err) {
@@ -879,7 +880,6 @@ function importParser() {
 		this.throwError(name, errors.Messages.ImportFailed, name.value, err.toString());
 	}
 	this.importModuleRunning = false;
-//	this.importModuleName = undefined;
 
 	var endloc = this.tokenizer.location();
 	return {
@@ -902,7 +902,7 @@ function importParser() {
                     "arguments": [
                         {
                             "type": "Literal",
-                            "value": name.value,
+                            "value": tmp.modulePath,
                             loc: name.loc
                         }
                     ]

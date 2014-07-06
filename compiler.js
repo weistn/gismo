@@ -281,4 +281,32 @@ Compiler.prototype.checkMTime = function(dest, sources) {
 	return true;
 };
 
+Compiler.prototype.resolveModule = function(parser, modulePath) {
+	if (modulePath[0] !== '.' || (modulePath[1] !== path.sep && (modulePath[1] !== '.' || modulePath[2] !== '/'))) {
+		// Seach the module in the lib-directory of this gismo installation
+		var p = path.dirname(__filename);
+		p = path.join(p, modulePath);
+		try {
+			var jsfile = require.resolve(p);
+			var jsfileGlobal = require.resolve(path.join("gismo", "lib", modulePath));
+			// If the global installation is the same as this gismo installation, then use the global path
+			if (jsfile === jsfileGlobal) {
+				return {modulePath: path.join("gismo", "lib", modulePath), jsfile: jsfile};
+			}
+			// Return the 
+			return {modulePath: jsfile, jsfile: jsfile};
+		} catch(err) {
+			// Do nothing by intention
+		}
+	}
+
+	try {
+		var jsfile = require.resolve(modulePath);
+	} catch(err) {
+		parser.throwError(null, errors.Messages.UnknownModule, modulePath);
+//		throw new Error(errors.Messages.UnknownModule.replace(/%(\d)/g, modulePath));
+	}
+	return {modulePath: modulePath, jsfile: jsfile};
+};
+
 exports.Compiler = Compiler;
