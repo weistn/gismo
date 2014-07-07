@@ -282,19 +282,23 @@ Compiler.prototype.checkMTime = function(dest, sources) {
 };
 
 Compiler.prototype.resolveModule = function(parser, modulePath) {
-	if (modulePath[0] !== '.' || (modulePath[1] !== path.sep && (modulePath[1] !== '.' || modulePath[2] !== '/'))) {
+	if (modulePath.slice(0,6) === "gismo" + path.sep) {
 		// Seach the module in the lib-directory of this gismo installation
 		var p = path.dirname(__filename);
-		p = path.join(p, modulePath);
+		p = path.join(p, "lib", modulePath.slice(6));
 		try {
 			var jsfile = require.resolve(p);
-			var jsfileGlobal = require.resolve(path.join("gismo", "lib", modulePath));
-			// If the global installation is the same as this gismo installation, then use the global path
-			if (jsfile === jsfileGlobal) {
-				return {modulePath: path.join("gismo", "lib", modulePath), jsfile: jsfile};
+			try {
+				var jsfileGlobal = require.resolve(path.join("gismo", "lib", modulePath.slice(6)));
+				// If the global installation is the same as this gismo installation, then use the global path
+				if (jsfile === jsfileGlobal) {
+					return {modulePath: path.join("gismo", "lib", modulePath.slice(6)), jsfile: jsfile};
+				}
+			} catch(err) { 
+				// Do nothing by intention
 			}
-			// Return the 
-			return {modulePath: jsfile, jsfile: jsfile};
+			// Return the local path
+			return {modulePath: path.dirname(jsfile), jsfile: jsfile};
 		} catch(err) {
 			// Do nothing by intention
 		}

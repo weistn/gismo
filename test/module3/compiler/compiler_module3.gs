@@ -1,5 +1,5 @@
-import "module1"
-import "module2"
+import "gismo/template"
+import "gismo/metaprogramming"
 
 export operator select { return template ("I am a select")}
 /* export operator a # b {}

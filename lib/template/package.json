@@ -1,0 +1,9 @@
+{
+    "name": "template",
+    "version": "0.0.1",
+    "description": "Gismo standard meta libaray",
+    "main": "main.js",
+    "author": "Torben Weis <torben.weis@gmail.com> (http://vs.uni-due.de/)",
+    "license": "TODO",
+    "gismo": {}
+}

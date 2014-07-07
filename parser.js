@@ -2,6 +2,7 @@
 var lexer = require("./lexer.js");
 var escodegen = require('escodegen');
 var errors = require("./errors");
+var path = require("path");
 
 // Parses an expression up to the point where the next symbol cannot be added to the expression any more.
 var	Mode_Expression = 1,
@@ -868,11 +869,11 @@ function importParser() {
 //	}
 	var tmp = this.compiler.resolveModule(this, name.value);
 	// Import the gismo module
-	var path = tmp.jsfile.substr(0, tmp.jsfile.lastIndexOf('/') + 1);
+	var p = path.dirname(tmp.jsfile);
 //	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
 	try {
-		this.compiler.importMetaModule(this, path, as.name);
+		this.compiler.importMetaModule(this, p, as.name);
 	} catch(err) {
 		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 			throw err;
