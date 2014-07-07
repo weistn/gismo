@@ -13,5 +13,13 @@ test/module3/main.js.map
 test/module3/_meta.js.map
 test/parser_test.js.map
 test/parser_test.js.out
+lib/template/main.js
+lib/template/_meta.js
+lib/template/main.js.map
+lib/template/_meta.js.map
+lib/metaprogramming/main.js
+lib/metaprogramming/_meta.js
+lib/metaprogramming/main.js.map
+lib/metaprogramming/_meta.js.map
 scratch.js
 
