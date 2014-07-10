@@ -20,6 +20,14 @@ clean:
 	rm -f test/module2/main.js.map
 	rm -f test/module2/_meta.js
 	rm -f test/module2/_meta.js.map
+	rm -f test/module3/main.js
+	rm -f test/module3/main.js.map
+	rm -f test/module3/_meta.js
+	rm -f test/module3/_meta.js.map
+	rm -f test/module4/main.js
+	rm -f test/module4/main.js.map
+	rm -f test/module4/_meta.js
+	rm -f test/module4/_meta.js.map
 	rm -f test/parser_test.js.out
 	rm -f test/parser_test.js.map
 	rm -f lib/template/main.js

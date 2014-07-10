@@ -136,7 +136,30 @@ Compiler.prototype.compileModule = function() {
 		var p = new parser.Parser(this);
 //		p.importModuleName = this.path;
 		this.importMetaModule(p, this.path, "module");
-		program.body = program.body.concat(p.parse(lexer.newTokenizer(str, fname)));
+		var body = p.parse(lexer.newTokenizer(str, fname));
+		if (srcfiles.length > 1) {
+			body = [{
+	            "type": "ExpressionStatement",
+	            "expression": {
+	                "type": "CallExpression",
+	                "callee": {
+	                    "type": "FunctionExpression",
+	                    "id": null,
+	                    "params": [],
+	                    "defaults": [],
+	                    "body": {
+	                        "type": "BlockStatement",
+	                        "body": body
+	                    },
+	                    "rest": null,
+	                    "generator": false,
+	                    "expression": false
+	                },
+	                "arguments": []
+	            }
+	        }];
+		}
+		program.body = program.body.concat(body);
 	}
 
 	// In which file should the generated JS be saved?

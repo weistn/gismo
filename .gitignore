@@ -11,6 +11,10 @@ test/module3/main.js
 test/module3/_meta.js
 test/module3/main.js.map
 test/module3/_meta.js.map
+test/module4/main.js
+test/module4/_meta.js
+test/module4/main.js.map
+test/module4/_meta.js.map
 test/parser_test.js.map
 test/parser_test.js.out
 lib/template/main.js
