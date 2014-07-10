@@ -1469,6 +1469,7 @@ Parser.prototype.parseEndOfStatement = function() {
 Parser.prototype.parseStatement = function() {
 	var token = this.tokenizer.lookahead();
 	var s = token.value;
+	// Is this a  statement?
 	var p = this.statementKeywords[s];
 	if (p) {
 		this.tokenizer.next();
@@ -1493,6 +1494,8 @@ Parser.prototype.parseStatement = function() {
 			this.throwError(token, "Parser for statement '" + s + "' must return a string or an AST object");
 		}
 		return result;
+	} else if (token.value === '{') {
+		return this.parseBlockStatement();
 	}
 	return this.parseExpressionStatement();
 }

@@ -9,4 +9,9 @@ console.log(1 * 2 equals 3 * 4);
 console.log((x -> x+1)(41))
 /// This comment prints itself
 
+{
+	// A block statement
+	var inblock = 3;
+}
+
 struct s { }
