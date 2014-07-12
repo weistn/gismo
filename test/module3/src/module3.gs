@@ -1,5 +1,9 @@
+import "gismo/grammar";
+
 var arr = [5,6,7,8];
 console.log(#arr);
+console.log(9 # arr)
+//console.log(arr.slice(1)#);
 console.log(not true);
 console.log(5 cube);
 console.log(1 + 2 mod 3 + 4);
@@ -15,3 +19,23 @@ console.log((x -> x+1)(41))
 }
 
 struct s { }
+
+grammar myGrammar {
+	rule start
+		= additive
+
+	rule additive
+        = left:multiplicative "+" right:additive { return left + right; }
+  		| multiplicative
+
+	rule multiplicative
+  		= left:primary "*" right:multiplicative { return left * right; }
+  		| primary
+
+	rule primary
+  		= integer
+  		| "(" additive:additive ")" { return additive; }
+
+	rule integer
+		= digits:Numeric { return digits; }
+}

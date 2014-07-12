@@ -2,8 +2,8 @@ import "gismo/template"
 import "gismo/metaprogramming"
 
 export operator select { return template ("I am a select")}
-/* export operator a # b {}
-   export operator a# { } */
+export operator a # b precedence 13 { return template (@a.toString() + @b.toString()) }
+export operator a# precedence 13 { return template (@a.toString()) }
 export operator #a { return template (@a.length) }
 export operator not a { return template (!@a) }
 export operator a \cube { return template (@a * @a * @a) }
