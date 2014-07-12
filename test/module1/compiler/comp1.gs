@@ -4,6 +4,7 @@ export parser.extendSyntax({
 	type: "operator",
 	associativity: "none",
 	name: "linepos",
+	level: 18,
 	generator: function() {
 		return {
 			type: "Literal",
@@ -16,6 +17,7 @@ export parser.extendSyntax({
 	type: 'operator',
 	associativity: "none",
 	name: "@",
+	level: 18,
 	generator: function() {
 		var content = parser.parseTerm();
 		return {
@@ -160,6 +162,7 @@ export parser.extendSyntax({
 	type: 'operator',
 	associativity: 'none',
 	name: "template",
+	level: 18,
 	generator: function() {
 		if (parser.tokenizer.presume('(', false)) {
 			return objectExpressionFromObject(parser.parseTerm());

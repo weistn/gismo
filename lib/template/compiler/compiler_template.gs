@@ -3,6 +3,7 @@ export parser.extendSyntax({
 	type: 'operator',
 	associativity: "none",
 	name: "@",
+	level: 18,
 	generator: function() {
 		var content = parser.parseTerm();
 		return {
@@ -146,6 +147,7 @@ function objectExpressionFromObject(obj) {
 export parser.extendSyntax({
 	type: 'operator',
 	associativity: 'none',
+	level: 18,
 	name: "template",
 	generator: function() {
 		if (parser.tokenizer.presume('(', false)) {

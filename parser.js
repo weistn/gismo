@@ -413,15 +413,23 @@ function functionParser() {
 		name = null;
 	}
 	this.tokenizer.expect("(");
-	var parameters = this.parseExpression(Mode_Expression);
-	if (parameters === null) {
-		parameters = []
-	} else if (parameters.type === "SequenceExpression") {
-		parameters = parameters.expressions;
+	var parameters;
+	if (this.tokenizer.presume(")", true)) {
+		parameters = [];
 	} else {
-		parameters = [parameters];
+		parameters = this.parseExpression(Mode_Expression);
+		if (parameters.type === "SequenceExpression") {
+			parameters = parameters.expressions;
+		} else {
+			parameters = [parameters];
+		}
+		for(var i = 0; i < parameters.length; i++) {
+			if (parameters[i].type !== "Identifier") {
+				this.throwError(parameters[i], "Expected a list of identifiers");
+			}
+		}
+		this.tokenizer.expect(")");
 	}
-	this.tokenizer.expect(")");
 	var code = this.parseBlockStatement();
 	var endloc = this.tokenizer.location();
 	return {
@@ -488,15 +496,23 @@ function functionDeclParser() {
 	}
 	var name = this.parseIdentifier();
 	this.tokenizer.expect("(");
-	var parameters = this.parseExpression(Mode_Expression);
-	if (parameters === null) {
-		parameters = []
-	} else if (parameters.type === "SequenceExpression") {
-		parameters = parameters.expressions;
+	var parameters;
+	if (this.tokenizer.presume(")", true)) {
+		parameters = [];
 	} else {
-		parameters = [parameters];
+		parameters = this.parseExpression(Mode_Expression);
+		if (parameters.type === "SequenceExpression") {
+			parameters = parameters.expressions;
+		} else {
+			parameters = [parameters];
+		}
+		for(var i = 0; i < parameters.length; i++) {
+			if (parameters[i].type !== "Identifier") {
+				this.throwError(parameters[i], "Expected a list of identifiers");
+			}
+		}		
+		this.tokenizer.expect(")");
 	}
-	this.tokenizer.expect(")");
 	var code = this.parseBlockStatement();
 	var endloc = this.tokenizer.location();
 	return {
@@ -1239,7 +1255,7 @@ Parser.prototype.parseExpression = function(mode) {
 			bracketCount++;
 		} else if (state.op.closingBracket) {
 //			console.log(token.value, "closing_bracket");
-			value = this.finishRecursions(-1 ,stack, value, state.op.value);
+			value = this.finishRecursions(-1 ,stack, value, lookahead);
 			if (stack.length === 0 || stack[stack.length - 1].op.correspondingBracket !== state.op.value) {
 				this.throwError(null, errors.Messages.UnexpectedToken, state.op.value);
 			}
@@ -1408,6 +1424,9 @@ Parser.prototype.parseExpression = function(mode) {
 //	if (mode === Mode_Default && this.tokenizer.lookahead() !== undefined) {
 //		throw "Unexpected symbol '" + this.tokenizer.lookahead().value + "'";
 //	}
+//	if (value.argument === null) {
+//		this.throwError(lookahead, errors.Messages.UnexpectedToken, lookahead.value);
+//	}
 	return value.argument;
 };
 
@@ -1441,11 +1460,12 @@ Parser.prototype.parseExpressionStatement = function() {
 	var body = this.parseExpression(Mode_Expression);
 	var locend = this.tokenizer.location();
 	if (body === null) {
+		this.tokenizer.expect(';');
 		result = {type: "EmptyStatement", loc: {source: lookahead.loc.source, start: lookahead.loc.start, end: locend.loc}};
 	} else {
 		result = { type: "ExpressionStatement", expression: body, loc: {source: lookahead.loc.source, start: lookahead.loc.start, end: locend}};
+		this.parseEndOfStatement();
 	}
-	this.parseEndOfStatement();
 	return result;	
 }
 
@@ -1523,6 +1543,7 @@ Parser.prototype.parse = function(tokenizer) {
 	}
 
 	var result = [];
+	// TODO: Why does this stop at '{' ?
 	while( this.tokenizer.lookahead() !== null && this.tokenizer.lookahead().value !== '}') {
 		var body = this.parseStatement();
 		result = result.concat(body);
@@ -1569,35 +1590,38 @@ Parser.prototype.newOperator = function(s) {
 	// TODO: Check conflicts with existing operands or operators
 	var associativity = "none";
 	var level = s.level;
+	if (typeof level !== "number") {
+		throw new Error("ExtensionError: A numeric precedence level must be specified");
+	}
 	switch (s.associativity) {
 		case "none":
-			if (level === undefined) {
-				level = this.numericTerminal.level;
-			}
+//			if (level === undefined) {
+//				level = this.numericTerminal.level;
+//			}
 			break;
 		case "right":
-			if (level === undefined) {
-				level = 16; // TODO
-			}
+//			if (level === undefined) {
+//				level = 16; // TODO
+//			}
 			associativity = "ur";
 			break;
 		case "left":
-			if (level === undefined) {
-				level = 16; // TODO
-			}
+//			if (level === undefined) {
+//				level = 16; // TODO
+//			}
 			associativity = "ul";
 			break;
 		case "binary":
 		case "binary-left":
-			if (level === undefined) {
-				level = 16; // TODO
-			}
+//			if (level === undefined) {
+//				level = 16; // TODO
+//			}
 			associativity = "bl";
 			break;
 		case "binary-right":
-			if (level === undefined) {
-				level = 16; // TODO
-			}
+//			if (level === undefined) {
+//				level = 16; // TODO
+//			}
 			associativity = "br";
 			break;
 		default:

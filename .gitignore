@@ -25,5 +25,9 @@ lib/metaprogramming/main.js
 lib/metaprogramming/_meta.js
 lib/metaprogramming/main.js.map
 lib/metaprogramming/_meta.js.map
+lib/grammar/main.js
+lib/grammar/_meta.js
+lib/grammar/main.js.map
+lib/grammar/_meta.js.map
 scratch.js
 

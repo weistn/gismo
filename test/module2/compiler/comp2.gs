@@ -59,6 +59,7 @@ parser.extendSyntax({
     type: 'operator',
     associativity: 'none',
     name: "square",
+    level: 17,
     generator: function() {
         var expr = parser.parseExpression();
         return template (@expr * @expr);

@@ -392,9 +392,9 @@ Tokenizer.prototype.registerPunctuator = function(str) {
         }
         current = p;
     }
-    if (current.complete) {
-        throw "LexerError: Punctuator " + str + " has already been registered";
-    }
+//    if (current.complete) {
+//        throw "LexerError: Punctuator " + str + " has already been registered";
+//    }
     current.complete = true;
 }
 
@@ -1068,7 +1068,8 @@ exports.newTokenizer = function(source, filename) {
             if (errorMsg) {
                 throw errorMsg;
             }   
-            throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+//            throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
         },
 
         expectIdentifier : function(errorMsg) {
@@ -1079,7 +1080,8 @@ exports.newTokenizer = function(source, filename) {
             if (errorMsg) {
                 throw errorMsg;
             }   
-            throw "Expected an identifier but got " + (t ? t.value : " EOF");
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+//            throw "Expected an identifier but got " + (t ? t.value : " EOF");
         },
 
         expectRegExp : function(errorMsg) {
@@ -1137,6 +1139,12 @@ exports.newTokenizer = function(source, filename) {
 
         registerPunctuator : function(punctuator) {
             tokenizer.registerPunctuator(punctuator);
+        },
+
+        isIdentifier : isIdentifier,
+
+        isPunctuator : function(str) {
+            return !isIdentifierStart(str[0]);
         }
     };
 };
