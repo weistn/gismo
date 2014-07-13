@@ -1,6 +1,30 @@
 import "gismo/metaprogramming"
 import "gismo/template"
 
+function checkBranch(parser, grammar, b) {
+	for(var i = 0; i < b.syntax.length; i++) {
+		var s = b.syntax[i];
+		if(s.type === "Rule") {
+			switch (s.ruleToken.value) {
+				case "Numeric":
+				case "String":
+				case "Boolean":
+				case "RegularExpression":
+				case "Identifier":
+				case "Punctuator":
+					// Built-in rules
+					break;
+				default:
+					if (!grammar.rules[s.ruleToken.value]) {
+						parser.throwError(s.ruleToken, "The rule '%0' has not been defined", s.ruleToken.value);
+					}
+			}
+		} else if (s.type === "Branch") {
+			checkBranch(parser, grammar, s.branch);
+		}
+	}
+}
+
 function parseRuleBranch(parser) {
 	var branch = {syntax: []};
 	var t;
@@ -101,9 +125,19 @@ export statement grammar {
 
 	parser.tokenizer.expect('}');
 
+	// Every grammar must have a start rule
 	if (!grammar.rules.start) {
 		parser.throwError(name, "Grammar is missing a start rule");
 	}
+
+	// All mentioned rules must exist
+	for(var key in grammar.rules) {
+		var r = grammar.rules[key];
+		for(var k = 0; k < r.branches.length; k++) {
+			checkBranch(parser, grammar, r.branches[k]);
+		}
+	}
+
 	// TODO: Unregister the rule keyword
 
 	var main = template {

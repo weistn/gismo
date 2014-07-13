@@ -41,4 +41,7 @@ grammar myGrammar {
 
 	rule foo
 		= list:(bar "and" foo)?
+
+	rule bar
+		=
 }
