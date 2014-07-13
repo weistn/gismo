@@ -2,7 +2,7 @@ import "gismo/metaprogramming"
 import "gismo/template"
 
 function parseRuleBranch(parser) {
-	var branch = {};
+	var branch = {syntax: []};
 	var t;
 	while(true) {
 		t = parser.tokenizer.lookahead();
@@ -13,13 +13,16 @@ function parseRuleBranch(parser) {
 			parser.tokenizer.next();
 			if (parser.tokenizer.presume(':', true)) {
 				var t2 = parser.parseIdentifier();
+				branch.syntax.push({type: "Rule", ruleToken: t2, nameToken: t});
+			} else {
+				branch.syntax.push({type: "Rule", ruleToken: t});
 			}
 		} else if (t.type === "String") {
 			parser.tokenizer.next();
 			if (parser.tokenizer.isIdentifier(t.value)) {
-
+				branch.syntax.push({type: "Identifier", token: t});
 			} else if (parser.tokenizer.isPunctuator(t.value)) {
-
+				branch.syntax.push({type: "Punctuator", token: t});
 			} else {
 				parser.throwError(t, "''%0' is neither a valid identifier nor a valid punctuator", t.value);
 			}
@@ -39,9 +42,9 @@ function parseRuleBranch(parser) {
 
 function parseRule(parser) {
 	var ruleName = parser.parseIdentifier();
-	var rule = {name: ruleName.name, loc: ruleName.loc, branches: []};	
+	var rule = {name: ruleName.name, loc: ruleName.loc, branches: [], nameToken: ruleName};	
 	var t = parser.tokenizer.expect('=');
-	parseRuleBranch(parser);
+	rule.branches.push(parseRuleBranch(parser));
 	var t = parser.tokenizer.lookahead();
 	while(t && t.type === "Punctuator" && t.value === '|') {
 		parser.tokenizer.next();
@@ -81,31 +84,25 @@ export statement grammar {
 
 	parser.tokenizer.expect('}');
 
+	if (!grammar.rules.start) {
+		parser.throwError(name, "Grammar is missing a start rule");
+	}
 	// TODO: Unregister the rule keyword
 
-	return template {
+	var main = template {
 		function @name(parser) {
 
 		}
 	};
+
+	var funcs = [];
+	for(var key in grammar.rules) {
+		var r = grammar.rules[key];
+		funcs.push(template{
+			@name.prototype.@(r.nameToken) = function() {
+
+			}
+		})
+	}
+	return [main].concat(funcs);
 }
-
-/*
-rule start
-  = additive
-
-additive
-  = left:multiplicative "+" right:additive { return left + right; }
-  / multiplicative
-
-multiplicative
-  = left:primary "*" right:multiplicative { return left * right; }
-  / primary
-
-primary
-  = integer
-  / "(" additive:additive ")" { return additive; }
-
-integer "integer"
-  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }
-*/
