@@ -1040,7 +1040,7 @@ exports.newTokenizer = function(source, filename) {
 
         presume : function(tokenValue, consume) {
            var t = tokenizer.peek();
-            if (t && t.value === tokenValue) {
+            if (t && t.value === tokenValue && t.type !== "String") {
                 if (consume) {
                     tokenizer.next();
                 }
