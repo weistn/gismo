@@ -4,6 +4,7 @@ import "gismo/template"
 function parseRuleBranch(parser) {
 	var branch = {syntax: []};
 	var t;
+	var nameToken;
 	while(true) {
 		t = parser.tokenizer.lookahead();
 		if (!t || t.type === "Keyword") {
@@ -14,24 +15,23 @@ function parseRuleBranch(parser) {
 				parser.tokenizer.next();
 				var b = parseRuleBranch(parser);
 				parser.tokenizer.expect(")");
-				branch.syntax.push({type: "Branch", branch: b});
+				branch.syntax.push({type: "Branch", branch: b, nameToken: nameToken});
 			} else {
 				break;
 			}
 		} else if (t.type === "Identifier") {
 			parser.tokenizer.next();
 			if (parser.tokenizer.presume(':', true)) {
-				var t2 = parser.parseIdentifier();
-				branch.syntax.push({type: "Rule", ruleToken: t2, nameToken: t});
-			} else {
-				branch.syntax.push({type: "Rule", ruleToken: t});
+				nameToken = t;
+				continue;
 			}
+			branch.syntax.push({type: "Rule", ruleToken: t, nameToken: nameToken});
 		} else if (t.type === "String") {
 			parser.tokenizer.next();
 			if (parser.tokenizer.isIdentifier(t.value)) {
-				branch.syntax.push({type: "Identifier", token: t});
+				branch.syntax.push({type: "Identifier", token: t, nameToken: nameToken});
 			} else if (parser.tokenizer.isPunctuator(t.value)) {
-				branch.syntax.push({type: "Punctuator", token: t});
+				branch.syntax.push({type: "Punctuator", token: t, nameToken: nameToken});
 			} else {
 				parser.throwError(t, "''%0' is neither a valid identifier nor a valid punctuator", t.value);
 			}
@@ -49,6 +49,7 @@ function parseRuleBranch(parser) {
 		} else if (parser.tokenizer.presume('?', true)) {
 			branch.syntax[branch.syntax.length - 1].repeatZeroOrOnce = true;
 		}
+		nameToken = null;
 	}
 	if (t && t.type === "Punctuator" && t.value === '{') {
 		parser.parseBlockStatement();

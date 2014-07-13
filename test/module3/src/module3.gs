@@ -40,5 +40,5 @@ grammar myGrammar {
 		= digits:Numeric { return digits; }
 
 	rule foo
-		= (bar "and" foo)?
+		= list:(bar "and" foo)?
 }
