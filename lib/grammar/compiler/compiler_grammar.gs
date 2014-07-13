@@ -33,6 +33,13 @@ function parseRuleBranch(parser) {
 				parser.throwError(t, "Unexpected token %0", t.value);
 			}
 		}
+		if (parser.tokenizer.presume('*', true)) {
+			branch.syntax[branch.syntax.length - 1].repeatZeroOrMore = true;
+		} else if (parser.tokenizer.presume('+', true)) {
+			branch.syntax[branch.syntax.length - 1].repeatOnceOrMore = true;			
+		} else if (parser.tokenizer.presume('?', true)) {
+			branch.syntax[branch.syntax.length - 1].repeatZeroOrOnce = true;
+		}
 	}
 	if (t && t.type === "Punctuator" && t.value === '{') {
 		parser.parseBlockStatement();
