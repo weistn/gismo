@@ -6,10 +6,19 @@ function parseRuleBranch(parser) {
 	var t;
 	while(true) {
 		t = parser.tokenizer.lookahead();
-		if (!t || t.type === "Punctuator" || t.type === "Keyword") {
+		if (!t || t.type === "Keyword") {
 			break;
 		}
-		if (t.type === "Identifier") {
+		if (t.type === "Punctuator") {
+			if (t.value === "(") {
+				parser.tokenizer.next();
+				var b = parseRuleBranch(parser);
+				parser.tokenizer.expect(")");
+				branch.syntax.push({type: "Branch", branch: b});
+			} else {
+				break;
+			}
+		} else if (t.type === "Identifier") {
 			parser.tokenizer.next();
 			if (parser.tokenizer.presume(':', true)) {
 				var t2 = parser.parseIdentifier();

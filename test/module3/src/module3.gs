@@ -22,7 +22,7 @@ struct s { }
 
 grammar myGrammar {
 	rule start
-		= additive+
+		= additive
 
 	rule additive
         = left:multiplicative "+" right:additive { return left + right; }
@@ -38,4 +38,7 @@ grammar myGrammar {
 
 	rule integer
 		= digits:Numeric { return digits; }
+
+	rule foo
+		= (bar "and" foo)?
 }
