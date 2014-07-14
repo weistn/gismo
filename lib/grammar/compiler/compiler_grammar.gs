@@ -238,7 +238,7 @@ function parseRuleBranch(parser) {
 		if (parser.tokenizer.presume('*', true)) {
 			branch.syntax[branch.syntax.length - 1].repeat = "ZeroOrMore";
 		} else if (parser.tokenizer.presume('+', true)) {
-			branch.syntax[branch.syntax.length - 1].repeat = "OneOrMore";			
+			branch.syntax[branch.syntax.length - 1].repeat = "OneOrMore";
 		} else if (parser.tokenizer.presume('?', true)) {
 			branch.syntax[branch.syntax.length - 1].repeat = "ZeroOrOne";
 		}
@@ -252,14 +252,14 @@ function parseRuleBranch(parser) {
 
 function parseRule(parser) {
 	var ruleName = parser.tokenizer.expectIdentifier();
-	var rule = {name: ruleName.value, loc: ruleName.loc, branches: []};	
+	var rule = {name: ruleName.value, loc: ruleName.loc, branches: []};
 	var t = parser.tokenizer.expect('=');
 	rule.branches.push(parseRuleBranch(parser));
 	var t = parser.tokenizer.lookahead();
 	while(t && t.type === "Punctuator" && t.value === '|') {
 		parser.tokenizer.next();
 		var branch = parseRuleBranch(parser);
-		rule.branches.push(branch);		
+		rule.branches.push(branch);
 		var t = parser.tokenizer.lookahead();
 	}
 	return rule;
@@ -314,7 +314,7 @@ export statement grammar {
 		if (!r.__reachable) {
 			parser.throwError(rule, "Rule '%0' is not reachable", r.name);
 		}
-	}	
+	}
 
 	var userRules = [];
 	for(var key in grammar.rules) {
@@ -355,7 +355,7 @@ export statement grammar {
 					function(parser) {
 					}
 				);
-				funcs.push(template {@gname.prototype.@bname = @bfunc});			
+				funcs.push(template {@gname.prototype.@bname = @bfunc});
 			} else {
 				var bfunc = rfunc;
 			}
@@ -366,10 +366,29 @@ export statement grammar {
 				var code;
 				switch(s.type) {
 					case "Rule":
-						// TODO: builtin rule
 						var rn = {type: "Identifier", name: s.ruleName};
-						code = template{
-							var @n = this.@rn(parser);
+						// TODO: builtin rule
+						switch (s.ruleName) {
+							case "Numeric":
+								break;
+							case "String":
+								break;
+							case "Boolean":
+								break;
+							case "RegularExpression":
+								break;
+							case "Identifier":
+								code = template{
+									var @n = parser.tokenizer.expectIdentifier();
+								}
+								break;
+							case "Punctuator":
+								break;
+							default:
+								code = template{
+									var @n = this.@rn(parser);
+								}
+								break;
 						}
 						break;
 					case "Identifier":
@@ -379,7 +398,7 @@ export statement grammar {
 						}
 						break;
 				}
-				bfunc.body.body = bfunc.body.body.concat(code);				
+				bfunc.body.body = bfunc.body.body.concat(code);
 			}
 
 			if (b.action) {
