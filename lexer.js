@@ -400,7 +400,7 @@ Tokenizer.prototype.registerPunctuator = function(str) {
 
 // Registers the standard JS punctuators
 Tokenizer.prototype.registerESPunctuators = function() {
-    this.registerPunctuator(".");    
+    this.registerPunctuator(".");
     this.registerPunctuator("(");
     this.registerPunctuator(")");
     this.registerPunctuator("[");
@@ -968,7 +968,7 @@ Tokenizer.prototype.peek = function() {
     var prevIndex = this.index;
 
     var token = this.collectToken();
-    
+
     this.lineNumber = prevLineNumber;
     this.lineStart = prevLineStart;
     this.index = prevIndex;
@@ -1060,40 +1060,56 @@ exports.newTokenizer = function(source, filename) {
             return null;
         },
 
-        expect : function(tokenValue, errorMsg) {
+        expect : function(tokenValue) {
             var t = tokenizer.next();
-            if (t && t.value === tokenValue) {
+            if (t && t.value === tokenValue && t.type !== "String") {
                 return t;
             }
-            if (errorMsg) {
-                throw errorMsg;
-            }   
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
-//            throw "Expected " + tokenValue + " but got " + (t ? t.value : " EOF");
         },
 
-        expectIdentifier : function(errorMsg) {
+        expectIdentifier : function() {
            var t = tokenizer.next();
             if (t && t.type === Token.Identifier) {
                 return t;
             }
-            if (errorMsg) {
-                throw errorMsg;
-            }   
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
-//            throw "Expected an identifier but got " + (t ? t.value : " EOF");
         },
 
-        expectRegExp : function(errorMsg) {
-            try {
-                return collectRegExpToken();
-            } catch(e) {
-                if (errorMsg) {
-                    throw errorMsg;
-                } else {
-                    throw e;
-                }
-           }
+        expectPunctuator : function() {
+           var t = tokenizer.next();
+            if (t && t.type === Token.Punctuator) {
+                return t;
+            }
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+        },
+
+        expectString : function() {
+           var t = tokenizer.next();
+            if (t && t.type === Token.String) {
+                return t;
+            }
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+        },
+
+        expectNumber : function() {
+           var t = tokenizer.next();
+            if (t && t.type === Token.Numeric) {
+                return t;
+            }
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+        },
+
+        expectBoolean : function() {
+           var t = tokenizer.next();
+            if (t && t.type === Token.Boolean) {
+                return t;
+            }
+            tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+        },
+
+        expectRegExp : function() {
+            return collectRegExpToken();
         },
 
         next : function() {

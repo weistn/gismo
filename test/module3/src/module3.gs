@@ -25,12 +25,10 @@ grammar myGrammar {
 		= additive+
 
 	rule additive
-        = left:multiplicative "+" right:additive { return left + right; }
-  		| multiplicative
+        = left:multiplicative ("+" right:additive)? { return right === null ? left : left + right; }
 
 	rule multiplicative
-  		= left:primary "*" right:multiplicative { return left * right; }
-  		| primary
+  		= left:primary ("*" right:multiplicative)? { return right === null ? left : left * right; }
 
 	rule primary
   		= integer
@@ -38,10 +36,4 @@ grammar myGrammar {
 
 	rule integer
 		= digits:Numeric { return digits.value; }
-/*
-	rule foo
-		= list:(bar "and" foo)?
-
-	rule bar
-		= */
 }

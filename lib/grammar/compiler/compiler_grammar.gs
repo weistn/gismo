@@ -3,27 +3,28 @@ import "gismo/template"
 
 var counter = 0;
 
-function transformRule(parser, grammar, rule) {
-	for(var i = 0; i < rule.branches.length; i++) {
-		var b = rule.branches[i];
+function transformRule(parser, grammar, trule) {
+	for(var i = 0; i < trule.branches.length; i++) {
+		var b = trule.branches[i];
 		for(var k = 0; k < b.syntax.length; k++) {
 			var s = b.syntax[k];
 			if (!s.name) {
 				s.name = "__n" + k.toString();
 			}
+			if (s.type === "Branch") {
+				var name = "__" + (counter++).toString();
+				var rule = {name: name, branches: [s.branch]};
+				grammar.rules[rule.name] = rule;
+				s = b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name, repeat: s.repeat};
+				transformRule(parser, grammar, rule);
+			}
 			if (!s.repeat) {
 				continue;
 			}
-			console.log(rule.name);
 			switch (s.repeat) {
 				case "ZeroOrOne":
 					var name = "__" + (counter++).toString();
-					var branch1;
-					if (s.type === "Branch") {
-						branch1 = {syntax: s.branch.syntax.slice(0)};
-					} else {
-						branch1 = {syntax:[b.syntax[k]]};
-					}
+					var branch1 = {syntax:[b.syntax[k]]};
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
@@ -31,13 +32,8 @@ function transformRule(parser, grammar, rule) {
 					break;
 				case "ZeroOrMore":
 					var name = "__" + (counter++).toString();
-					var branch1;
-					if (s.type === "Branch") {
-						branch1 = {syntax: s.branch.syntax.slice(0)};
-					} else {
-						branch1 = {syntax:[b.syntax[k]]};
-					}
-					branch1.synax = branch1.syntax.concat({type: "Rule", ruleName: name});
+					var branch1 = {syntax:[b.syntax[k], {type: "Rule", ruleName: name, name: "__n1"}]};
+					branch1.syntax[0].name = "__n0";
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
@@ -46,40 +42,30 @@ function transformRule(parser, grammar, rule) {
 				case "OneOrMore":
 					var name = "__" + (counter++).toString();
 					var name2 = "__" + (counter++).toString();
-					var branch1;
-					if (s.type === "Branch") {
-						branch1 = {syntax: s.branch.syntax.slice(0)};
-					} else {
-						branch1 = {syntax:[b.syntax[k]]};
-					}
-					branch1.synax = branch1.syntax.concat({type: "Rule", ruleName: name2});
+					var branch1 = {syntax:[b.syntax[k], {type: "Rule", ruleName: name2, name: "__n1"}]};
+					branch1.syntax[0].name = "__n0";
 					branch1.action = template{
 						if (__n1) {
 							return [__n0].concat(__n1);
 						} else {
-							return [_n0];
+							return [__n0];
 						}
 					};
 					var rule = {name: name, branches: [branch1]};
 					grammar.rules[rule.name] = rule;
-					b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name};
 
-					if (s.type === "Branch") {
-						branch1 = {syntax: s.branch.syntax.slice(0)};
-					} else {
-						branch1 = {syntax:[b.syntax[k]]};
-					}
-					branch1.synax = branch1.syntax.concat({type: "Rule", ruleName: name});
+					branch1 = {syntax:[b.syntax[k], {type: "Rule", ruleName: name2, name: "__n1"}]};
+					branch1.syntax[0].name = "__n0";
 					branch1.action = template{
 						if (__n1) {
 							return [__n0].concat(__n1);
 						} else {
-							return [_n0];
+							return [__n0];
 						}
 					};
 					var branch2 = {syntax:[]};
-					var rule = {name: name2, branches: [branch1, branch2]};
-					grammar.rules[rule.name] = rule;
+					var rule2 = {name: name2, branches: [branch1, branch2]};
+					grammar.rules[rule2.name] = rule2;
 					b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name};
 					break;
 			}
@@ -325,8 +311,6 @@ export statement grammar {
 		transformRule(parser, grammar, userRules[i]);
 	}
 
-	console.log(ruleLookahead(parser, grammar, grammar.rules.start));
-
 	// TODO: Unregister the rule keyword
 
 	var gname = {type: "Identifier", name: grammarName.value};
@@ -337,8 +321,10 @@ export statement grammar {
 		}
 	};
 
+	// Generate code for all rules
 	var funcs = [];
 	for(var key in grammar.rules) {
+		// Each rule has a function that applies it
 		var r = grammar.rules[key];
 		var name = {type: "Identifier", name: r.name};
 		var rfunc = template(
@@ -347,8 +333,21 @@ export statement grammar {
 		);
 		funcs.push(template{ @gname.prototype.@name = @rfunc });
 
+		// If there is more than one rule, we must look ahead to determine which branch to use.
+		if (r.branches.length > 1) {
+			var lcode = [template{ var __l = parser.tokenizer.lookahead(); }];
+			for(var k = 0; k < r.branches.length; k++) {
+				var b = r.branches[k];
+				var lh = branchLookahead(parser, grammar, b);
+				console.log(k, r.name, lh);
+			}
+			rfunc.body.body = rfunc.body.body.concat(lcode);
+		}
+
+		// Generate code for all branches of the rule
 		for(var k = 0; k < r.branches.length; k++) {
 			var b = r.branches[k];
+			// If a rule has more than one branch, generate a function for each branch
 			if (r.branches.length > 1) {
 				var bname = {type: "Identifier", name: "__b" + k.toString() + "__" + r.name};
 				var bfunc = template(
@@ -357,9 +356,11 @@ export statement grammar {
 				);
 				funcs.push(template {@gname.prototype.@bname = @bfunc});
 			} else {
+				// One branch only. The code for the branch goes directly into the rule function
 				var bfunc = rfunc;
 			}
 
+			// Parse all tokens inside a rule
 			for(var j = 0; j < b.syntax.length; j++) {
 				var s = b.syntax[j];
 				var n = {type: "Identifier", name: s.name};
@@ -367,15 +368,27 @@ export statement grammar {
 				switch(s.type) {
 					case "Rule":
 						var rn = {type: "Identifier", name: s.ruleName};
-						// TODO: builtin rule
+						// Builtin rule
 						switch (s.ruleName) {
 							case "Numeric":
+								code = template{
+									var @n = parser.tokenizer.expectNumber();
+								}
 								break;
 							case "String":
+								code = template{
+									var @n = parser.tokenizer.expectString();
+								}
 								break;
 							case "Boolean":
+								code = template{
+									var @n = parser.tokenizer.expectBoolean();
+								}
 								break;
 							case "RegularExpression":
+								code = template{
+									var @n = parser.tokenizer.expectRegExp();
+								}
 								break;
 							case "Identifier":
 								code = template{
@@ -383,6 +396,9 @@ export statement grammar {
 								}
 								break;
 							case "Punctuator":
+								code = template{
+									var @n = parser.tokenizer.expectPunctuator();
+								}
 								break;
 							default:
 								code = template{
@@ -397,10 +413,14 @@ export statement grammar {
 							var @n = parser.expect(@(s.token.value));
 						}
 						break;
+					default:
+						throw new Error("Implementation error");
 				}
 				bfunc.body.body = bfunc.body.body.concat(code);
 			}
 
+			// Add the action code to the end of the branch.
+			// Or return the last token if no action is specified.
 			if (b.action) {
 				if (b.action.type === "BlockStatement") {
 					bfunc.body.body = bfunc.body.body.concat(b.action.body);
