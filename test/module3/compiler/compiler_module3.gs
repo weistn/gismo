@@ -33,7 +33,7 @@ export statement struct {
 
 grammar myGrammar {
 	rule start
-		= a:additive { return a; }
+		= a:additive* { return a; }
 
 	rule additive
         = left:multiplicative right:("+" term:additive)? { return right === null ? left : left + right.term; }
@@ -52,5 +52,6 @@ grammar myGrammar {
 export statement calculate {
 	var g = new myGrammar();
 	var v = g.start(parser);
+	parser.parseEndOfStatement();
 	return template{ console.log(@v) };
 }

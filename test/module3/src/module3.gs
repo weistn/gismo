@@ -19,4 +19,6 @@ console.log((x -> x+1)(41))
 
 struct s { }
 
-calculate (3+5)*2
+calculate (3+5)*2 8 16;
+
+console.log("fini");

@@ -8,6 +8,7 @@ function transformRule(parser, grammar, trule) {
 		var b = trule.branches[i];
 		for(var k = 0; k < b.syntax.length; k++) {
 			var s = b.syntax[k];
+			var sname = s.name;
 //			if (!s.name) {
 //				s.name = "__n" + k.toString();
 //			}
@@ -29,7 +30,7 @@ function transformRule(parser, grammar, trule) {
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
-					b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name};
+					b.syntax[k] = {type: "Rule", name: sname, ruleName: rule.name};
 					break;
 				case "ZeroOrMore":
 					var name = "__" + (counter++).toString();
@@ -45,7 +46,7 @@ function transformRule(parser, grammar, trule) {
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
-					b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name};
+					b.syntax[k] = {type: "Rule", name: sname, ruleName: rule.name};
 					break;
 				case "OneOrMore":
 					var name = "__" + (counter++).toString();
@@ -74,7 +75,7 @@ function transformRule(parser, grammar, trule) {
 					var branch2 = {syntax:[]};
 					var rule2 = {name: name2, branches: [branch1, branch2]};
 					grammar.rules[rule2.name] = rule2;
-					b.syntax[k] = {type: "Rule", name: s.name, ruleName: rule.name};
+					b.syntax[k] = {type: "Rule", name: sname, ruleName: rule.name};
 					break;
 			}
 		}
