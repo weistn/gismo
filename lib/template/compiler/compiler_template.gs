@@ -109,6 +109,38 @@ function objectExpressionFromObject(obj) {
 					        };
 					        break;
 						}
+					} else if (obj.type === "CallExpression" && key === "arguments") {
+						var args = [];
+						var special = false;
+						for(var i = 0; i < value.length; i++) {
+							var v = value[i];
+							if (typeof v === "object" && v.type === "Identifier" && v.name === "@") {
+								special = true;
+								args = args.concat(v.content);
+							} else {
+								args = args.concat(objectExpressionFromObject(v));
+							}
+						}
+//						console.log(JSON.stringify(arguments));
+						if (special) {
+							value = {
+					            "type": "CallExpression",
+					            "callee": {
+					                "type": "MemberExpression",
+					                "computed": false,
+					                "object": {
+					                    "type": "Identifier",
+					                    "name": parser.importAlias(module)
+					                },
+					                "property": {
+					                    "type": "Identifier",
+					                    "name": "toFunctionArguments"
+					                }
+					            },
+					            "arguments": args
+					        };
+					        break;
+						}
 					}
 					if (value.length === undefined) {
 						value = objectExpressionFromObject(value);
@@ -135,7 +167,7 @@ function objectExpressionFromObject(obj) {
                 "value": key
             },
             "value": value,
-            "kind": "init"				
+            "kind": "init"
 		});
 	}
 	return {
@@ -160,4 +192,3 @@ export parser.extendSyntax({
 		return arrayExpressionFromObject(s.body);
 	}
 });
-

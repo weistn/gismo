@@ -1069,7 +1069,7 @@ exports.newTokenizer = function(source, filename) {
         },
 
         expectIdentifier : function() {
-           var t = tokenizer.next();
+            var t = tokenizer.next();
             if (t && t.type === Token.Identifier) {
                 return t;
             }
@@ -1077,7 +1077,7 @@ exports.newTokenizer = function(source, filename) {
         },
 
         expectPunctuator : function() {
-           var t = tokenizer.next();
+            var t = tokenizer.next();
             if (t && t.type === Token.Punctuator) {
                 return t;
             }
@@ -1085,24 +1085,24 @@ exports.newTokenizer = function(source, filename) {
         },
 
         expectString : function() {
-           var t = tokenizer.next();
-            if (t && t.type === Token.String) {
+            var t = tokenizer.next();
+            if (t && t.type === Token.StringLiteral) {
                 return t;
             }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
 
         expectNumber : function() {
-           var t = tokenizer.next();
-            if (t && t.type === Token.Numeric) {
+            var t = tokenizer.next();
+            if (t && t.type === Token.NumericLiteral) {
                 return t;
             }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
 
         expectBoolean : function() {
-           var t = tokenizer.next();
-            if (t && t.type === Token.Boolean) {
+            var t = tokenizer.next();
+            if (t && t.type === Token.BooleanLiteral) {
                 return t;
             }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);

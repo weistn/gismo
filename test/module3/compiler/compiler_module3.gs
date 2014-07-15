@@ -1,5 +1,6 @@
 import "gismo/template"
 import "gismo/metaprogramming"
+import "gismo/grammar";
 
 export operator select { return template ("I am a select")}
 export operator a # b precedence 13 { return template (@a.toString() + @b.toString()) }
@@ -10,7 +11,7 @@ export operator a \cube { return template (@a * @a * @a) }
 export operator a mod b precedence 13 { return template (@a % @b) }
 export operator a equals b precedence 2 { return template (@a == @b) }
 export operator params -> expr { return template (function(@params) {return @expr}) }
-export operator /// { 
+export operator /// {
 	var ch, str = "";
 	do {
     	var ch = parser.tokenizer.peekChar();
@@ -28,4 +29,28 @@ export statement struct {
 	parser.tokenizer.expect('{');
 	parser.tokenizer.expect('}');
 	return template{var @name = "foobar"};
+}
+
+grammar myGrammar {
+	rule start
+		= a:additive { return a; }
+
+	rule additive
+        = left:multiplicative right:("+" term:additive)? { return right === null ? left : left + right.term; }
+
+	rule multiplicative
+  		= left:primary right:("*" term:multiplicative)? { return right === null ? left : left * right.term; }
+
+	rule primary
+  		= i:integer { return i; }
+  		| "(" additive:additive ")" { return additive; }
+
+	rule integer
+		= digits:Numeric { return digits.value; }
+}
+
+export statement calculate {
+	var g = new myGrammar();
+	var v = g.start(parser);
+	return template{ console.log(@v) };
 }

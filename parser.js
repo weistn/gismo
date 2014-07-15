@@ -510,7 +510,7 @@ function functionDeclParser() {
 			if (parameters[i].type !== "Identifier") {
 				this.throwError(parameters[i], "Expected a list of identifiers");
 			}
-		}		
+		}
 		this.tokenizer.expect(")");
 	}
 	var code = this.parseBlockStatement();
@@ -1095,7 +1095,7 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 //		console.log(state.op.value, "... upwards to level", level, " value=", value);
 		if (value === null && state.op !== expressionOperator) {
 			if (lookahead !== null) {
-				this.throwError(lookahead, errors.Messages.UnexpectedToken, lookahead.value);				
+				this.throwError(lookahead, errors.Messages.UnexpectedToken, lookahead.value);
 			}
 			this.throwError(lookahead, errors.Messages.UnexpectedEOS);
 		}
@@ -1138,7 +1138,7 @@ Parser.prototype.parseIdentifier = function() {
 		return {type: "Identifier", name: ident.value, loc: ident.loc};
 	}
 	var token = this.tokenizer.lookahead();
-	var ident = this.parseExpression(Mode_Term);
+	ident = this.parseExpression(Mode_Term);
 	if (!ident || ident.type !== "Identifier") {
 		this.throwError(token, errors.Messages.UnexpectedToken, token.value);
 	}
@@ -1154,7 +1154,7 @@ Parser.prototype.parseArrayExpression = function() {
 			break;
 		}
 	}
-	var loc2 = this.tokenizer.expect("]").loc;	
+	var loc2 = this.tokenizer.expect("]").loc;
 	return {type: "ArrayExpression", elements: elements, loc: {source: loc1.filename, start: loc1.loc, end: loc2.end}};
 }
 
@@ -1313,7 +1313,7 @@ Parser.prototype.parseExpression = function(mode) {
 			stack.push(state);
 			value = null;
 		} else if (state.op.associativity === "bl" || state.op.associativity === "br") {
-//			console.log(token.value, "bl or br");	
+//			console.log(token.value, "bl or br");
 			if (state.op.value === ",") {
 				state.value = {expressions: [value], type: "SequenceExpression", loc: token.loc};
 			} else if (state.op.value === ".") {
@@ -1334,14 +1334,14 @@ Parser.prototype.parseExpression = function(mode) {
 
 		// Reached EOF?
 		if (lookahead === null) {
-			if (state.op.closingBracket) {	
+			if (state.op.closingBracket) {
 				stack.pop();
 			}
 			break;
 		}
 
 		if (mode === Mode_Term && state.op.associativity === "none" && bracketCount === 0) {
-			if (state.op.closingBracket) {	
+			if (state.op.closingBracket) {
 				stack.pop();
 			}
 			break;
@@ -1466,7 +1466,7 @@ Parser.prototype.parseExpressionStatement = function() {
 		result = { type: "ExpressionStatement", expression: body, loc: {source: lookahead.loc.source, start: lookahead.loc.start, end: locend}};
 		this.parseEndOfStatement();
 	}
-	return result;	
+	return result;
 }
 
 Parser.prototype.parseEndOfStatement = function() {
@@ -1660,7 +1660,7 @@ Parser.prototype.newOperator = function(s) {
 			generator: s.generator,
 			level: level,
 			module: this.importModuleName
-		};			
+		};
 	}
 
 	if (this.operators[s.name]) {

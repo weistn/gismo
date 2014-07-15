@@ -45,12 +45,27 @@ exports.toFunctionParameters = function() {
 	var result = [];
 	for(var a = 0; a < arguments.length; a++) {
 		var params = arguments[a];
-		if (params.length !== undefined) {
+		if (typeof params === "object" && params.length !== undefined) {
 			for(var i = 0; i < params.length; i++) {
 				result.push(toIdentifier(params[i]))
 			}
 		} else {
 			result.push(toIdentifier(params));
+		}
+	}
+	return result;
+};
+
+exports.toFunctionArguments = function() {
+	var result = [];
+	for(var a = 0; a < arguments.length; a++) {
+		var arg = arguments[a];
+		if (typeof arg === "object" && arg.length !== undefined) {
+			for(var i = 0; i < arg.length; i++) {
+				result.push(exports.toAST(arg[i]));
+			}
+		} else {
+			result.push(exports.toAST(arg));
 		}
 	}
 	return result;

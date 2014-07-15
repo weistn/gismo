@@ -8,9 +8,9 @@ function transformRule(parser, grammar, trule) {
 		var b = trule.branches[i];
 		for(var k = 0; k < b.syntax.length; k++) {
 			var s = b.syntax[k];
-			if (!s.name) {
-				s.name = "__n" + k.toString();
-			}
+//			if (!s.name) {
+//				s.name = "__n" + k.toString();
+//			}
 			if (s.type === "Branch") {
 				var name = "__" + (counter++).toString();
 				var rule = {name: name, branches: [s.branch]};
@@ -25,6 +25,7 @@ function transformRule(parser, grammar, trule) {
 				case "ZeroOrOne":
 					var name = "__" + (counter++).toString();
 					var branch1 = {syntax:[b.syntax[k]]};
+					branch1.action = template { return @({type: "Identifier", name: b.syntax[k].name}) };
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
@@ -34,6 +35,13 @@ function transformRule(parser, grammar, trule) {
 					var name = "__" + (counter++).toString();
 					var branch1 = {syntax:[b.syntax[k], {type: "Rule", ruleName: name, name: "__n1"}]};
 					branch1.syntax[0].name = "__n0";
+					branch1.action = template{
+						if (__n1) {
+							return [__n0].concat(__n1);
+						} else {
+							return [__n0];
+						}
+					};
 					var branch2 = {syntax:[]};
 					var rule = {name: name, branches: [branch1, branch2]};
 					grammar.rules[rule.name] = rule;
@@ -316,8 +324,7 @@ export statement grammar {
 	var gname = {type: "Identifier", name: grammarName.value};
 
 	var main = template {
-		function @gname(parser) {
-
+		function @gname() {
 		}
 	};
 
@@ -335,11 +342,49 @@ export statement grammar {
 
 		// If there is more than one rule, we must look ahead to determine which branch to use.
 		if (r.branches.length > 1) {
+			var nolookahead = false;
 			var lcode = [template{ var __l = parser.tokenizer.lookahead(); }];
 			for(var k = 0; k < r.branches.length; k++) {
+				if (nolookahead) {
+					parser.throwError(r, "Rule has unreachable branches");
+				}
 				var b = r.branches[k];
 				var lh = branchLookahead(parser, grammar, b);
-				console.log(k, r.name, lh);
+				var bname = {type: "Identifier", name: "__b" + k.toString() + "__" + r.name};
+				var expr = null, e;
+				for( var lhkey in lh) {
+					switch(lhkey) {
+						case "Empty":
+							nolookahead = true;
+							break;
+						case "Numeric":
+						case "String":
+						case "Boolean":
+						case "Identifier":
+						case "Punctuator":
+							e = template(__l.type === @({type: "Literal", value: lhkey}));
+							break;
+						case "RegularExpression":
+							e = template(__l.type === "Punctuator" && __l.value === "/");
+							break;
+						default:
+							e = template(__l.type !== "String" && __l.value === @({type: "Literal", value: lhkey.slice(1)}));
+							break;
+					}
+					if (expr) {
+						expr = template(@expr || @e);
+					} else {
+						expr = e;
+					}
+				}
+				if (expr && !nolookahead) {
+					lcode.push(template{ if (__l && @expr) return this.@bname(parser) });
+				} else {
+					lcode.push(template{ return this.@bname(parser) });
+				}
+			}
+			if (!nolookahead) {
+				lcode.push(template{ parser.throwError(__l, "Unexpected token %0", __l.value) });
 			}
 			rfunc.body.body = rfunc.body.body.concat(lcode);
 		}
@@ -360,10 +405,16 @@ export statement grammar {
 				var bfunc = rfunc;
 			}
 
+			bfunc.body.body.push(template { var ast = {}; });
+
 			// Parse all tokens inside a rule
+			var tokenNames = [];
 			for(var j = 0; j < b.syntax.length; j++) {
 				var s = b.syntax[j];
 				var n = {type: "Identifier", name: s.name};
+				if (s.name) {
+					tokenNames.push(n);
+				}
 				var code;
 				switch(s.type) {
 					case "Rule":
@@ -371,46 +422,96 @@ export statement grammar {
 						// Builtin rule
 						switch (s.ruleName) {
 							case "Numeric":
-								code = template{
-									var @n = parser.tokenizer.expectNumber();
+								if (s.name ) {
+									code = template{
+										ast.@n = parser.tokenizer.expectNumber();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expectNumber();
+									}
 								}
 								break;
 							case "String":
-								code = template{
-									var @n = parser.tokenizer.expectString();
+								if (s.name) {
+									code = template{
+										ast.@n = parser.tokenizer.expectString();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expectString();
+									}
 								}
 								break;
 							case "Boolean":
-								code = template{
-									var @n = parser.tokenizer.expectBoolean();
+								if (s.name) {
+									code = template{
+										ast.@n = parser.tokenizer.expectBoolean();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expectBoolean();
+									}
 								}
 								break;
 							case "RegularExpression":
-								code = template{
-									var @n = parser.tokenizer.expectRegExp();
+								if (s.name) {
+									code = template{
+										parser.tokenizer.expect('/');
+										ast.@n = parser.tokenizer.expectRegExp();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expect('/');
+										parser.tokenizer.expectRegExp();
+									}
 								}
 								break;
 							case "Identifier":
-								code = template{
-									var @n = parser.tokenizer.expectIdentifier();
+								if (s.name) {
+									code = template{
+										ast.@n = parser.tokenizer.expectIdentifier();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expectIdentifier();
+									}
 								}
 								break;
 							case "Punctuator":
-								code = template{
-									var @n = parser.tokenizer.expectPunctuator();
+								if (s.name) {
+									code = template{
+										ast.@n = parser.tokenizer.expectPunctuator();
+									}
+								} else {
+									code = template{
+										parser.tokenizer.expectPunctuator();
+									}
 								}
 								break;
 							default:
-								code = template{
-									var @n = this.@rn(parser);
+								if (s.name) {
+									code = template{
+										ast.@n = this.@rn(parser);
+									}
+								} else {
+									code = template{
+										this.@rn(parser);
+									}
 								}
 								break;
 						}
 						break;
 					case "Identifier":
 					case "Punctuator":
-						code = template{
-							var @n = parser.expect(@(s.token.value));
+						if (s.name) {
+							code = template{
+								ast.@n = parser.tokenizer.expect(@(s.token.value));
+							}
+						} else {
+							code = template{
+								parser.tokenizer.expect(@(s.token.value));
+							}
 						}
 						break;
 					default:
@@ -422,19 +523,25 @@ export statement grammar {
 			// Add the action code to the end of the branch.
 			// Or return the last token if no action is specified.
 			if (b.action) {
+				var afunc = template( function(@tokenNames) { } );
 				if (b.action.type === "BlockStatement") {
-					bfunc.body.body = bfunc.body.body.concat(b.action.body);
+					afunc.body.body = afunc.body.body.concat(b.action.body);
 				} else {
-					bfunc.body.body = bfunc.body.body.concat(b.action);
+					afunc.body.body = afunc.body.body.concat(b.action);
 				}
+				var n = {type: "Identifier", name: "__" + (counter++).toString()};
+				funcs.push(template{ @gname.@n = @afunc });
+				var args = [];
+				for(var x = 0; x < tokenNames.length; x++) {
+					args.push( template( ast.@(tokenNames[x])) );
+				}
+				bfunc.body.body = bfunc.body.body.concat( template{ return @gname.@n(@args); });
 			} else {
 				if (b.syntax.length === 0) {
 					bfunc.body.body = bfunc.body.body.concat( template{ return null; } );
 				} else {
-					var n = {type: "Identifier", name: b.syntax[b.syntax.length - 1].name};
-					bfunc.body.body = bfunc.body.body.concat( template{ return @n; } );
+					bfunc.body.body = bfunc.body.body.concat( template{ return ast; } );
 				}
-				// TODO
 			}
 		}
 	}

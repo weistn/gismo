@@ -1,4 +1,3 @@
-import "gismo/grammar";
 
 var arr = [5,6,7,8];
 console.log(#arr);
@@ -20,20 +19,4 @@ console.log((x -> x+1)(41))
 
 struct s { }
 
-grammar myGrammar {
-	rule start
-		= additive+
-
-	rule additive
-        = left:multiplicative ("+" right:additive)? { return right === null ? left : left + right; }
-
-	rule multiplicative
-  		= left:primary ("*" right:multiplicative)? { return right === null ? left : left * right; }
-
-	rule primary
-  		= integer
-  		| "(" additive:additive ")" { return additive; }
-
-	rule integer
-		= digits:Numeric { return digits.value; }
-}
+calculate (3+5)*2
