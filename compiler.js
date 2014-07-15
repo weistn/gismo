@@ -7,7 +7,7 @@ var errors = require('./errors.js');
 
 function Compiler(modulePath) {
 	this.path = modulePath;
-	
+
 	// Is it a file or a single module?
 	try {
 		this.isFile = fs.statSync(modulePath).isFile();
@@ -18,7 +18,7 @@ function Compiler(modulePath) {
 	// Read package information if available
 	if (this.isFile) {
 		if (path.extname(this.path) != ".gs") {
-			throw new errors.SyntaxError("Not a gismo file " + this.path);			
+			throw new errors.SyntaxError("Not a gismo file " + this.path);
 		}
 		this.pkg = {};
 	} else {
@@ -208,7 +208,7 @@ Compiler.prototype.compileMetaModule = function() {
 		program.body = program.body.concat(p.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
 	}
 
-	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: this.pkg.name, sourceContent: str});
+	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, sourceContent: this.metaFile()});
 //	console.log(JSON.stringify(result.code));
 	var code = "exports.extendParser = function(parser) { "+ result.code + "\n}\n//# sourceMappingURL=_meta.js.map";
 	fs.writeFileSync(this.metaFile(), code);
@@ -291,7 +291,7 @@ Compiler.prototype.isUpToDate = function() {
 Compiler.prototype.checkMTime = function(dest, sources) {
 	try {
 		var mtime = fs.statSync(dest).mtime.getTime();
-		for(var i = 0; i < sources.length; i++) {	
+		for(var i = 0; i < sources.length; i++) {
 			var mtime2 = fs.statSync(sources[i]).mtime.getTime();
 			if (mtime2 > mtime) {
 				return false;
@@ -317,7 +317,7 @@ Compiler.prototype.resolveModule = function(parser, modulePath) {
 				if (jsfile === jsfileGlobal) {
 					return {modulePath: path.join("gismo", "lib", modulePath.slice(6)), jsfile: jsfile};
 				}
-			} catch(err) { 
+			} catch(err) {
 				// Do nothing by intention
 			}
 			// Return the local path

@@ -328,6 +328,7 @@ export statement grammar {
 		function @gname() {
 		}
 	};
+	main.loc = grammarName.loc;
 
 	// Generate code for all rules
 	var funcs = [];
@@ -339,6 +340,7 @@ export statement grammar {
 			function(parser) {
 			}
 		);
+		rfunc.loc = grammarName.loc;
 		funcs.push(template{ @gname.prototype.@name = @rfunc });
 
 		// If there is more than one rule, we must look ahead to determine which branch to use.
@@ -400,6 +402,7 @@ export statement grammar {
 					function(parser) {
 					}
 				);
+				bfunc.loc = grammarName.loc;
 				funcs.push(template {@gname.prototype.@bname = @bfunc});
 			} else {
 				// One branch only. The code for the branch goes directly into the rule function
@@ -525,6 +528,7 @@ export statement grammar {
 			// Or return the last token if no action is specified.
 			if (b.action) {
 				var afunc = template( function(@tokenNames) { } );
+				afunc.log = grammarName.loc;
 				if (b.action.type === "BlockStatement") {
 					afunc.body.body = afunc.body.body.concat(b.action.body);
 				} else {

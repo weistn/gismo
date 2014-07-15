@@ -13,7 +13,7 @@ function initModule() {
 	if (args.length !== 1) {
 		program.outputHelp();
 		process.exit();
-	}	
+	}
 
 	console.log("To create a new gismo module, answer the following questions".cyan);
 	promptly.prompt('Module name: ', { }, function(err, value) {
@@ -69,7 +69,7 @@ function compileModule(arg) {
 				process.exit();
 			}
 			var parsed = errors.parseStackTrace(err.stack);
-			console.log(parsed.message.blue);
+//			console.log(parsed.message.blue);
 			for(var k = 0; k < parsed.stack.length; k++) {
 				var line = parsed.stack[k];
 				if (line.function === "Compiler.importMetaModule") {
@@ -84,8 +84,10 @@ function compileModule(arg) {
 				if (line.function === "Parser.execBinaryGenerator") {
 					break;
 				}
-				console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
+//				console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
 			}
+			parsed.stack = parsed.stack.slice(0, k);
+			printStackTrace(parsed);
 		} else {
 			if (err.stack) {
 				console.log(err.stack.toString().red);
@@ -121,10 +123,7 @@ function execModule() {
 		require(modulePath);
 	} catch(err) {
 		if (err.stack) {
-			// console.log(err.stack.toString().yellow);
-			var sourceMap = require('source-map');
 			var parsed = errors.parseStackTrace(err.stack);
-			console.log(parsed.message.blue);
 			for(var k = parsed.stack.length - 1; k >= 0; k--) {
 				var line = parsed.stack[k];
 				if (line.loc.filename === __filename) {
@@ -136,28 +135,34 @@ function execModule() {
 						parsed.stack = parsed.stack.slice(0, k);
 					}
 					break;
-				}				
-			}
-
-			for(var k = 0; k < parsed.stack.length; k++) {
-				var line = parsed.stack[k];
-				// Try to load a source map
-				try {
-					var sm = JSON.parse(fs.readFileSync(line.loc.filename + ".map").toString());
-					var smc = new sourceMap.SourceMapConsumer(sm);
-					var loc = smc.originalPositionFor({
-						line: line.loc.lineNumber,
-						column: line.loc.column
-					});
-					console.log(('    at ' + (loc.name ? loc.name : line.function) + ' (' + loc.source + ':' + loc.line + ':' + loc.column + ')').blue);
-				} catch(err) {
-//					console.log("Failed reading source map".red, line.loc.filename + ".map", err.toString().red);
-					console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
 				}
 			}
-//			console.log(err.stack.toString().red);
+			printStackTrace(parsed);
 		} else {
 			console.log(err.toString().red);
+		}
+	}
+}
+
+function printStackTrace(parsed) {
+	// console.log(err.stack.toString().yellow);
+	var sourceMap = require('source-map');
+	console.log(parsed.message.blue);
+
+	for(var k = 0; k < parsed.stack.length; k++) {
+		var line = parsed.stack[k];
+		// Try to load a source map
+		try {
+			var sm = JSON.parse(fs.readFileSync(line.loc.filename + ".map").toString());
+			var smc = new sourceMap.SourceMapConsumer(sm);
+			var loc = smc.originalPositionFor({
+				line: line.loc.lineNumber,
+				column: line.loc.column
+			});
+			console.log(('    at ' + (loc.name ? loc.name : line.function) + ' (' + loc.source + ':' + loc.line + ':' + loc.column + ')').blue);
+		} catch(err) {
+//					console.log("Failed reading source map".red, line.loc.filename + ".map", err.toString().red);
+			console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
 		}
 	}
 }
