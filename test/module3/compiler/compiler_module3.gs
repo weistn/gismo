@@ -32,6 +32,8 @@ export statement struct {
 }
 
 grammar myGrammar {
+	keyword PI;
+
 	rule start
 		= a:additive* { return a; }
 
@@ -43,6 +45,7 @@ grammar myGrammar {
 
 	rule primary
   		= i:integer { return i; }
+		| "PI" { return Math.PI; }
   		| "(" additive:additive ")" { return additive; }
 
 	rule integer

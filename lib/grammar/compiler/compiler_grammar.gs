@@ -269,7 +269,7 @@ export statement grammar {
 	var grammarName = parser.tokenizer.expectIdentifier();
 	parser.tokenizer.expect('{');
 
-	var grammar = {rules: {}};
+	var grammar = {rules: {}, keywords:[], punctuators:[]};
 	while(true) {
 		var t = parser.tokenizer.lookahead();
 		if (!t) {
@@ -285,6 +285,20 @@ export statement grammar {
 				parser.throwError(t, "Rule %0 has already been defined", rule.name);
 			}
 			grammar.rules[rule.name] = rule;
+			continue;
+		}
+		if (t.type === "Keyword" && t.value === 'keyword') {
+			parser.tokenizer.next();
+			var keyword = parser.tokenizer.expectIdentifier();
+			parser.parseEndOfStatement();
+			grammar.keywords.push(keyword.value);
+			continue;
+		}
+		if (t.type === "Keyword" && t.value === 'punctuator') {
+			parser.tokenizer.next();
+			var punctuator = parser.tokenizer.expectPunctuator();
+			parser.parseEndOfStatement();
+			grammar.punctuators.push(punctuator.value);
 			continue;
 		}
 		parser.throwError(t, "Unexpected token %0", t.value);
@@ -322,8 +336,6 @@ export statement grammar {
 	for(var i = 0; i < userRules.length; i++) {
 		transformRule(parser, grammar, userRules[i]);
 	}
-
-	// TODO: Unregister the rule keyword
 
 	var gname = {type: "Identifier", name: grammarName.value};
 
@@ -552,9 +564,22 @@ export statement grammar {
 				}
 			}
 		}
+
+		if (r.name === "start" && (grammar.keywords.length !== 0 || grammar.punctuators.length !== 0)) {
+			for(var i = 0; i < grammar.keywords.length; i++) {
+				var lit = {type: "Literal", value: grammar.keywords[i]};
+				rfunc.body.body.unshift(template { parser.tokenizer.registerKeyword(@lit)});
+			}
+			for(var i = 0; i < grammar.punctuators.length; i++) {
+				var lit = {type: "Literal", value: grammar.punctuators[i]};
+				rfunc.body.body.unshift(template { parser.tokenizer.registerPunctuator(@lit)});
+			}
+			rfunc.body.body.unshift(template{ parser.tokenizer.storeContext() });
+			rfunc.body.body.push(template{ parser.tokenizer.restoreContext() });
+		}
 	}
 
 	parser.tokenizer.restoreContext();
-	
+
 	return [main].concat(funcs);
 }

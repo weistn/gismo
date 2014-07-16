@@ -19,6 +19,6 @@ console.log((x -> x+1)(41))
 
 struct s { }
 
-calculate (3+5)*2 8 16;
+calculate (3+5)*2 8 16 2*PI;
 
 console.log("fini");
