@@ -58,9 +58,11 @@ function Tokenizer(source, filename) {
     this.length = this.source.length;
 
     this.punctuators = {further: {}};
+    this.punctuatorArray = [];
     this.registerESPunctuators();
     this.keywords = [];
     this.registerESKeywords();
+    this.contextStack = [];
 }
 
 // Ensure the condition is true, otherwise throw an error.
@@ -152,6 +154,21 @@ Tokenizer.prototype.registerKeyword = function(str) {
 Tokenizer.prototype.isKeyword = function(id) {
     return this.keywords.indexOf(id) !== -1;
 }
+
+Tokenizer.prototype.storeContext = function() {
+    this.contextStack.push({keywords: this.keywords.slice(0), punctuators: this.punctuatorArray.slice(0)});
+};
+
+Tokenizer.prototype.restoreContext = function() {
+    var c = this.contextStack.pop();
+    this.keywords = c.keywords;
+    this.punctuators = {further: {}};
+    this.registerESPunctuators();
+    this.punctuatorArray = [];
+    for(var i = 0; i < c.punctuators.length; i++) {
+        this.registerPunctuator(c.punctuators[i]);
+    }
+};
 
 // 7.4 Comments
 
@@ -395,6 +412,8 @@ Tokenizer.prototype.registerPunctuator = function(str) {
 //    if (current.complete) {
 //        throw "LexerError: Punctuator " + str + " has already been registered";
 //    }
+    this.punctuatorArray.push(str);
+
     current.complete = true;
 }
 
@@ -1155,6 +1174,14 @@ exports.newTokenizer = function(source, filename) {
 
         registerPunctuator : function(punctuator) {
             tokenizer.registerPunctuator(punctuator);
+        },
+
+        storeContext : function() {
+            tokenizer.storeContext();
+        },
+
+        restoreContext : function() {
+            tokenizer.restoreContext();
         },
 
         isIdentifier : isIdentifier,

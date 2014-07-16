@@ -261,7 +261,10 @@ function parseRule(parser) {
 }
 
 export statement grammar {
+	parser.tokenizer.storeContext();
 	parser.tokenizer.registerKeyword("rule");
+	parser.tokenizer.registerKeyword("keyword");
+	parser.tokenizer.registerKeyword("punctuator");
 
 	var grammarName = parser.tokenizer.expectIdentifier();
 	parser.tokenizer.expect('{');
@@ -550,5 +553,8 @@ export statement grammar {
 			}
 		}
 	}
+
+	parser.tokenizer.restoreContext();
+	
 	return [main].concat(funcs);
 }
