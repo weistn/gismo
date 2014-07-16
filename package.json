@@ -1,6 +1,6 @@
 {
   "name": "gismo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Programming language with extensible syntax",
   "main": "index.js",
   "scripts": {
@@ -33,6 +33,6 @@
     "url": "https://github.com/weistn/gismo.git"
   },
   "scripts": {
-    "prepublish": "make"
+    "install": "make"
   }
 }
