@@ -33,6 +33,6 @@
     "url": "https://github.com/weistn/gismo.git"
   },
   "scripts": {
-    "preinstall": "make"
+    "prepublish": "make"
   }
 }
