@@ -133,7 +133,7 @@ Without any imported syntax extensions Gismo matches JavaScript exactly (except 
 # Syntax extensions considered harmful
 
 Languages with a complex syntax are considered to be difficult to learn.
-If each module can import new syntactic structures, Gismo should become be terribly difficult in the long run, right?
+If each module can import new syntactic structures, Gismo should become terribly difficult in the long run, right?
 
 Assume someone is reading either
 
@@ -163,7 +163,7 @@ Hence, the idea of Gismo is to provide syntax that results in readable code.
 To understand some code, you have to understand the syntax and the behavior of the code, including the behavior of imported framework code.
 That means you either have to learn how to use the function `Statemachine` and that it returns an object that offers member functions `addState` and `addTransition`
 and that a function has to be passed to 'addTransition' that is being called when the transition fires.
-Or you learn a new syntax for expressing the same thing. I believe the learning curve for writing the code is the same, but Gismo code is better readable.
+Or you learn a new syntax for expressing the same thing. I believe the learning curve for writing the code is the same, but Gismo code is more readable.
 
 Of course one can always showcase extreme counter examples where almost every possible word has either become a statement or operator, or both.
 But the same holds for all programming paradigms: No language can safe a developer from writing unreadable code.
