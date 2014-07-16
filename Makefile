@@ -1,9 +1,9 @@
-export NODE_PATH=./test
+export NODE_PATH=$NODE_PATH:./test
 
 .PHONY: test lib
 
 all: lib
-	
+
 test: lib
 	./node_modules/.bin/mocha --reporter spec
 
