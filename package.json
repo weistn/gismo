@@ -1,6 +1,6 @@
 {
   "name": "gismo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Programming language with extensible syntax",
   "main": "index.js",
   "scripts": {
