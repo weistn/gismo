@@ -94,6 +94,7 @@ exports.toStatement = function(expr) {
 				return expr;
 			default:
 				if (expr.length !== undefined) {
+					// TODO: This block statement should be joined with an outer block statement (if possible)
 					return {
 						type: "BlockStatement",
 						body: expr
