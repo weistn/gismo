@@ -1,3 +1,4 @@
+import "gismo/class"
 
 var arr = [5,6,7,8];
 console.log(#arr);
@@ -22,3 +23,31 @@ struct s { }
 calculate (3+5)*2 8 16 2*PI;
 
 console.log("fini");
+
+class Character {
+	constructor(x, y) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+class Monster extends Character {
+	constructor(x, y, name) {
+		super(x, y);
+		this.name = name;
+		this.health_ = 100;
+	}
+
+  	attack(character) {
+    	super.attack(character);
+    	// Can also be written as:
+    	// super(character);
+  	}
+
+  	get isAlive() { return this.health_ > 0; }
+  	get health() { return this.health_; }
+  	set health(value) {
+	    if (value < 0) throw new Error('Health must be non-negative.');
+	    this.health_ = value;
+  	}
+}

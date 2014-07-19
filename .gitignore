@@ -29,5 +29,9 @@ lib/grammar/main.js
 lib/grammar/_meta.js
 lib/grammar/main.js.map
 lib/grammar/_meta.js.map
+lib/class/main.js
+lib/class/_meta.js
+lib/class/main.js.map
+lib/class/_meta.js.map
 scratch.js
 

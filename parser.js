@@ -870,6 +870,9 @@ function importParser() {
 		if (filename === "") {
 			this.throwError(name, "Invalid name for an import path");
 		}
+		if (this.tokenizer.isReservedWord(filename)) {
+			filename = "__" + filename;
+		}
 		as = {
 			name: filename,
 			loc: name.loc

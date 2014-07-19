@@ -28,7 +28,7 @@ var errors = require('./errors.js');
 
 var Token = {
     BooleanLiteral: "Boolean",
-    EOF: "<end>",
+    EOF: "EOF",
     Identifier: "Identifier",
     Keyword: "Keyword",
     NullLiteral: "Null",
@@ -132,6 +132,71 @@ function isIdentifier(str) {
         }
     }
     return true;
+}
+
+// 7.6.1.2 Future Reserved Words
+
+function isFutureReservedWord(id) {
+    switch (id) {
+    case 'class':
+    case 'enum':
+    case 'export':
+    case 'extends':
+    case 'import':
+    case 'super':
+        return true;
+    default:
+        return false;
+    }
+}
+
+function isStrictModeReservedWord(id) {
+    switch (id) {
+    case 'implements':
+    case 'interface':
+    case 'package':
+    case 'private':
+    case 'protected':
+    case 'public':
+    case 'static':
+    case 'yield':
+    case 'let':
+        return true;
+    default:
+        return false;
+    }
+}
+
+function isESKeyword(id) {
+    switch (id.length) {
+    case 2:
+        return (id === 'if') || (id === 'in') || (id === 'do');
+    case 3:
+        return (id === 'var') || (id === 'for') || (id === 'new') ||
+            (id === 'try') || (id === 'let');
+    case 4:
+        return (id === 'this') || (id === 'else') || (id === 'case') ||
+            (id === 'void') || (id === 'with') || (id === 'enum');
+    case 5:
+        return (id === 'while') || (id === 'break') || (id === 'catch') ||
+            (id === 'throw') || (id === 'const') || (id === 'yield') ||
+            (id === 'class') || (id === 'super');
+    case 6:
+        return (id === 'return') || (id === 'typeof') || (id === 'delete') ||
+            (id === 'switch') || (id === 'export') || (id === 'import');
+    case 7:
+        return (id === 'default') || (id === 'finally') || (id === 'extends');
+    case 8:
+        return (id === 'function') || (id === 'continue') || (id === 'debugger');
+    case 10:
+        return (id === 'instanceof');
+    default:
+        return false;
+    }
+}
+
+function isReservedWord(id) {
+    return isESKeyword(id) || isStrictModeReservedWord(id) || isFutureReservedWord(id);
 }
 
 // 7.6.1.1 Keywords
@@ -1188,7 +1253,9 @@ exports.newTokenizer = function(source, filename) {
 
         isPunctuator : function(str) {
             return !isIdentifierStart(str[0]);
-        }
+        },
+
+        isReservedWord : isReservedWord
     };
 };
 
@@ -1200,3 +1267,4 @@ exports.isHexDigit = isHexDigit;
 exports.isOctalDigit = isOctalDigit;
 exports.isWhiteSpace = isWhiteSpace
 exports.isLineTerminator = isLineTerminator;
+exports.isReservedWord = isReservedWord;

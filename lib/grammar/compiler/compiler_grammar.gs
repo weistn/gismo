@@ -98,6 +98,16 @@ function branchLookahead(parser, grammar, b) {
 					case "Punctuator":
 						lh[b.syntax[0].ruleName] = true;
 						break;
+					case "Term":
+					case "Expression":
+					case "Statement":
+					case "EndOfStatement":
+					case "StatementOrBlockStatement":
+						lh["All"] = true;
+						break;
+					case "BlockStatement":
+						lh["\\{"] = true;
+						break;
 					default:
 						var lh2 = ruleLookahead(parser, grammar, grammar.rules[b.syntax[0].ruleName]);
 						for(var key in lh2) {
@@ -140,6 +150,12 @@ function checkBranchReachability(parser, grammar, b) {
 				case "RegularExpression":
 				case "Identifier":
 				case "Punctuator":
+				case "Term":
+				case "Expression":
+				case "Statement":
+				case "EndOfStatement":
+				case "BlockStatement":
+				case "StatementOrBlockStatement":
 					// Built-in rules
 					break;
 				default:
@@ -176,6 +192,12 @@ function checkBranch(parser, grammar, b) {
 				case "RegularExpression":
 				case "Identifier":
 				case "Punctuator":
+				case "Term":
+				case "Expression":
+				case "Statement":
+				case "EndOfStatement":
+				case "BlockStatement":
+				case "StatementOrBlockStatement":
 					// Built-in rules
 					break;
 				default:
@@ -375,6 +397,9 @@ export statement grammar {
 						case "Empty":
 							nolookahead = true;
 							break;
+						case "All":
+							e = template(__l.type !== @({type: "Literal", value: "EOF"}));
+							break;
 						case "Numeric":
 						case "String":
 						case "Boolean":
@@ -505,6 +530,64 @@ export statement grammar {
 								} else {
 									code = template{
 										parser.tokenizer.expectPunctuator();
+									}
+								}
+								break;
+							case "Term":
+								if (s.name) {
+									code = template{
+										ast.@n = parser.parseTerm();
+									}
+								} else {
+									code = template{
+										parser.parseTerm();
+									}
+								}
+								break;
+							case "Expression":
+								if (s.name) {
+									code = template{
+										ast.@n = parser.parseExpression();
+									}
+								} else {
+									code = template{
+										parser.parseExpression();
+									}
+								}
+								break;
+							case "Statement":
+								if (s.name) {
+									code = template{
+										ast.@n = parser.parseStatement();
+									}
+								} else {
+									code = template{
+										parser.parseStatement();
+									}
+								}
+								break;
+							case "EndOfStatement":
+								parser.parseEndOfStatement();
+								break;
+							case "BlockStatement":
+								if (s.name) {
+									code = template{
+										ast.@n = parser.parseBlockStatement();
+									}
+								} else {
+									code = template{
+										parser.parseBlockStatement();
+									}
+								}
+								break;
+							case "StatementOrBlockStatement":
+								if (s.name) {
+									code = template{
+										ast.@n = parser.parseStatementOrBlockStatement();
+									}
+								} else {
+									code = template{
+										parser.parseStatementOrBlockStatement();
 									}
 								}
 								break;

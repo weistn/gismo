@@ -11,6 +11,7 @@ lib:
 	./bin/gismoc ./lib/template
 	./bin/gismoc ./lib/metaprogramming
 	./bin/gismoc ./lib/grammar
+	./bin/gismoc ./lib/class
 
 clean:
 	rm -f test/module1/main.js
@@ -43,3 +44,7 @@ clean:
 	rm -f lib/grammar/main.js.map
 	rm -f lib/grammar/_meta.js
 	rm -f lib/grammar/_meta.js.map
+	rm -f lib/class/main.js
+	rm -f lib/class/main.js.map
+	rm -f lib/class/_meta.js
+	rm -f lib/class/_meta.js.map
