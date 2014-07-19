@@ -92,10 +92,17 @@ exports.toStatement = function(expr) {
 			case "TryStatement":
 			case "DebuggerStatement":
 				return expr;
+			default:
+				if (expr.length !== undefined) {
+					return {
+						type: "BlockStatement",
+						body: expr
+					};
+				}
 		}
 	}
 	return {
 		type: "ExpressionStatement",
-		expression: expr
+		expression: exports.toAST(expr)
 	};
 };

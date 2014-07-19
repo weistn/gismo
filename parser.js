@@ -477,7 +477,7 @@ function conditionalParser(test) {
 	var loc = this.tokenizer.location();
 	var consequent = this.parseExpression(Mode_ExpressionWithoutColon);
 	this.tokenizer.expect(':');
-	var alternate = this.parseExpression(Mode_Expression);
+	var alternate = this.parseExpression(Mode_ExpressionWithoutComma);
 	var endloc = this.tokenizer.location();
 	return {
 		type: "ConditionalExpression",

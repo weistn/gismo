@@ -10,7 +10,7 @@ grammar classGrammar {
         = "extends" name:Identifier
 
     rule member
-        = "constructor" "(" arguments:arguments ")" body:BlockStatement
+        = "constructor" "(" arguments:arguments ")" body:BlockStatement { return {type: "Constructor", arguments: arguments, body: body} }
         | "get" name:Identifier "(" ")" body:BlockStatement
         | "set" name:Identifier "(" arg:Identifier ")" body:BlockStatement
         | name:Identifier "(" arguments:arguments ")" body:BlockStatement
@@ -31,5 +31,32 @@ grammar classGrammar {
 export statement class {
 	var g = new classGrammar();
 	var ast = g.start(parser);
-	return template{ console.log(@({type: "Literal", value: JSON.stringify(ast, null, '\t')})) };
+
+    // Class name
+    var name = ast.name;
+    var ctor;
+    if (ast.members) {
+        for(var i = 0; i < ast.members.length; i++) {
+            if (ast.members[i].type === "Constructor") {
+                ctor = ast.members[i];
+            }
+        }
+    }
+    // Arguments to the constructor
+    var cargs = [];
+    var constructorBody = [];
+    if (ctor) {
+        constructorBody = ctor.body;
+        cargs = ctor.arguments;
+    }
+    var code = template{ var @name = (function() {
+        function @name(@cargs) {
+            @constructorBody
+        }
+
+        return @name;
+    })()};
+
+    return code;
+//	return template{ console.log(@({type: "Literal", value: JSON.stringify(ast, null, '\t')})) };
 }

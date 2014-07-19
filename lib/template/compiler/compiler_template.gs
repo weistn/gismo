@@ -15,6 +15,7 @@ export parser.extendSyntax({
 	}
 });
 
+// 'obj' is an array of AST nodes
 function arrayExpressionFromObject(obj) {
 	var elements = [];
 	for(var i = 0; i < obj.length; i++) {
@@ -27,7 +28,11 @@ function arrayExpressionFromObject(obj) {
 	}
 }
 
+// 'obj' is an AST node. It returns another AST that, when executed, returns an AST equivalent to 'obj'.
+// The only difference between 'obj' and the result of executing the returned AST is that the returned
+// AST substituted all occurrences of '@'.
 function objectExpressionFromObject(obj) {
+	// Turn "@(expr)" into "expr"
 	if (typeof obj === "object" && obj.type === "Identifier" && obj.name === "@") {
         return {
             "type": "CallExpression",
@@ -48,6 +53,7 @@ function objectExpressionFromObject(obj) {
             ]
         };
 	}
+	// Turn "{ ...; @(expr); ... }" into { ... ; expr; ... }
 	if (typeof obj === "object" && obj.type === "ExpressionStatement" && typeof obj.expression === "object" && obj.expression.type === "Identifier" && obj.expression.name === "@") {
         return {
             "type": "CallExpression",
@@ -78,6 +84,7 @@ function objectExpressionFromObject(obj) {
 		switch (typeof value) {
 			case "object":
 				if (value !== null) {
+					// Handle "function(@params)"
 					if ((obj.type === "FunctionDeclaration" || obj.type === "FunctionExpression") && key === "params") {
 						var params = [];
 						var special = false;
@@ -109,6 +116,7 @@ function objectExpressionFromObject(obj) {
 					        };
 					        break;
 						}
+					// Handle "f(@args)"
 					} else if (obj.type === "CallExpression" && key === "arguments") {
 						var args = [];
 						var special = false;

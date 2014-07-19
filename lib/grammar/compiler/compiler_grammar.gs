@@ -468,7 +468,12 @@ export statement grammar {
 							case "Numeric":
 								if (s.name ) {
 									code = template{
-										ast.@n = parser.tokenizer.expectNumber();
+										var __tmp = parser.tokenizer.expectNumber();
+										if (!__tmp) {
+											ast.@n = null;
+										} else {
+											ast.@n = {type: "Literal", value: parseFloat(__tmp.value), loc: __tmp.loc};
+										}
 									}
 								} else {
 									code = template{
@@ -479,7 +484,12 @@ export statement grammar {
 							case "String":
 								if (s.name) {
 									code = template{
-										ast.@n = parser.tokenizer.expectString();
+										var __tmp = parser.tokenizer.expectString();
+										if (!__tmp) {
+											ast.@n = null;
+										} else {
+											ast.@n = {type: "Literal", value: __tmp.value, loc: __tmp.loc};
+										}
 									}
 								} else {
 									code = template{
@@ -490,7 +500,12 @@ export statement grammar {
 							case "Boolean":
 								if (s.name) {
 									code = template{
-										ast.@n = parser.tokenizer.expectBoolean();
+										var __tmp = parser.tokenizer.expectBoolean();
+										if (__tmp === null) {
+											ast.@n = null;
+										} else {
+											ast.@n = {type: "Literal", value: __tmp.value === "true" ? true : false, loc: __tmp.loc};
+										}
 									}
 								} else {
 									code = template{
@@ -514,7 +529,12 @@ export statement grammar {
 							case "Identifier":
 								if (s.name) {
 									code = template{
-										ast.@n = parser.tokenizer.expectIdentifier();
+										var __tmp = parser.tokenizer.expectIdentifier();
+										if (!__tmp) {
+											ast.@n = null;
+										} else {
+											ast.@n = {type: "Identifier", name: __tmp.value, loc: __tmp.loc};
+										}
 									}
 								} else {
 									code = template{
