@@ -84,8 +84,42 @@ function objectExpressionFromObject(obj) {
 		switch (typeof value) {
 			case "object":
 				if (value !== null) {
-					// Handle "function(@params)"
-					if ((obj.type === "FunctionDeclaration" || obj.type === "FunctionExpression") && key === "params") {
+					if (obj.type === "BlockStatement" && key === "body") {
+						var special = false;
+						for(var i = 0; i < value.length; i++) {
+							var v = value[i];
+							if (typeof v === "object" && v.type === "ExpressionStatement" && typeof v.expression === "object" && v.expression.type === "Identifier" && v.expression.name === "@") {
+								special = true;
+							}
+						}
+						if (special) {
+							var tmp = {
+		                        "type": "CallExpression",
+		                        "callee": {
+		                            "type": "MemberExpression",
+		                            "computed": false,
+		                            "object": {
+		                                "type": "Identifier",
+		                                "name": parser.importAlias(module)
+		                            },
+		                            "property": {
+		                                "type": "Identifier",
+		                                "name": "toBlockStatementBody"
+		                            }
+		                        },
+		                        "arguments": [ ]
+							};
+							for(var i = 0; i < value.length; i++) {
+								var v = value[i];
+								tmp.arguments.push(objectExpressionFromObject(v));
+							}
+							value = tmp;
+						} else {
+							value = arrayExpressionFromObject(value);
+						}
+						break;
+				    } else if ((obj.type === "FunctionDeclaration" || obj.type === "FunctionExpression") && key === "params") {
+						// Handle "function(@params)"
 						var params = [];
 						var special = false;
 						for(var i = 0; i < value.length; i++) {

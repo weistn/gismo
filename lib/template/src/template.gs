@@ -94,10 +94,11 @@ exports.toStatement = function(expr) {
 				return expr;
 			default:
 				if (expr.length !== undefined) {
-					// TODO: This block statement should be joined with an outer block statement (if possible)
+					// This block statement should be joined with an outer block statement (if possible)
 					return {
 						type: "BlockStatement",
-						body: expr
+						body: expr,
+						expand_ : true
 					};
 				}
 		}
@@ -106,4 +107,49 @@ exports.toStatement = function(expr) {
 		type: "ExpressionStatement",
 		expression: exports.toAST(expr)
 	};
+};
+
+exports.toBlockStatementBody = function() {
+	var result = [];
+//	{
+//		type: "ArrayExpression",
+////		elements: []
+//	};
+	for(var i = 0; i < arguments.length; i++) {
+		var obj = arguments[i];
+		if (typeof obj !== "object") {
+			throw new Error("Implementation error in toBlockStatementBody");
+		}
+		switch (obj.type) {
+			case "BlockStatement":
+				if (obj.expand_) {
+					result = result.concat(obj.body);
+				} else {
+//					result.elements.push(obj);
+					result.push(obj);
+				}
+				break;
+			case "ExpressionStatement":
+			case "FunctionDeclaration":
+			case "ForStatement":
+			case "ForInStatement":
+			case "WhileStatement":
+			case "IfStatement":
+			case "SwitchStatement":
+			case "BreakStatement":
+			case "ContinueStatement":
+			case "ReturnStatement":
+			case "ThrowStatement":
+			case "VariableDeclaration":
+			case "DoWhileStatement":
+			case "ThrowStatement":
+			case "TryStatement":
+			case "DebuggerStatement":
+				result.push(obj);
+				break;
+			default:
+				throw new Error("Implementation error in toBlockStatementBody");
+		}
+	}
+	return result;
 };

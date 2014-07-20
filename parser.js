@@ -1514,6 +1514,7 @@ Parser.prototype.parseStatement = function() {
 		} else if (typeof result === "object") {
 			// TODO: Check that the object tree is ok
 		} else {
+			console.log(JSON.stringify(result, null, "\t"))
 			this.throwError(token, "Parser for statement '" + s + "' must return a string or an AST object");
 		}
 		return result;
