@@ -234,3 +234,53 @@ export parser.extendSyntax({
 		return arrayExpressionFromObject(s.body);
 	}
 });
+
+export parser.extendSyntax({
+	type: 'operator',
+	associativity: 'none',
+	level: 18,
+	name: "identifier",
+	generator: function() {
+		return {
+            "type": "CallExpression",
+            "callee": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                    "type": "Identifier",
+                    "name": parser.importAlias(module)
+                },
+                "property": {
+                    "type": "Identifier",
+                    "name": "toIdentifier"
+                }
+            },
+            "arguments": [parser.parseExpression()]
+        };
+	}
+});
+
+export parser.extendSyntax({
+	type: 'operator',
+	associativity: 'none',
+	level: 18,
+	name: "literal",
+	generator: function() {
+		return {
+            "type": "CallExpression",
+            "callee": {
+                "type": "MemberExpression",
+                "computed": false,
+                "object": {
+                    "type": "Identifier",
+                    "name": parser.importAlias(module)
+                },
+                "property": {
+                    "type": "Identifier",
+                    "name": "toLiteral"
+                }
+            },
+            "arguments": [parser.parseExpression()]
+        };
+	}
+});

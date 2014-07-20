@@ -652,7 +652,8 @@ export statement grammar {
 				} else {
 					afunc.body.body = afunc.body.body.concat(b.action);
 				}
-				var n = {type: "Identifier", name: "__" + (counter++).toString()};
+//				var n = {type: "Identifier", name: "__" + (counter++).toString()};
+				var n = identifier "__" + (counter++).toString();
 				funcs.push(template{ @gname.@n = @afunc });
 				var args = [];
 				for(var x = 0; x < tokenNames.length; x++) {
@@ -670,7 +671,8 @@ export statement grammar {
 
 		if (r.name === "start" && (grammar.keywords.length !== 0 || grammar.punctuators.length !== 0)) {
 			for(var i = 0; i < grammar.keywords.length; i++) {
-				var lit = {type: "Literal", value: grammar.keywords[i]};
+				var lit = literal grammar.keywords[i];
+//				var lit = {type: "Literal", value: grammar.keywords[i]};
 				rfunc.body.body.unshift(template { parser.tokenizer.registerKeyword(@lit)});
 			}
 			for(var i = 0; i < grammar.punctuators.length; i++) {
