@@ -18,7 +18,8 @@ with template {
 
 transform myvar() {var @x = @expr} with template{ module.@x = @expr }
 
-statement transformMe {
+statement transformTest {
     var code = parser.parseBlockStatement();
-    return myvar(code);
+    code = myvar(code);
+    return mysuper(code, identifier "MyClass");
 }
