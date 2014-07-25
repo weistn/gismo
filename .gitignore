@@ -33,5 +33,9 @@ lib/class/main.js
 lib/class/_meta.js
 lib/class/main.js.map
 lib/class/_meta.js.map
+lib/transform/main.js
+lib/transform/_meta.js
+lib/transform/main.js.map
+lib/transform/_meta.js.map
 scratch.js
 
