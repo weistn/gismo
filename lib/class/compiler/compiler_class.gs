@@ -28,6 +28,77 @@ grammar classGrammar {
         |
 }
 
+function traverse(ast, callback, parents) {
+    if (parents === undefined) {
+        parents = [];
+    }
+    ast = invokeCallback(ast, parents, callback);
+    for(var key in ast) {
+        var v = ast[key];
+        if (typeof v === "object") {
+            if (v === null) {
+                // Do nothing by intention
+            } else if (v.length !== undefined) {
+                for(var i = 0; i < v.length; i++) {
+                    if (typeof v[i] !== "object") {
+                        continue;
+                    }
+                    parents.push({ast: ast, key: key, index: i});
+                    traverse(v[i], callback, parents);
+                    parents.pop();
+                }
+            } else {
+                if (typeof v === "object") {
+                    parents.push({ast: ast, key: key});
+                    traverse(v, callback, parents);
+                    parents.pop();
+                }
+            }
+        }
+    }
+    return ast;
+}
+
+function invokeCallback(ast, parents, callback) {
+    var result = callback.call(ast, parents);
+    if (result === ast) {
+        return ast;
+    }
+    if (parents.length > 0) {
+        var p = parents[parents.length - 1];
+        if (p.index === undefined) {
+            p.ast[p.key] = result;
+        } else {
+            if (result === null) {
+                p.ast[p.key].splice(p.index, 1);
+            } else if (typeof result === "object" && result.length !== undefined) {
+                Array.prototype.splice.apply(p.ast[p.key], [p.index, 1].concat(result));
+            } else {
+                p.ast[p.key][p.index] = result;
+            }
+        }
+    }
+}
+
+function replaceSuper(parser, className, memberName, ast) {
+    function callback(parents) {
+        if (this.type === "CallExpression" && this.callee.type === "Identifier" && this.callee.name === "super") {
+            if (memberName === null) {
+                parser.throwError(this, "Invoking super in a getter or setter is not allowed");
+            }
+            return template(@className.__super__.@memberName.call(this, @(this.arguments)))
+        } else if (this.type === "CallExpression" && this.callee.type === "MemberExpression" && this.callee.object.type === "Identifier" && this.callee.object.name === "super") {
+            if (this.callee.property.type !== "Identifier") {
+                parser.throwError(this, "Invalid use of super");
+            }
+            return template(@className.__super__.@(this.callee.property).call(this, @(this.arguments)))
+        }
+        return this;
+    }
+
+    return traverse(ast, callback);
+}
+
 export statement class {
 	var g = new classGrammar();
 	var ast = g.start(parser);
@@ -45,7 +116,7 @@ export statement class {
             } else if (ast.members[i].type === "FunctionDeclaration") {
                 memberDecl = memberDecl.concat( template{
                     @name.prototype.@(ast.members[i].name) = function(@(ast.members[i].arguments)) {
-                        @(ast.members[i].body)
+                        @(replaceSuper(parser, name, ast.members[i].name, ast.members[i].body))
                     }
                 })
             } else if (ast.members[i].type === "Getter") {
@@ -68,10 +139,10 @@ export statement class {
             memberDecl.push(template {
                 Object.defineProperty(@name.prototype, @({type: "Literal", value: prop.getter.name.name}), {
                     get: function() {
-                        @(prop.getter.body)
+                        @(replaceSuper(parser, name, prop.getter.name, prop.getter.body))
                     },
                     set: function(@(prop.setter.arg)) {
-                        @(prop.setter.body)
+                        @(replaceSuper(parser, name, prop.setter.name, prop.setter.body))
                     }
                 })
             });
@@ -79,7 +150,7 @@ export statement class {
             memberDecl.push(template {
                 Object.defineProperty(@name.prototype, @({type: "Literal", value: prop.getter.name.name}), {
                     get: function() {
-                        @(prop.getter.body)
+                        @(replaceSuper(parser, name, prop.getter.name, prop.getter.body))
                     }
                 })
             });
@@ -87,7 +158,7 @@ export statement class {
             memberDecl.push(template {
                 Object.defineProperty(@name.prototype, @({type: "Literal", value: prop.getter.name.name}), {
                     set: function(@(prop.setter.arg)) {
-                        @(prop.setter.body)
+                        @(replaceSuper(parser, name, prop.setter.name, prop.setter.body))
                     }
                 })
             });
@@ -98,7 +169,7 @@ export statement class {
     var cargs = [];
     var constructorBody = [];
     if (ctor) {
-        constructorBody = ctor.body;
+        constructorBody = replaceSuper(parser, name, identifier "constructor", ctor.body);
         cargs = ctor.arguments;
     }
 

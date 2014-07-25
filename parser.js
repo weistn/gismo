@@ -14,6 +14,12 @@ var	Mode_Expression = 1,
 	Mode_Term = 5
 
 function Parser(compiler) {
+	this.Mode_Expression = Mode_Expression;
+	this.Mode_ExpressionWithoutComma = Mode_ExpressionWithoutComma;
+	this.Mode_ExpressionWithoutCall = Mode_ExpressionWithoutCall;
+	this.Mode_ExpressionWithoutColon = Mode_ExpressionWithoutColon;
+	this.Mode_Term = Mode_Term;
+
 	this.compiler = compiler;
 	this.keywords = [];
 	this.punctuators = [];

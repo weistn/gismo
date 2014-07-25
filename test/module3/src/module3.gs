@@ -29,6 +29,10 @@ class Character {
 		this.x = x;
 		this.y = y;
 	}
+
+	attack(character) {
+		console.log("   attacking " + character)
+	}
 }
 
 class Monster extends Character {
@@ -39,9 +43,10 @@ class Monster extends Character {
 	}
 
   	attack(character) {
+		console.log(this.name + " is");
     	super.attack(character);
     	// Can also be written as:
-    	// super(character);
+    	super(character);
   	}
 
   	get isAlive() { return this.health_ > 0; }
@@ -51,3 +56,9 @@ class Monster extends Character {
 	    this.health_ = value;
   	}
 }
+
+var monster = new Monster(42, 142, "Imp");
+console.log(monster.isAlive, monster.health);
+monster.health = 0;
+console.log(monster.isAlive, monster.health);
+monster.attack("Dwarf");

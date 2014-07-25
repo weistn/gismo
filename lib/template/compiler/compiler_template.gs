@@ -255,7 +255,7 @@ export parser.extendSyntax({
                     "name": "toIdentifier"
                 }
             },
-            "arguments": [parser.parseExpression()]
+            "arguments": [parser.parseExpression(parser.Mode_ExpressionWithoutComma)]
         };
 	}
 });
@@ -280,7 +280,7 @@ export parser.extendSyntax({
                     "name": "toLiteral"
                 }
             },
-            "arguments": [parser.parseExpression()]
+            "arguments": [parser.parseExpression(parser.Mode_ExpressionWithoutComma)]
         };
 	}
 });
