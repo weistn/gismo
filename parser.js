@@ -23,6 +23,7 @@ function Parser(compiler) {
 	this.compiler = compiler;
 	this.keywords = [];
 	this.punctuators = [];
+	this.contextStack = [];
 
 	// The statements supported by this parser
 	this.statementKeywords = {
@@ -1553,7 +1554,7 @@ Parser.prototype.parse = function(tokenizer) {
 	}
 
 	var result = [];
-	// TODO: Why does this stop at '{' ?
+	// TODO: Why does this stop at '}' ?
 	while( this.tokenizer.lookahead() !== null && this.tokenizer.lookahead().value !== '}') {
 		var body = this.parseStatement();
 		result = result.concat(body);
@@ -1567,6 +1568,56 @@ Parser.prototype.importAlias = function(m) {
 	return this.compiler.importAlias(m);
 };
 
+Parser.prototype.removeSyntax = function(s) {
+	switch (s.type) {
+		case "operator":
+			var i = this.punctuators.indexOf(s.name);
+			if (i != -1) {
+				this.punctuators.splice(i,1);
+			}
+			var ops = this.operators[s.name];
+			if (ops) {
+				var associativity;
+				switch (s.associativity) {
+					case "none":
+						associativity = "none";
+						break;
+					case "right":
+						associativity = "ur";
+						break;
+					case "left":
+						associativity = "ul";
+						break;
+					case "binary":
+					case "binary-left":
+						associativity = "bl";
+						break;
+					case "binary-right":
+						associativity = "br";
+						break;
+					default:
+						throw new Error("ExtensionError: Unknown associativity '" + s.associativity + "'");
+				}
+				for(var i = 0; i < ops.length; i++) {
+					if (ops[i].associativity === associativity) {
+						ops.splice(i,1);
+						break;
+					}
+				}
+			}
+			break;
+		case "statement":
+			var i = this.keywords.indexOf(s.name);
+			if (i != -1) {
+				this.keywords.splice(i,1);
+			}
+			delete this.statementKeywords[s.name];
+			break;
+		default:
+			throw new Error("Unknown syntax extension");
+	}
+};
+
 Parser.prototype.exportAndExtendSyntax = function(s) {
 	switch (s.type) {
 		case "operator":
@@ -1576,7 +1627,7 @@ Parser.prototype.exportAndExtendSyntax = function(s) {
 			this.newStatement(s);
 			break;
 		default:
-			throw new Error("Unsupported syntax extension in imported module '" + path + "'");
+			throw new Error("Unknown syntax extension");
 	}
 };
 
@@ -1690,6 +1741,32 @@ Parser.prototype.newOperator = function(s) {
 	} else {
 		this.operators[s.name] = [op];
 	}
+};
+
+Parser.prototype.storeContext = function() {
+	this.tokenizer.storeContext();
+	this.contextStack.push({operators: this.operators, statementKeywords: this.statementKeywords, punctuators: this.punctuators, keywords: this.keywords});
+	this.punctuators = this.punctuators.slice(0);
+	this.keywords = this.keywords.slice(0);
+	var kw = {};
+	for(var key in this.statementKeywords) {
+		kw[key] = this.statementKeywords[key];
+	}
+	this.statementKeywords = kw;
+	var ops = {};
+	for(var key in this.operators) {
+		ops[key] = this.operators[key].slice(0);
+	}
+	this.operators = ops;
+};
+
+Parser.prototype.restoreContext = function() {
+	this.tokenizer.restoreContext();
+	var c = this.contextStack.pop();
+	this.operators = c.operators;
+	this.statementKeywords = c.statementKeywords;
+	this.keywords = c.keywords;
+	this.punctuators = c.punctuators;
 };
 
 Parser.prototype.isIdentifierStart = lexer.isIdentifierStart;

@@ -270,6 +270,9 @@ function parseRuleBranch(parser) {
 function parseRule(parser) {
 	var ruleName = parser.tokenizer.expectIdentifier();
 	var rule = {name: ruleName.value, loc: ruleName.loc, branches: []};
+	if (parser.tokenizer.presume("before", true)) {
+		rule.before = parser.parseBlockStatement();
+	}
 	var t = parser.tokenizer.expect('=');
 	rule.branches.push(parseRuleBranch(parser));
 	var t = parser.tokenizer.lookahead();
@@ -278,6 +281,9 @@ function parseRule(parser) {
 		var branch = parseRuleBranch(parser);
 		rule.branches.push(branch);
 		var t = parser.tokenizer.lookahead();
+	}
+	if (parser.tokenizer.presume("after", true)) {
+		rule.after = parser.parseBlockStatement();
 	}
 	return rule;
 }
@@ -378,9 +384,26 @@ export statement grammar {
 			}
 		);
 		rfunc.loc = grammarName.loc;
-		funcs.push(template{ @gname.prototype.@name = @rfunc });
+		// If the rule has 'before' or 'after', we must wrap it
+		if (r.before || r.after) {
+			var wrapperName = {type: "Identifier", name: "__w__" + r.name};
+			funcs.push(template{ @gname.prototype.@wrapperName = @rfunc });
+			var wfunc = template(
+				function(parser) {
+					@(r.before ? r.before : [])
+					try {
+						return this.@wrapperName(parser);
+					} finally {
+						@(r.after ? r.after : [])
+					}
+				}
+			);
+			funcs.push(template{ @gname.prototype.@name = @wfunc });
+		} else {
+			funcs.push(template{ @gname.prototype.@name = @rfunc });
+		}
 
-		// If there is more than one rule, we must look ahead to determine which branch to use.
+		// If there is more than one branch, we must look ahead to determine which branch to use.
 		if (r.branches.length > 1) {
 			var nolookahead = false;
 			var lcode = [template{ var __l = parser.tokenizer.lookahead(); }];

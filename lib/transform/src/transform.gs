@@ -48,4 +48,5 @@ function invokeCallback(ast, parents, callback) {
             }
         }
     }
+    return result;
 }

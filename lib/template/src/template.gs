@@ -22,9 +22,9 @@ exports.toAST = function(obj) {
 			return {
 				type: "Identifier",
 				name: "undefined"
-			}
+			};
 		default:
-			throw "Implementation Error: key=" + key + ", typeof value=" + typeof value;
+			throw "Implementation Error: typeof value=" + typeof value;
 	}
 };
 
