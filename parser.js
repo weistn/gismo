@@ -20,6 +20,7 @@ function Parser(compiler) {
 	this.Mode_ExpressionWithoutColon = Mode_ExpressionWithoutColon;
 	this.Mode_Term = Mode_Term;
 
+	this.tokenizer = null;
 	this.compiler = compiler;
 	this.keywords = [];
 	this.punctuators = [];
@@ -406,6 +407,17 @@ function Parser(compiler) {
 		}
 	}
 }
+
+/// Returns the compiler that created this parser.
+Parser.prototype.getCompiler = function() {
+	return this.compiler;
+};
+
+/// Returns the current tokenizer used by this parser.
+/// Can be null initially.
+Parser.prototype.getTokenizer = function() {
+	return this.tokenizer;
+};
 
 function functionParser() {
 	var loc = this.tokenizer.location();

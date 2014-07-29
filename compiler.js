@@ -1,12 +1,16 @@
 var fs = require('fs');
 var path = require('path');
-var escodegen = require('escodegen');
 var lexer = require('./lexer.js');
 var parser = require('./parser.js');
 var errors = require('./errors.js');
+var defspiller = require('./spiller.js');
+var escodegen = require('escodegen');
 
+// 'modulePath' is either a relative or absolute filename of a gismo file (ending with *.gs)
+// or the path of a directory of a package, which contains a file called 'package.json'.
 function Compiler(modulePath) {
 	this.path = modulePath;
+	this.spiller = new defspiller.NodeJSSpiller(this);
 
 	// Is it a file or a single module?
 	try {
@@ -38,6 +42,11 @@ function Compiler(modulePath) {
 
 	this.imports = { };
 }
+
+/// Sets the spiller that is used by the compiler to generate output.
+Compiler.prototype.setSpiller = function(spiller) {
+	this.spiller = spiller;
+};
 
 // Called from the parser that is launched on behalf of compileModule().
 Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
@@ -88,6 +97,8 @@ Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
 	}
 };
 
+/// Returns the variable name that stores a reference to module 'm' in the generated source code.
+/// Returns null if this module has not yet been imported by the compiled source code.
 Compiler.prototype.importAlias = function(m) {
 	var m = this.imports[m.filename];
 	if (!m) {
@@ -96,6 +107,7 @@ Compiler.prototype.importAlias = function(m) {
 	return m.alias;
 };
 
+// Compiles the module, including its meta module
 Compiler.prototype.compileModule = function() {
 	var srcfiles = [];
 
@@ -137,44 +149,13 @@ Compiler.prototype.compileModule = function() {
 //		p.importModuleName = this.path;
 		this.importMetaModule(p, this.path, "module");
 		var body = p.parse(lexer.newTokenizer(str, fname));
-		if (srcfiles.length > 1) {
-			body = [{
-	            "type": "ExpressionStatement",
-	            "expression": {
-	                "type": "CallExpression",
-	                "callee": {
-	                    "type": "FunctionExpression",
-	                    "id": null,
-	                    "params": [],
-	                    "defaults": [],
-	                    "body": {
-	                        "type": "BlockStatement",
-	                        "body": body
-	                    },
-	                    "rest": null,
-	                    "generator": false,
-	                    "expression": false
-	                },
-	                "arguments": []
-	            }
-	        }];
-		}
-		program.body = program.body.concat(body);
+		this.spiller.addFile(fname, body);
 	}
 
-	// In which file should the generated JS be saved?
-	var main = this.mainFile();
-
-	// Generate JS code and source-map
-	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, file: main});
-//	console.log(JSON.stringify(result.code));
-	var code = result.code + "\n//# sourceMappingURL=" + main + ".map";
-
-	// Write JS code and source-map to disk
-	fs.writeFileSync(main, code);
-	fs.writeFileSync(main + '.map', result.map.toString());
+	this.spiller.spill();
 };
 
+// Compiles the meta module
 Compiler.prototype.compileMetaModule = function() {
 	// If it is a normal node package, do nothing
 	if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
