@@ -1063,6 +1063,18 @@ Tokenizer.prototype.peek = function() {
     return token;
 }
 
+Tokenizer.prototype.nextChars = function(stopAt) {
+    var start = this.index;
+    while(this.index < this.source.length) {
+        var ch = this.source.charCodeAt(this.index);
+        if (stopAt.indexOf(ch) !== -1) {
+            return this.source.slice(start, this.index);
+        }
+        this.index++;
+    }
+    return this.source.slice(start);
+}
+
 // Line-Ends are collapsed to 10, and EOF is returned as null.
 Tokenizer.prototype.nextChar = function() {
     if (this.index === this.source.length) {
@@ -1193,11 +1205,15 @@ exports.newTokenizer = function(source, filename) {
         },
 
         expectRegExp : function() {
-            return collectRegExpToken();
+            return tokenizer.collectRegExpToken();
         },
 
         next : function() {
             return tokenizer.next();
+        },
+
+        nextChars : function(stopAt) {
+            return tokenizer.nextChars(stopAt);
         },
 
         nextChar : function() {

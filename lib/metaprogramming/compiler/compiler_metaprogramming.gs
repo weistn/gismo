@@ -22,6 +22,7 @@ export parser.extendSyntax({
             while(true) {
                 ch = parser.tokenizer.peekChar();
 //              console.log(ch, parser.tokenizer.location().index);
+                // Break on { or EOF
                 if (ch === null || ch === 123) {
                     break;
                 }
@@ -57,7 +58,7 @@ export parser.extendSyntax({
                 parser.throwError(null, "Missing operator name");
             case 1:
                 if (!isOperator(words[0])) {
-                    parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");                 
+                    parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");
                 }
 //                console.log("none", words[0]);
                 opname = words[0];
@@ -74,7 +75,7 @@ export parser.extendSyntax({
                         parser.throwError(null, "The word '" + words[0] + "' must be an identifier");
                     }
                     if (!isOperator(words[1])) {
-                        parser.throwError(null, "The word '" + words[1] + "' is not a valid operator");                 
+                        parser.throwError(null, "The word '" + words[1] + "' is not a valid operator");
                     }
 //                    console.log("2 post", words[0], words[1]);
                     opname = words[1];
@@ -83,11 +84,11 @@ export parser.extendSyntax({
                     precedence = 15;
                 } else {
                     if (!isOperator(words[0])) {
-                        parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");                 
+                        parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");
                     }
                     if (!parser.isIdentifier(words[1])) {
                         parser.throwError(null, "The word '" + words[1] + "' must be an identifier");
-                    }                   
+                    }
 //                    console.log("2 prefix", words[0], words[1]);
                     opname = words[0];
                     params = {type: "Identifier", name: words[1]};
@@ -100,7 +101,7 @@ export parser.extendSyntax({
                     parser.throwError(null, "The word '" + words[0] + "' must be an identifier");
                 }
                 if (!isOperator(words[1])) {
-                    parser.throwError(null, "The word '" + words[1] + "' is not a valid operator");                 
+                    parser.throwError(null, "The word '" + words[1] + "' is not a valid operator");
                 }
                 if (!parser.isIdentifier(words[2])) {
                     parser.throwError(null, "The word '" + words[2] + "' must be an identifier");
@@ -110,7 +111,7 @@ export parser.extendSyntax({
                 params = [{type: "Identifier", name: words[0]}, {type: "Identifier", name: words[2]}];
                 associativity = "binary";
                 precedence = 2;
-                break;  
+                break;
             case 4:
                 parser.throwError(null, "Expected 'precedence' or a block statement insteade of '" + words[3] + "'");
                 break;
@@ -140,15 +141,38 @@ export parser.extendSyntax({
     type: 'statement',
     name: 'statement',
     generator: function() {
-        var id = parser.parseIdentifier();
+        parser.tokenizer.skipWhitespace();
+        var id = "";
+        var j = 0;
+        var isIdent = false;
+        while(true) {
+            ch = parser.tokenizer.peekChar();
+            // Break on { or EOF
+            if (ch === null || ch === 123) {
+                break;
+            }
+            if (j === 0 && parser.isIdentifierStart(ch)) {
+                isIdent = true;
+            } else if (j > 0 && isIdent && !parser.isIdentifierPart(ch)) {
+                break;
+            } else if (j > 0 && !isIdent && parser.isIdentifierStart(ch)) {
+                break;
+            }
+            parser.tokenizer.nextChar();
+            if (parser.isWhiteSpace(ch) || parser.isLineTerminator(ch)) {
+                break;
+            }
+            id += String.fromCharCode(ch);
+            j++;
+        }
+
+//        var id = parser.parseIdentifier();
         var code = parser.parseBlockStatement();
 
         return template { parser.extendSyntax({
             type: 'statement',
-            name: @(id.name),
+            name: @id,
             generator: function() {@code}
-        }); }        
+        }); }
     }
 });
-
-

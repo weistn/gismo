@@ -37,5 +37,8 @@ lib/transform/main.js
 lib/transform/_meta.js
 lib/transform/main.js.map
 lib/transform/_meta.js.map
+lib/markdown/lang/main.js
+lib/markdown/lang/_meta.js
+lib/markdown/lang/main.js.map
+lib/markdown/lang/_meta.js.map
 scratch.js
-

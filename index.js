@@ -68,6 +68,7 @@ function compileModule(arg) {
 				console.log("Oooops", err.toString());
 				process.exit();
 			}
+			console.log(JSON.stringify(err.stack, null, "\n"));
 			var parsed = errors.parseStackTrace(err.stack);
 //			console.log(parsed.message.blue);
 			for(var k = 0; k < parsed.stack.length; k++) {

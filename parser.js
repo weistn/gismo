@@ -1417,7 +1417,7 @@ Parser.prototype.parseExpression = function(mode) {
 		}
 
 		// Expressions stop at a colon
-		if (lookahead.value === ";" && bracketCount === 0) {
+		if (lookahead.value === ";" && lookahead.type !== "String" && bracketCount === 0) {
 			break;
 		}
 		// Expressions stop at closing brackets that have not been opened by the expression itself
@@ -1497,7 +1497,7 @@ Parser.prototype.parseEndOfStatement = function() {
 	var lookahead = this.tokenizer.lookahead();
 	if (lookahead === null || lookahead.value === '}' || lookahead.value === ')' || lookahead.value === ']') {
 		// Do nothing by intention
-	} else if (lookahead.value === ";") {
+	} else if (lookahead.value === ";" && lookahead.type !== "String") {
 		this.tokenizer.next();
 	} else {
 //		var lookback = this.tokenizer.lookback();
@@ -1512,7 +1512,7 @@ Parser.prototype.parseStatement = function() {
 	var token = this.tokenizer.lookahead();
 	var s = token.value;
 	// Is this a  statement?
-	var p = this.statementKeywords[s];
+	var p = token.type !== "String" ? this.statementKeywords[s] : null;
 	if (p) {
 		this.tokenizer.next();
 		var result = this.execGenerator(p);
@@ -1657,6 +1657,17 @@ Parser.prototype.newStatement = function(s) {
 	}
 	this.statementKeywords[s.name] = s.generator;
 	s.generator.module = this.importModuleName;
+
+	if (!lexer.isIdentifier(s.name)) {
+		// The new operator has to be a punctuator
+		if (s.name == "" || lexer.isIdentifierStart(s.name[0])) {
+			throw new Error("Statement name '" + s.name + "' is neither a valid identifier nor a punctuator");
+		}
+		this.punctuators.push(s.name);
+		if (this.tokenizer) {
+			this.tokenizer.registerPunctuator(s.name);
+		}
+	}
 }
 
 Parser.prototype.newOperator = function(s) {

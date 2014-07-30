@@ -48,6 +48,11 @@ Compiler.prototype.setSpiller = function(spiller) {
 	this.spiller = spiller;
 };
 
+/// Returns the spiller used by the compiler to generate output.
+Compiler.prototype.getSpiller = function() {
+	return this.spiller;
+};
+
 // Called from the parser that is launched on behalf of compileModule().
 Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
 	if (modulePath === "") {
