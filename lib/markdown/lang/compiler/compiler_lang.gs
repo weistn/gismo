@@ -15,7 +15,14 @@ MarkDownSpiller.prototype.spill = function() {
     for(var i = 0; i < this.files.length; i++) {
         var f = this.files[i];
         var fname = path.join(path.dirname(this.compiler.main), path.basename(f.filename) + ".html");
-        // TODO
+
+        var html = "";
+        for(var j = 0; j < f.ast.length; j++) {
+            var ast = f.ast[j];
+            if (ast.generator) {
+                html += ast.generator.call(ast, f.ast);
+            }
+        }
         console.log(f.ast);
         fs.writeFileSync(fname, "<html>Hudel Dudel TODO");
     }
@@ -26,7 +33,36 @@ parser.getCompiler().setSpiller(new MarkDownSpiller(parser.getCompiler()));
 parser.getTokenizer().registerPunctuator(":");
 parser.getTokenizer().registerPunctuator(";");
 
-function generateHeader() {
+function generateCSS(ast) {
+    var html = "";
+    // TODO
+    return html;
+}
+
+function generateTagContent(tagAst) {
+    var html = "";
+    for(var i = 0; i < tagAst.content.length; i++) {
+        var ast = this.content[i];
+        if (ast.generator) {
+            html += ast.generator.call(ast, fileAST);
+        } else if (ast.type === "Text") {
+            html += htmlEscape(ast.text);
+        } else if (ast.type === "CSSStart") {
+            html += "<span" + generateCSS(ast) + ">";
+        } else if (ast.type === "CSSEnd") {
+            html += "</span>";
+        }
+    }
+}
+
+function generateHeader(fileAST) {
+    var html = "<h" + this.level.toString() + generateCSS(this) + ">";
+    html += generateTagContent(this);
+    html += "<h" + this.level.toString() + "/>";
+    return html;
+};
+
+function generateHyperLink() {
     // TODO
 };
 
@@ -203,7 +239,8 @@ export operator ~a {
     var ast = {
         type: "Hyperlink",
         classes: [],
-        styles: []
+        styles: [],
+        generator: generateHyperLink
     }
     parseCSS(ast);
     tokenizer.nextChar();
