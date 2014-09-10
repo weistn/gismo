@@ -93,7 +93,7 @@ Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
 		parser.importModuleName = modulePath;
 		m.extendParser(parser);
 	} catch(err) {
-		if (err instanceof errors.SyntaxError) {
+		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 			throw err;
 		}
 		var e = new errors.CompilerError(err.toString());
@@ -128,7 +128,11 @@ Compiler.prototype.compileModule = function() {
 
 		srcfiles = this.pkg.gismo.src;
 		if (!srcfiles || typeof srcfiles !== "object") {
-			srcfiles = fs.readdirSync(this.path + "src").sort();
+			try {
+				srcfiles = fs.readdirSync(this.path + "src").sort();
+			} catch(e) {
+				srcfiles = [];
+			}
 		}
 		for(var i = 0; i < srcfiles.length; i++) {
 			var fname = srcfiles[i];
@@ -154,10 +158,28 @@ Compiler.prototype.compileModule = function() {
 //		p.importModuleName = this.path;
 		this.importMetaModule(p, this.path, "module");
 		var body = p.parse(lexer.newTokenizer(str, fname));
-		this.spiller.addFile(fname, body);
+		try {
+			this.spiller.addFile(fname, body);
+		} catch(err) {
+			if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
+				throw err;
+			}
+			var e = new errors.CompilerError(err.toString());
+			e.stack = err.stack;
+			throw e;
+		}			
 	}
 
-	this.spiller.spill();
+	try {
+		this.spiller.spill();
+	} catch(err) {
+		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
+			throw err;
+		}
+		var e = new errors.CompilerError(err.toString());
+		e.stack = err.stack;
+		throw e;
+	}
 };
 
 // Compiles the meta module

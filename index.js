@@ -68,12 +68,15 @@ function compileModule(arg) {
 				console.log("Oooops", err.toString());
 				process.exit();
 			}
-			console.log(JSON.stringify(err.stack, null, "\n"));
+//			console.log(JSON.stringify(err.stack, null, "\n"));
 			var parsed = errors.parseStackTrace(err.stack);
 //			console.log(parsed.message.blue);
 			for(var k = 0; k < parsed.stack.length; k++) {
 				var line = parsed.stack[k];
 				if (line.function === "Compiler.importMetaModule") {
+					break;
+				}
+				if (line.function === "Compiler.compileModule") {
 					break;
 				}
 				if (line.function === "Parser.execGenerator") {
@@ -125,7 +128,9 @@ function execModule() {
 	} catch(err) {
 		if (err.stack) {
 			var parsed = errors.parseStackTrace(err.stack);
-			for(var k = parsed.stack.length - 1; k >= 0; k--) {
+			// Strip lines of the stack trace that are caused by this file (i.e. __filename) or by this file calling 'require' in module.js.
+			for(var k = 0; k < parsed.stack.length; k++) {
+//			for(var k = parsed.stack.length - 1; k >= 0; k--) {
 				var line = parsed.stack[k];
 				if (line.loc.filename === __filename) {
 					for( k--; k >= 0; k--) {

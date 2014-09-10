@@ -15,7 +15,7 @@ export operator /// {
 	var ch, str = "";
 	do {
     	var ch = parser.tokenizer.peekChar();
-        if (parser.isLineTerminator(ch)) {
+        if (parser.tokenizer.isLineTerminator(ch)) {
             break;
         }
         parser.tokenizer.nextChar();

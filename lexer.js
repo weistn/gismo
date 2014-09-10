@@ -961,12 +961,12 @@ Tokenizer.prototype.collectRegExpToken = function() {
     return token;
 }
 
-function isIdentifierName(token) {
+/* function isIdentifierName(token) {
     return token.type === Token.Identifier ||
         token.type === Token.Keyword ||
         token.type === Token.BooleanLiteral ||
         token.type === Token.NullLiteral;
-}
+} */
 
 Tokenizer.prototype.advance = function() {
     var ch;
@@ -1265,13 +1265,19 @@ exports.newTokenizer = function(source, filename) {
             tokenizer.restoreContext();
         },
 
-        isIdentifier : isIdentifier,
-
         isPunctuator : function(str) {
             return !isIdentifierStart(str[0]);
         },
 
-        isReservedWord : isReservedWord
+        isReservedWord : isReservedWord,
+        isIdentifier : isIdentifier,
+        isIdentifierStart : isIdentifierStart,
+        isIdentifierPart : isIdentifierPart,
+        isDecimalDigit : isDecimalDigit,
+        isHexDigit : isHexDigit,
+        isOctalDigit : isOctalDigit,
+        isWhiteSpace : isWhiteSpace,
+        isLineTerminator : isLineTerminator
     };
 };
 

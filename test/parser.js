@@ -43,7 +43,7 @@ describe("My Parser Test", function() {
 		var str = fs.readFileSync("test/parser_test.gs").toString();
 
 		var p = new parser.Parser();
-		var program = {type: "Program", body: p.parse(lexer.newTokenizer(str))};
+		var program = {type: "Program", body: p.parse(lexer.newTokenizer(str, "test/parser_test.gs"))};
 
 //	console.log(JSON.stringify(parsed, null, '\t'));
 

@@ -13,6 +13,7 @@ lib:
 	./bin/gismoc ./lib/grammar
 	./bin/gismoc ./lib/class
 	./bin/gismoc ./lib/transform
+	./bin/gismoc ./lib/markdown/lang
 
 clean:
 	rm -f test/module1/main.js
@@ -53,3 +54,7 @@ clean:
 	rm -f lib/transform/main.js.map
 	rm -f lib/transform/_meta.js
 	rm -f lib/transform/_meta.js.map
+	rm -f lib/markdown/lang/main.js
+	rm -f lib/markdown/lang/main.js.map
+	rm -f lib/markdown/lang/_meta.js
+	rm -f lib/markdown/lang/_meta.js.map

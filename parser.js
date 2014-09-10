@@ -1089,6 +1089,9 @@ Parser.prototype.findOperatorDownwards = function(token, level) {
 }
 
 Parser.prototype.findOperatorUpwards = function(token, level) {
+	if (token.type === "String") {
+		return null;
+	}
 	if (token.value === ")") {
 		return closingRoundBracketOperator;
 	}
@@ -1509,12 +1512,19 @@ Parser.prototype.parseEndOfStatement = function() {
 }
 
 Parser.prototype.parseStatement = function() {
+	var p;
 	var token = this.tokenizer.lookahead();
-	var s = token.value;
-	// Is this a  statement?
-	var p = token.type !== "String" ? this.statementKeywords[s] : null;
+	if (this.statementPreprocessor) {
+		p = this.statementPreprocessor(token);
+	}
+	if (!p) {
+		p = token.type !== "String" ? this.statementKeywords[token.value] : null;
+		if (p) {
+			this.tokenizer.next();
+		}
+	}
+	// Is this a statement?
 	if (p) {
-		this.tokenizer.next();
 		var result = this.execGenerator(p);
 		if (typeof result === "string") {
 			var l = lexer.newTokenizer(result);
@@ -1791,15 +1801,6 @@ Parser.prototype.restoreContext = function() {
 	this.keywords = c.keywords;
 	this.punctuators = c.punctuators;
 };
-
-Parser.prototype.isIdentifierStart = lexer.isIdentifierStart;
-Parser.prototype.isIdentifierPart = lexer.isIdentifierPart;
-Parser.prototype.isIdentifier = lexer.isIdentifier;
-Parser.prototype.isDecimalDigit = lexer.isDecimalDigit;
-Parser.prototype.isHexDigit = lexer.isHexDigit;
-Parser.prototype.isOctalDigit = lexer.isOctalDigit;
-Parser.prototype.isWhiteSpace = lexer.isWhiteSpace
-Parser.prototype.isLineTerminator = lexer.isLineTerminator;
 
 Parser.prototype.execGenerator = function(generator) {
 	try {

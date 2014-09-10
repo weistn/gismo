@@ -1,8 +1,8 @@
 import "gismo/template";
 
 function isOperator(str) {
-    if (parser.isIdentifierStart(str.charCodeAt(0))) {
-        return parser.isIdentifier(str);
+    if (parser.tokenizer.isIdentifierStart(str.charCodeAt(0))) {
+        return parser.tokenizer.isIdentifier(str);
     }
     return true;
 }
@@ -26,15 +26,15 @@ export parser.extendSyntax({
                 if (ch === null || ch === 123) {
                     break;
                 }
-                if (j === 0 && parser.isIdentifierStart(ch)) {
+                if (j === 0 && parser.tokenizer.isIdentifierStart(ch)) {
                     isIdent = true;
-                } else if (j > 0 && isIdent && !parser.isIdentifierPart(ch)) {
+                } else if (j > 0 && isIdent && !parser.tokenizer.isIdentifierPart(ch)) {
                     break;
-                } else if (j > 0 && !isIdent && parser.isIdentifierStart(ch)) {
+                } else if (j > 0 && !isIdent && parser.tokenizer.isIdentifierStart(ch)) {
                     break;
                 }
                 parser.tokenizer.nextChar();
-                if (parser.isWhiteSpace(ch) || parser.isLineTerminator(ch)) {
+                if (parser.tokenizer.isWhiteSpace(ch) || parser.tokenizer.isLineTerminator(ch)) {
                     break;
                 }
                 str += String.fromCharCode(ch);
@@ -67,11 +67,11 @@ export parser.extendSyntax({
                 break;
             case 2:
                 ch = words[1].charCodeAt(0);
-                if (!parser.isIdentifierStart(ch) || ch === 92) {
+                if (!parser.tokenizer.isIdentifierStart(ch) || ch === 92) {
                     if (ch === 92) {
                         words[1] = words[1].slice(1);
                     }
-                    if (!parser.isIdentifier(words[0])) {
+                    if (!parser.tokenizer.isIdentifier(words[0])) {
                         parser.throwError(null, "The word '" + words[0] + "' must be an identifier");
                     }
                     if (!isOperator(words[1])) {
@@ -86,7 +86,7 @@ export parser.extendSyntax({
                     if (!isOperator(words[0])) {
                         parser.throwError(null, "The word '" + words[0] + "' is not a valid operator");
                     }
-                    if (!parser.isIdentifier(words[1])) {
+                    if (!parser.tokenizer.isIdentifier(words[1])) {
                         parser.throwError(null, "The word '" + words[1] + "' must be an identifier");
                     }
 //                    console.log("2 prefix", words[0], words[1]);
@@ -97,13 +97,13 @@ export parser.extendSyntax({
                 }
                 break;
             case 3:
-                if (!parser.isIdentifier(words[0])) {
+                if (!parser.tokenizer.isIdentifier(words[0])) {
                     parser.throwError(null, "The word '" + words[0] + "' must be an identifier");
                 }
                 if (!isOperator(words[1])) {
                     parser.throwError(null, "The word '" + words[1] + "' is not a valid operator");
                 }
-                if (!parser.isIdentifier(words[2])) {
+                if (!parser.tokenizer.isIdentifier(words[2])) {
                     parser.throwError(null, "The word '" + words[2] + "' must be an identifier");
                 }
 //                console.log("2 infix", words[0], words[1], words[2]);
@@ -151,15 +151,15 @@ export parser.extendSyntax({
             if (ch === null || ch === 123) {
                 break;
             }
-            if (j === 0 && parser.isIdentifierStart(ch)) {
+            if (j === 0 && parser.tokenizer.isIdentifierStart(ch)) {
                 isIdent = true;
-            } else if (j > 0 && isIdent && !parser.isIdentifierPart(ch)) {
+            } else if (j > 0 && isIdent && !parser.tokenizer.isIdentifierPart(ch)) {
                 break;
-            } else if (j > 0 && !isIdent && parser.isIdentifierStart(ch)) {
+            } else if (j > 0 && !isIdent && parser.tokenizer.isIdentifierStart(ch)) {
                 break;
             }
             parser.tokenizer.nextChar();
-            if (parser.isWhiteSpace(ch) || parser.isLineTerminator(ch)) {
+            if (parser.tokenizer.isWhiteSpace(ch) || parser.tokenizer.isLineTerminator(ch)) {
                 break;
             }
             id += String.fromCharCode(ch);
