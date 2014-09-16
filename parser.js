@@ -25,6 +25,7 @@ function Parser(compiler) {
 	this.keywords = [];
 	this.punctuators = [];
 	this.contextStack = [];
+	this.spillers = { };
 
 	// The statements supported by this parser
 	this.statementKeywords = {
@@ -1566,6 +1567,7 @@ Parser.prototype.parseStatements = function() {
 	return result;
 }
 
+/// Retunrns an array of ASTs
 Parser.prototype.parse = function(tokenizer) {
 	this.tokenizer = tokenizer;
 	for(var i = 0; i < this.keywords.length; i++) {
@@ -1582,6 +1584,8 @@ Parser.prototype.parse = function(tokenizer) {
 		result = result.concat(body);
 	}
 
+	result.spillers = this.spillers;
+	
 	return result;
 }
 
@@ -1872,6 +1876,13 @@ Parser.prototype.throwError = function(token, messageFormat) {
 
     error.description = msg;
     throw error;
+}
+
+Parser.prototype.setSpiller = function(spiller, name) {
+	if (!name) {
+		name = "default";
+	}
+	this.spillers[name] = spiller;
 }
 
 exports.Parser = Parser;

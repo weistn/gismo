@@ -10,7 +10,9 @@ var escodegen = require('escodegen');
 // or the path of a directory of a package, which contains a file called 'package.json'.
 function Compiler(modulePath) {
 	this.path = modulePath;
-	this.spiller = new defspiller.NodeJSSpiller(this);
+	this.spillers = {
+		"default" : new defspiller.NodeJSSpiller(this)
+	};
 
 	// Is it a file or a single module?
 	try {
@@ -44,13 +46,13 @@ function Compiler(modulePath) {
 }
 
 /// Sets the spiller that is used by the compiler to generate output.
-Compiler.prototype.setSpiller = function(spiller) {
-	this.spiller = spiller;
+Compiler.prototype.addSpiller = function(name, spiller) {
+	this.spillers[name] = spiller;
 };
 
 /// Returns the spiller used by the compiler to generate output.
-Compiler.prototype.getSpiller = function() {
-	return this.spiller;
+Compiler.prototype.getSpiller = function(name) {
+	return this.spillers[name];
 };
 
 // Called from the parser that is launched on behalf of compileModule().
@@ -159,7 +161,14 @@ Compiler.prototype.compileModule = function() {
 		this.importMetaModule(p, this.path, "module");
 		var body = p.parse(lexer.newTokenizer(str, fname));
 		try {
-			this.spiller.addFile(fname, body);
+			// Add the file to all spillers
+			for(var key in this.spillers) {
+				if (body.spillers && body.spillers[key]) {
+					body.spillers[key].spill(fname, body);
+				} else {
+					this.spillers[key].addFile(fname, body);
+				}
+			}
 		} catch(err) {
 			if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 				throw err;
@@ -171,7 +180,9 @@ Compiler.prototype.compileModule = function() {
 	}
 
 	try {
-		this.spiller.spill();
+		for(var key in this.spillers) {
+			this.spillers[key].spill();
+		}
 	} catch(err) {
 		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 			throw err;

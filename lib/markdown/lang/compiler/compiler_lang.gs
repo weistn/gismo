@@ -2,33 +2,24 @@ import "fs";
 import "path";
 import "gismo/metaprogramming"
 
-function MarkDownSpiller(compiler) {
-    this.compiler = compiler;
-    this.files = [];
+function MarkDownSpiller() {
 }
 
-MarkDownSpiller.prototype.addFile = function(filename, ast) {
-    this.files.push({filename: filename, ast: ast});
-};
+MarkDownSpiller.prototype.spill = function(filename, f) {
+    var fname = path.join(path.dirname(parser.getCompiler().main), path.basename(filename) + ".html");
 
-MarkDownSpiller.prototype.spill = function() {
-    for(var i = 0; i < this.files.length; i++) {
-        var f = this.files[i];
-        var fname = path.join(path.dirname(this.compiler.main), path.basename(f.filename) + ".html");
-
-        var html = "";
-        for(var j = 0; j < f.ast.length; j++) {
-            var ast = f.ast[j];
-            if (ast.generator) {
-                html += ast.generator.call(ast, f.ast);
-            }
+    var html = "";
+    for(var j = 0; j < f.length; j++) {
+        var ast = f[j];
+        if (ast.generator) {
+            html += ast.generator.call(ast, f);
         }
-        console.log(f.ast);
-        fs.writeFileSync(fname, html);
     }
+    console.log(f.ast);
+    fs.writeFileSync(fname, html);
 };
 
-parser.getCompiler().setSpiller(new MarkDownSpiller(parser.getCompiler()));
+parser.setSpiller(new MarkDownSpiller());
 
 //parser.clearSyntax();
 //parser.getTokenizer().registerPunctuator(":");
