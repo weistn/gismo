@@ -12,6 +12,9 @@ function transformRule(parser, grammar, trule) {
 //			if (!s.name) {
 //				s.name = "__n" + k.toString();
 //			}
+			if (s.type === "Text") {
+				continue;
+			}
 			if (s.type === "Branch") {
 				var name = "__" + (counter++).toString();
 				var rule = {name: name, branches: [s.branch]};
@@ -120,6 +123,24 @@ function branchLookahead(parser, grammar, b) {
 			case "Punctuator":
 				lh["\\" + b.syntax[0].token.value] = true;
 				break;
+			case "Text":
+				if (!lh["Text"]) {
+					lh["Text"] = { };
+				}
+				if (b.syntax[0].neg) {
+					if (lh["Text"].negChars) {
+						lh["Text"].negChars = lh["Text"].negChars.concat(b.syntax[0].chars);
+					} else {
+						lh["Text"].negChars = b.syntax[0].chars;
+					}
+				} else {
+					if (lh["Text"].chars) {
+						lh["Text"].chars = lh["Text"].chars.concat(b.syntax[0].chars);
+					} else {
+						lh["Text"].chars = b.syntax[0].chars;
+					}
+				}
+				break;
 			default:
 				throw new Error("Implementation error");
 		}
@@ -127,6 +148,12 @@ function branchLookahead(parser, grammar, b) {
 	return lh;
 }
 
+// Returns a dictionary with all token strings that could be consumed by this rule.
+// i.e. the rule '"name" Identifier | "age" Numeric' would return {"\\name": true, "\\age": true"}.
+// If the rule accepts an identifier, punctuator, number, string, boolean or regexp as its first token, then the dictionary contains
+// {"Identifier": true, ...} or {"Punctuator": true, ...} and so on.
+// If the rule accepts a block statement in the beginning, the dictionary contains {"{": true, ...}.
+// If the rule accepts a term, statement or expression in the beginning, the dictionary contains {"All": true}.
 function ruleLookahead(parser, grammar, rule) {
 	var lh = {};
 	for(var i = 0; i < rule.branches.length; i++) {
@@ -164,6 +191,8 @@ function checkBranchReachability(parser, grammar, b) {
 			}
 		} else if(s.type === "Branch") {
 			checkBranchReachability(parser, grammar, s.branch);
+		} else if (s.type === "Text") {
+			// Do nothing by intention
 		}
 	}
 }
@@ -207,6 +236,8 @@ function checkBranch(parser, grammar, b) {
 			}
 		} else if (s.type === "Branch") {
 			checkBranch(parser, grammar, s.branch);
+		} else if (s.type === "Text") {
+			// Do nothing by intention
 		}
 	}
 }
@@ -215,28 +246,55 @@ function parseRuleBranch(parser) {
 	var branch = {syntax: []};
 	var t;
 	var nameToken;
+	// Expect 'rule_element rule_element ... { action_code }'
 	while(true) {
 		t = parser.tokenizer.lookahead();
+		// Exit on keywords
 		if (!t || t.type === "Keyword") {
 			break;
 		}
 		if (t.type === "Punctuator") {
+			// The only supported punctuators are '( ... )' to denote an embedded rule element
+			// and '[ ... ]' and "[^...]" to denote a character sequence
 			if (t.value === "(") {
 				parser.tokenizer.next();
 				var b = parseRuleBranch(parser);
 				parser.tokenizer.expect(")");
 				branch.syntax.push({type: "Branch", branch: b, name: nameToken ? nameToken.value : null});
+			} else if (t.value === "[") {
+				parser.tokenizer.next();
+				var chars = [];
+				var neg = false;
+				while(true) {
+					var ch = parser.tokenizer.nextChar();
+					if (!ch) {
+						parser.throwError(null, "Unexpected end of file");
+					}
+					if (ch === 93) { // ]
+						break;
+					}
+					if (!neg && ch === 94 && chars.length === 0) { // [^
+						neg = true;
+					} else {
+						chars.push(ch);
+					}
+				}
+				branch.syntax.push({type: "Text", chars: chars, neg: neg, name: nameToken ? nameToken.value : null});
 			} else {
 				break;
 			}
 		} else if (t.type === "Identifier") {
 			parser.tokenizer.next();
 			if (parser.tokenizer.presume(':', true)) {
+				// A named rule element
+				// Expect 'token_name : rule_element'
 				nameToken = t;
 				continue;
 			}
+			// A rule element that invokes another rule
 			branch.syntax.push({type: "Rule", ruleName: t.value, name: nameToken ? nameToken.value : null});
 		} else if (t.type === "String") {
+			// A rule element that matches a keyword or punctuator
 			parser.tokenizer.next();
 			if (parser.tokenizer.isIdentifier(t.value)) {
 				branch.syntax.push({type: "Identifier", token: t, name: nameToken ? nameToken.value : null});
@@ -252,6 +310,7 @@ function parseRuleBranch(parser) {
 				parser.throwError(t, "Unexpected token %0", t.value);
 			}
 		}
+		// Parse a multiplier, '*', '+', or "?"
 		if (parser.tokenizer.presume('*', true)) {
 			branch.syntax[branch.syntax.length - 1].repeat = "ZeroOrMore";
 		} else if (parser.tokenizer.presume('+', true)) {
@@ -261,6 +320,7 @@ function parseRuleBranch(parser) {
 		}
 		nameToken = null;
 	}
+	// Parse the code that is executed when this rule branch has been matched
 	if (t && t.type === "Punctuator" && t.value === '{') {
 		branch.action = parser.parseBlockStatement();
 	}
@@ -268,12 +328,15 @@ function parseRuleBranch(parser) {
 }
 
 function parseRule(parser) {
+	// Expect 'rule_name before { some_code } = rule_branch | rule_branch | rule_branch after { some_code }'
 	var ruleName = parser.tokenizer.expectIdentifier();
 	var rule = {name: ruleName.value, loc: ruleName.loc, branches: []};
+	// Expect 'before { ... }'. This code is executed before the rule is applied
 	if (parser.tokenizer.presume("before", true)) {
 		rule.before = parser.parseBlockStatement();
 	}
 	var t = parser.tokenizer.expect('=');
+	// Parse all rule branches
 	rule.branches.push(parseRuleBranch(parser));
 	var t = parser.tokenizer.lookahead();
 	while(t && t.type === "Punctuator" && t.value === '|') {
@@ -282,18 +345,27 @@ function parseRule(parser) {
 		rule.branches.push(branch);
 		var t = parser.tokenizer.lookahead();
 	}
+	// Expect 'after { ... }'. This code is executed after the rule has been applied
 	if (parser.tokenizer.presume("after", true)) {
 		rule.after = parser.parseBlockStatement();
 	}
 	return rule;
 }
 
+/// Parses a grammar and generates code for it.
 export statement grammar {
+
+	//
+	// Parse grammar
+	//
+
+	// Introduce keywords which are only used inside grammars
 	parser.tokenizer.storeContext();
 	parser.tokenizer.registerKeyword("rule");
 	parser.tokenizer.registerKeyword("keyword");
 	parser.tokenizer.registerKeyword("punctuator");
 
+	// Expect 'grammer_name { ... }'
 	var grammarName = parser.tokenizer.expectIdentifier();
 	parser.tokenizer.expect('{');
 
@@ -306,6 +378,7 @@ export statement grammar {
 		if (t.type === "Punctuator" && t.value === '}') {
 			break;
 		}
+		// Expect 'rule rule_name ...'
 		if (t.type === "Keyword" && t.value === 'rule') {
 			parser.tokenizer.next();
 			var rule = parseRule(parser);
@@ -315,6 +388,7 @@ export statement grammar {
 			grammar.rules[rule.name] = rule;
 			continue;
 		}
+		// Expect 'keyword the_keyword'
 		if (t.type === "Keyword" && t.value === 'keyword') {
 			parser.tokenizer.next();
 			var keyword = parser.tokenizer.expectIdentifier();
@@ -322,6 +396,7 @@ export statement grammar {
 			grammar.keywords.push(keyword.value);
 			continue;
 		}
+		// Expect 'punctuator the_punctuator'
 		if (t.type === "Keyword" && t.value === 'punctuator') {
 			parser.tokenizer.next();
 			var punctuator = parser.tokenizer.expectPunctuator();
@@ -332,7 +407,12 @@ export statement grammar {
 		parser.throwError(t, "Unexpected token %0", t.value);
 	}
 
+	// Expect end of grammar
 	parser.tokenizer.expect('}');
+
+	//
+	// Check correctness of grammar
+	//
 
 	// Every grammar must have a start rule
 	if (!grammar.rules.start) {
@@ -355,6 +435,10 @@ export statement grammar {
 			parser.throwError(rule, "Rule '%0' is not reachable", r.name);
 		}
 	}
+
+	//
+	// Generate code
+	//
 
 	var userRules = [];
 	for(var key in grammar.rules) {
@@ -407,6 +491,7 @@ export statement grammar {
 		if (r.branches.length > 1) {
 			var nolookahead = false;
 			var lcode = [template{ var __l = parser.tokenizer.lookahead(); }];
+			var charlookahead = false;
 			for(var k = 0; k < r.branches.length; k++) {
 				if (nolookahead) {
 					parser.throwError(r, "Rule has unreachable branches");
@@ -414,8 +499,10 @@ export statement grammar {
 				var b = r.branches[k];
 				var lh = branchLookahead(parser, grammar, b);
 				var bname = {type: "Identifier", name: "__b" + k.toString() + "__" + r.name};
-				var expr = null, e;
+				var expr = null;
+				var textExpr = null;
 				for( var lhkey in lh) {
+					var e = null;
 					switch(lhkey) {
 						case "Empty":
 							nolookahead = true;
@@ -433,17 +520,56 @@ export statement grammar {
 						case "RegularExpression":
 							e = template(__l.type === "Punctuator" && __l.value === "/");
 							break;
+						case "Text":
+							if (!charlookahead) {
+								charlookahead = true;
+								lcode = lcode.concat(template{ var __lch = parser.tokenizer.peekChar(); });
+							}
+							var lhval = lh[lhkey];
+							if (lhval.chars) {
+								for(var ic = 0; ic < lhval.chars.length; ic++) {
+									var e2 = template(__lch === @({type: "Literal", value: lhval.chars[ic]}));
+									if (e) {
+										e = template(@e || @e2);
+									} else {
+										e = e2;
+									}
+								}
+							}
+							if (lhval.negChars) {
+								for(var ic = 0; ic < lhval.negChars.length; ic++) {
+									var e2 = template(__lch !== @({type: "Literal", value: lhval.negChars[ic]}));
+									if (e) {
+										e = template(@e && @e2);
+									} else {
+										e = e2;
+									}
+								}
+							}
+							break;
 						default:
 							e = template(__l.type !== "String" && __l.value === @({type: "Literal", value: lhkey.slice(1)}));
 							break;
 					}
-					if (expr) {
+					// Concatenate all lookahead-tests into one expression.
+					// Well, two expressions: One for normal tokens and one for raw text-lookahead.
+					if (lhkey === "Text") {
+						if (textExpr) {
+							textExpr = template(@textExpr || @e);
+						} else {
+							textExpr = e;
+						}
+					} else if (expr) {
 						expr = template(@expr || @e);
 					} else {
 						expr = e;
 					}
 				}
-				if (expr && !nolookahead) {
+				if (textExpr && expr && !nolookahead) {
+					lcode.push(template{ if ((__l && @expr) || @textExpr) return this.@bname(parser) });
+				} else if (textExpr && !nolookahead) {
+					lcode.push(template{ if (@textExpr) return this.@bname(parser) });					
+				} else if (expr && !nolookahead) {
 					lcode.push(template{ if (__l && @expr) return this.@bname(parser) });
 				} else {
 					lcode.push(template{ return this.@bname(parser) });
@@ -656,6 +782,64 @@ export statement grammar {
 						} else {
 							code = template{
 								parser.tokenizer.expect(@(s.token.value));
+							}
+						}
+						break;
+					case "Text":
+						// TODO: Handle repetitions
+						var charExpr = {type: "Literal", value: "null"}, ncharExpr = {type: "Literal", value: "null"};
+						if (s.neg) {
+							ncharExpr = {type: "ArrayExpression", elements: []};
+							for(var ic = 0; ic < s.chars.length; ic++) {
+								ncharExpr.elements.push({type: "Literal", value: s.chars[ic]});
+							}
+						} else {
+							charExpr = {type: "ArrayExpression", elements: []};
+							for(var ic = 0; ic < s.chars.length; ic++) {
+								charExpr.elements.push({type: "Literal", value: s.chars[ic]});
+							}
+						}
+						if (s.repeat === "ZeroOrMore") {
+							// Read as many chars as possible. Might be zero
+							if (s.name) {
+								code = template{
+									ast.@n = parser.tokenizer.nextChars(@charExpr, @ncharExpr);
+								}
+							} else {
+								code = template{
+									parser.tokenizer.nextChars(@charExpr, @ncharExpr);
+								}
+							}
+						} else if (s.repeat === "ZeroOrOne") {
+							// Read as many chars as possible. Might be zero
+							if (s.name) {
+								code = template{
+									ast.@n = parser.tokenizer.nextChar(@charExpr, @ncharExpr);
+								}
+							} else {
+								code = template{
+									parser.tokenizer.nextChar(@charExpr, @ncharExpr);
+								}
+							}
+						} else if (s.repeat === "OneOrMore") {
+							if (s.name) {
+								code = template{
+									ast.@n = parser.tokenizer.expectChars(@charExpr, @ncharExpr);
+								}
+							} else {
+								code = template{
+									parser.tokenizer.expectChars(@charExpr, @ncharExpr);
+								}
+							}
+						} else {
+							if (s.name) {
+								code = template{
+									ast.@n = parser.tokenizer.expectChar(@charExpr, @ncharExpr);
+								}
+							} else {
+								code = template{
+									parser.tokenizer.expectChar(@charExpr, @ncharExpr);
+								}
 							}
 						}
 						break;

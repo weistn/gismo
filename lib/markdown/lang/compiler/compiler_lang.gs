@@ -145,11 +145,11 @@ function parseCSS(ast, skipDelimiter) {
         } else {
             tokenizer.nextChar();
         }
-        var name = tokenizer.nextChars(stopAtCSSNameEnd);
+        var name = tokenizer.nextChars(null, stopAtCSSNameEnd);
         ch = tokenizer.peekChar();
         if (ch === 58) { // :
             tokenizer.nextChar();
-            var value = tokenizer.nextChars(stopAtCSSValueEnd).trim();
+            var value = tokenizer.nextChars(null, stopAtCSSValueEnd).trim();
             ch = tokenizer.peekChar();
             ast.style.push({name: name, value: value});
         } else {
@@ -166,7 +166,7 @@ function parseParagraph() {
     var ch = tokenizer.peekChar();
     if (ch === 58) { // :
         tokenizer.nextChar();
-        var name = tokenizer.nextChars(stopAtCSSNameEnd);
+        var name = tokenizer.nextChars(null, stopAtCSSNameEnd);
         if (name == "") {
             parser.throwError(name, "Expected a string or identifier to after :");
         }
@@ -185,7 +185,7 @@ function parseParagraph() {
     var newLine = 0;
     while(newLine < 2) {
         // Get text up to the next punctuator or line end
-        var str = tokenizer.nextChars(stopAt);
+        var str = tokenizer.nextChars(null, stopAt);
         if (str.length != 0) {
             ast.content.push({type: "Text", text: str});
             newLine = 0;
@@ -274,7 +274,7 @@ export operator a {
     if (ch !== 58) { // :
         parser.throwError(null, "Expected : after ~a");
     }
-    var str = tokenizer.nextChars(stopAtUrlEnd);
+    var str = tokenizer.nextChars(null, stopAtUrlEnd);
     console.log("URL", str);
     var ast = {
         type: "Hyperlink",

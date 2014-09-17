@@ -1063,20 +1063,20 @@ Tokenizer.prototype.peek = function() {
     return token;
 }
 
-Tokenizer.prototype.nextChars = function(stopAt) {
+Tokenizer.prototype.nextChars = function(accept, stopAt) {
     var start = this.index;
     while(this.index < this.source.length) {
         var ch = this.source.charCodeAt(this.index);
-        if (stopAt.indexOf(ch) !== -1) {
+        if ((stopAt && stopAt.indexOf(ch) !== -1) || (accept && accept.indexOf(ch) === -1)) {
             return this.source.slice(start, this.index);
         }
         this.index++;
     }
     return this.source.slice(start);
-}
+};
 
 // Line-Ends are collapsed to 10, and EOF is returned as null.
-Tokenizer.prototype.nextChar = function() {
+Tokenizer.prototype.nextChar = function(accept, stopAt) {
     if (this.index === this.source.length) {
         return null;
     }
@@ -1092,7 +1092,10 @@ Tokenizer.prototype.nextChar = function() {
         ch = 10;
     }
 
-    return ch;
+    if ((!stopAt || stopAt.indexOf(ch) === -1) || (!accept || accept.indexOf(ch) !== -1)) {
+        return ch;
+    }
+    return null;
 };
 
 Tokenizer.prototype.peekChar = function() {
@@ -1161,6 +1164,9 @@ exports.newTokenizer = function(source, filename) {
             if (t && t.value === tokenValue && t.type !== "String") {
                 return t;
             }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
+            }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
 
@@ -1168,6 +1174,9 @@ exports.newTokenizer = function(source, filename) {
             var t = tokenizer.next();
             if (t && t.type === Token.Identifier) {
                 return t;
+            }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
             }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
@@ -1177,6 +1186,9 @@ exports.newTokenizer = function(source, filename) {
             if (t && t.type === Token.Punctuator) {
                 return t;
             }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
+            }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
 
@@ -1184,6 +1196,9 @@ exports.newTokenizer = function(source, filename) {
             var t = tokenizer.next();
             if (t && t.type === Token.StringLiteral) {
                 return t;
+            }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
             }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
@@ -1193,6 +1208,9 @@ exports.newTokenizer = function(source, filename) {
             if (t && t.type === Token.NumericLiteral) {
                 return t;
             }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
+            }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
         },
 
@@ -1201,7 +1219,30 @@ exports.newTokenizer = function(source, filename) {
             if (t && t.type === Token.BooleanLiteral) {
                 return t;
             }
+            if (!t) {
+                tokenizer.throwError(errors.Messages.UnexpectedEOS);                
+            }
             tokenizer.throwError(errors.Messages.UnexpectedToken, t.value);
+        },
+
+        // Parses as long as (the char is in chars or chars is null) && (the char is not in nchars or nchars is null).
+        // At least one character must match. Otherwise an exception is thrown.
+        expectChars : function(chars, nchars) {
+            var seq = tokenizer.nextChars(chars, nchars);
+            if (seq.length === 0) {
+                tokenizer.throwError(errors.Messages.UnexpectedChar);                
+            }
+            return seq;
+        },
+
+        // Parses one character for which it must hold that: (the char is in chars or chars is null) && (the char is not in nchars or nchars is null).
+        // At least one character must match. Otherwise an exception is thrown.
+        expectChar : function(chars, nchars) {
+            var ch = tokenizer.nextChar(chars, nchars);
+            if (ch === null) {
+                tokenizer.throwError(errors.Messages.UnexpectedChar);                                
+            }
+            return ch;
         },
 
         expectRegExp : function() {
@@ -1212,12 +1253,13 @@ exports.newTokenizer = function(source, filename) {
             return tokenizer.next();
         },
 
-        nextChars : function(stopAt) {
-            return tokenizer.nextChars(stopAt);
+        // Parses as long as (the char is in chars or chars is null) && (the char is not in nchars or nchars is null)
+        nextChars : function(chars, nchars) {
+            return tokenizer.nextChars(chars, nchars);
         },
 
-        nextChar : function() {
-            return tokenizer.nextChar();
+        nextChar : function(chars, nchars) {
+            return tokenizer.nextChar(chars, nchars);
         },
 
         peekChar : function() {

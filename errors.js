@@ -11,6 +11,7 @@ var Messages = {
     UnexpectedIdentifier:  'Unexpected identifier',
     UnexpectedReserved:  'Unexpected reserved word',
     UnexpectedEOS:  'Unexpected end of input',
+    UnexpectedChar:  'Unexpected character',
     NewlineAfterThrow:  'Illegal newline after throw',
     InvalidRegExp: 'Invalid regular expression',
     UnterminatedRegExp:  'Invalid regular expression: missing /',

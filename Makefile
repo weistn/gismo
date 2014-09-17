@@ -14,6 +14,8 @@ lib:
 	./bin/gismoc ./lib/class
 	./bin/gismoc ./lib/transform
 	./bin/gismoc ./lib/markdown/lang
+	./bin/gismoc ./lib/template/xml/parser
+	./bin/gismoc ./lib/template/xml
 
 clean:
 	rm -f test/module1/main.js
@@ -58,3 +60,11 @@ clean:
 	rm -f lib/markdown/lang/main.js.map
 	rm -f lib/markdown/lang/_meta.js
 	rm -f lib/markdown/lang/_meta.js.map
+	rm -f lib/template/xml/main.js
+	rm -f lib/template/xml/main.js.map
+	rm -f lib/template/xml/_meta.js
+	rm -f lib/template/xml/_meta.js.map
+	rm -f lib/template/xml/parser/main.js
+	rm -f lib/template/xml/parser/main.js.map
+	rm -f lib/template/xml/parser/_meta.js
+	rm -f lib/template/xml/parser/_meta.js.map
