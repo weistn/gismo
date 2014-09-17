@@ -388,18 +388,18 @@ export statement grammar {
 			grammar.rules[rule.name] = rule;
 			continue;
 		}
-		// Expect 'keyword the_keyword'
+		// Expect 'keyword "the_keyword"'
 		if (t.type === "Keyword" && t.value === 'keyword') {
 			parser.tokenizer.next();
-			var keyword = parser.tokenizer.expectIdentifier();
+			var keyword = parser.tokenizer.expectString();
 			parser.parseEndOfStatement();
 			grammar.keywords.push(keyword.value);
 			continue;
 		}
-		// Expect 'punctuator the_punctuator'
+		// Expect 'punctuator "the_punctuator"'
 		if (t.type === "Keyword" && t.value === 'punctuator') {
 			parser.tokenizer.next();
-			var punctuator = parser.tokenizer.expectPunctuator();
+			var punctuator = parser.tokenizer.expectString();
 			parser.parseEndOfStatement();
 			grammar.punctuators.push(punctuator.value);
 			continue;
