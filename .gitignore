@@ -41,4 +41,12 @@ lib/markdown/lang/main.js
 lib/markdown/lang/_meta.js
 lib/markdown/lang/main.js.map
 lib/markdown/lang/_meta.js.map
+lib/template/xml/main.js
+lib/template/xml/_meta.js
+lib/template/xml/main.js.map
+lib/template/xml/_meta.js.map
+lib/template/xml/parser/main.js
+lib/template/xml/parser/_meta.js
+lib/template/xml/parser/main.js.map
+lib/template/xml/parser/_meta.js.map
 scratch.js
