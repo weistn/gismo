@@ -47,8 +47,6 @@ function generateContent(code, ast) {
 				code.push(template{ __node = document.createTextNode(@(literal a.value)); });
 				code.push(template{ __parent.appendChild(__node); });
 				break;
-			case "Entity":
-				// ??
 			case "Code":
 				code.push(template{ __node = @(identifier parser.importAlias(module)).objectToNode(document, @(a.expr)); });
 				code.push(template{ if (__node) __parent.appendChild(__node); });
