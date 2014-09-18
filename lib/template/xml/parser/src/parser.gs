@@ -16,14 +16,15 @@ grammar xmlFragment {
 		= "&" i:Identifier ";" { return {type: "Entity", value: i.name}; }
 		| "&#" n:[0123456789]+ ";" { return {type: "Entity", value: parseInt(n)}; }
 		| "&#x" n:[0123456789abcdef]+ ";" { return {type: "Entity", value: parseInt(n, 16)}; }
+		| "{" expr:Expression "}" { return {type: "Code", expr:expr}; }
 		| t:[^&<{}]+ { return {type: "Text", value: t}; }
 
 	rule tag
-		= "<" name:Identifier attr:attribute* end:tagEnd { end.name = name; end.attributes = attr; return end; }
+		= "<" name:Identifier attr:attribute* end:tagEnd { end.nodeName = name; end.attributes = attr; return end; }
 
 	rule tagEnd
-		= ">" content:tagContent* "</" name2:Identifier ">" { return {type: "Tag", content: content}; }
-		| "/" ">" { return {type: "Tag", content: null}; }
+		= ">" content:tagContent* "</" name2:Identifier ">" { return {type: "Element", content: content}; }
+		| "/" ">" { return {type: "Element", content: null}; }
 
 	rule tagContent
 		= t:tag { return t; }
@@ -34,7 +35,7 @@ grammar xmlFragment {
 
 	rule attributeValue
 		= value:String { return value; }
-		| "{" code:Expression "}" { return code; }
+		| "{" code:Expression "}" { return {type: "Code", expr: code}; }
 }
 
 export function parseFragment(parser) {
