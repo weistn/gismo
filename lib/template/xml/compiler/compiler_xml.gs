@@ -2,6 +2,8 @@ import "gismo/template"
 import "gismo/metaprogramming"
 import "gismo/template/xml/parser" as xmlparser
 
+var counter = 0;
+
 export operator xmlTemplate {
 	parser.tokenizer.expect("{");
 	var ast = xmlparser.parseFragment(parser);
@@ -11,8 +13,9 @@ export operator xmlTemplate {
 		return template(null);
 	}
 
-	var code = [ template{ var __parent = document.createDocumentFragment(), __node; } ];
-	console.log(JSON.stringify(ast, null, "\t"));
+	var code = [ template{ var __parent = document.createDocumentFragment(), __node, $data; } ];
+//	console.log(JSON.stringify(ast, null, "\t"));
+	counter = 0;
 	generateContent(code, ast);
 	code.push(template{ return __parent; })
 
@@ -50,6 +53,26 @@ function generateContent(code, ast) {
 			case "Code":
 				code.push(template{ __node = @(identifier parser.importAlias(module)).objectToNode(document, @(a.expr)); });
 				code.push(template{ if (__node) __parent.appendChild(__node); });
+				break;
+			case "Foreach":
+				var content = [];
+				var arrname = identifier "__arr_" + (counter).toString();
+				var arrlength = identifier "__arrlen_" + (counter).toString();
+				var itname = identifier "__it_" + (counter++).toString();
+				generateContent(content, a.content);
+				code.push(template{ var @arrname = @(a.expr); });
+				code.push(template{ var @arrlength = @arrname.length; });
+				code.push(template{ for (var @itname = 0; @itname < @arrlength; @itname++ ) {
+					$data = @arrname[@itname];
+					@content
+				}});
+				break;
+			case "If":
+				var content = [];
+				generateContent(content, a.content);
+				code.push(template{ if (@(a.expr)) {
+					@content
+				}});
 				break;
 		}
 	}
