@@ -47,6 +47,9 @@ function generateContent(code, ast) {
 				}
 				break;
 			case "Text":
+				if ((i === 0 || i + 1 === ast.length) && a.value.trim() === "") {
+					continue;
+				}
 				code.push(template{ __node = document.createTextNode(@(literal a.value)); });
 				code.push(template{ __parent.appendChild(__node); });
 				break;
