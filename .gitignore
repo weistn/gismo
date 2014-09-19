@@ -51,4 +51,10 @@ lib/template/xml/parser/main.js
 lib/template/xml/parser/_meta.js
 lib/template/xml/parser/main.js.map
 lib/template/xml/parser/_meta.js.map
+lib/template/dom/main.js
+lib/template/dom/_meta.js
+lib/template/dom/main.js.map
+lib/template/dom/_meta.js.map
+lib/template/dom/test/.test1.js
+lib/template/dom/test/.test1.js.map
 scratch.js

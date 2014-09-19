@@ -16,6 +16,7 @@ lib:
 	./bin/gismoc ./lib/markdown/lang
 	./bin/gismoc ./lib/template/xml/parser
 	./bin/gismoc ./lib/template/xml
+	./bin/gismoc ./lib/template/dom
 
 clean:
 	rm -f test/module1/main.js
@@ -64,7 +65,15 @@ clean:
 	rm -f lib/template/xml/main.js.map
 	rm -f lib/template/xml/_meta.js
 	rm -f lib/template/xml/_meta.js.map
+	rm -f lib/template/xml/test/.test1.js
+	rm -f lib/template/xml/test/.test1.js.map
 	rm -f lib/template/xml/parser/main.js
 	rm -f lib/template/xml/parser/main.js.map
 	rm -f lib/template/xml/parser/_meta.js
 	rm -f lib/template/xml/parser/_meta.js.map
+	rm -f lib/template/dom/main.js
+	rm -f lib/template/dom/main.js.map
+	rm -f lib/template/dom/_meta.js
+	rm -f lib/template/dom/_meta.js.map
+	rm -f lib/template/dom/test/.test1.js
+	rm -f lib/template/dom/test/.test1.js.map
