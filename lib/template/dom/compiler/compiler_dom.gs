@@ -15,12 +15,11 @@ export operator domTemplate {
 
 	var code = template{
 		var __children = [], __destructors = []; 
-		var __instance = {
-		};
+		var __instance = Object.create(@(identifier parser.importAlias(module)).Widget.prototype);
 
 		__instance.getFragment = function() {
 			var __f = document.createDocumentFragment();
-			for(var __i = 0; __i < __children.length(); __i++) {
+			for(var __i = 0; __i < __children.length; __i++) {
 				__f.appendChild(__children[__i]);
 			}
 			return __f;	
@@ -48,7 +47,7 @@ export operator domTemplate {
 		};
 
 		for(var __i = 0; __i < __parent.children.length; __i++ ) {
-			__children.push(__parent.children[i]);
+			__children.push(__parent.children[__i]);
 		}
 
 		return __instance;
@@ -63,11 +62,23 @@ function generateContent(code, updateCode, ast) {
 		switch (a.type) {
 			case "Element":
 				code.push(template{ __node = document.createElement(@(literal a.nodeName.name)) });
+				code.push(template{ __parent.appendChild(__node); });
 				if (a.attributes) {
 					for(var j = 0; j < a.attributes.length; j++) {
 						var attr = a.attributes[j];
 						if (attr.value.type === "Code") {
-							code.push(template{ __node.setAttribute(@(literal attr.name.name), @(attr.value.expr)); });
+							var node = identifier "__node_" + (counter).toString();
+							var state = identifier "__state_" + (counter).toString();
+							var newstate = identifier "__newstate_" + (counter++).toString();
+							code.push(template{ var @state = @(attr.value.expr).toString(), @node = __node, @newstate});
+							code.push(template{ __node.setAttribute(@(literal attr.name.name), @state); });
+							updateCode.push.apply(updateCode, template{
+								@newstate = @(attr.value.expr).toString();
+								if (@newstate !== @state) {
+									@state = @newstate;
+									@node.setAttribute(@(literal attr.name.name), @state);	
+								}
+							});
 						} else {
 							code.push(template{ __node.setAttribute(@(literal attr.name.name), @(literal attr.value.value)); });
 						}
@@ -77,8 +88,6 @@ function generateContent(code, updateCode, ast) {
 					code.push(template{ __parent = __node; })
 					generateContent(code, updateCode, a.content);					
 					code.push(template{ __parent = __parent.parentNode; })
-				} else {
-					code.push(template{ __parent.appendChild(__node); });
 				}
 				break;
 			case "Text":
@@ -89,8 +98,48 @@ function generateContent(code, updateCode, ast) {
 				code.push(template{ __parent.appendChild(__node); });
 				break;
 			case "Code":
-				code.push(template{ __node = @(identifier parser.importAlias(module)).objectToNode(document, @(a.expr)); });
-				code.push(template{ if (__node) __parent.appendChild(__node); });
+				var create = identifier "__create_" + (counter).toString();
+				var nodes = identifier "__nodes_" + (counter).toString();
+				var state = identifier "__state_" + (counter).toString();
+				var newstate = identifier "__newstate_" + (counter++).toString();
+
+				code.push.apply(code, template{
+					var @state = @(a.expr), @nodes, @newstate;
+					function @create() {
+						__node = @(identifier parser.importAlias(module)).objectToNode(document, @state);
+						if (__node.nodeType === 11) {
+							// The expression resulted in a fragment. Remember all nodes inside
+							@nodes = [];
+							for(var __i = 0; __i < __node.children.length; __i++) {
+								@nodes.push(__node.children[__i]);
+							}
+						} else {
+							@nodes = [__node];
+						}
+						return __node;
+					}
+					__parent.appendChild(@create());
+				});
+
+				updateCode.push.apply(updateCode, template{
+					@newstate = @(a.expr);
+					if (@newstate !== @state) {
+						// If the previous value and the new value are strings
+						if ((typeof @newstate === "string" || typeof @newstate === "number" || typeof @newstate === "boolean") &&
+							(typeof @state === "string" || typeof @state === "number" || typeof @state === "boolean")) {
+							@state = @newstate;
+							@nodes[0].data = @state.toString();
+						} else {
+							@state = @newstate;
+							var __before = null;
+							// Remove the old nodes
+
+							// Insert the new nodes
+							__node = @create();						
+						}
+					}
+				});
+
 				break;
 			case "Foreach":
 				if (a.content.length === 0) {
@@ -104,6 +153,7 @@ function generateContent(code, updateCode, ast) {
 				var destroy = identifier "__destroy_" + counter.toString();
 				var createAll = identifier "__createAll_" + counter.toString();
 				var destroyAll = identifier "__destroyAll_" + counter.toString();
+				counter++;
 				code.push(template{ var @arrname = @(a.expr), @items, @newarrname, @comment; });
 
 				// Process the content inside th foreach-clause
@@ -122,7 +172,7 @@ function generateContent(code, updateCode, ast) {
 							var __len = @arrname.length;
 							for(var __i = 0; __i < __len; __i++) {
 								var __item = {};
-								__parent.appendChild(@create(item, @arrname[__i]));
+								__parent.appendChild(@create(__item, @arrname[__i]));
 								@items.push(__item);
 							}
 						}
@@ -171,23 +221,62 @@ function generateContent(code, updateCode, ast) {
 					// The foreach-expression changed? Then replace everything
 					@newarrname = @(a.expr);
 					if (@arrname != @newarrname) {
-						var __oldcomment = @newnodes.children[0];
-						@destroyAll();
-						@arrname = @newarrname;
-						@newnodes = @create();
-						// Insert the new nodes instead of the old nodes
-						@nodes[0].parentNode.insertBefore(@newnodes, __oldcomment);
+						var __oldcomment = @comment;
+						// Remove the old nodes
 						for(var __i = 0; __i < @items.length; __i++) {
-							var __item = @items[i];
-							for(var __i = 0; __i < __item.nodes.length; __i++) {
-								__oldcomment.parentNode.removeChild(__item.nodes[__i]);
+							var __item = @items[__i];
+							for(var __j = 0; __j < __item.nodes.length; __j++) {
+								__oldcomment.parentNode.removeChild(__item.nodes[__j]);
 							}
 						}
+						@destroyAll();
+						@arrname = @newarrname;
+						var __newnodes = @createAll();
+						// Insert the new nodes instead of the old comment
+						__oldcomment.parentNode.insertBefore(__newnodes, __oldcomment);
 						__oldcomment.parentNode.removeChild(__oldcomment);
-						@newnodes = null;
+						__newnodes = null;
 					} else {
 						if (@arrname.changes) {
-							// TODO: Handles removals or insertions
+							// Handle removals or insertions
+							var __pos = 0;
+							for(var __i = 0; __i < @arrname.changes.length; __i++) {
+								var __change = @arrname.changes[__i];
+								switch(__change.type) {
+									case "ins":
+										var __before = null;
+										for(var __k = __pos; __k < @items.length; __k++) {
+											if (@items[__k].nodes.length > 0) {
+												__before = @items[__k].nodes[0];
+												break;
+											}
+										}
+										for(var __j = 0; __j < __change.length; __j++) {
+											var __item = {};
+											@comment.parentNode.insertBefore(@create(__item, @arrname[__pos + __j]), __before);
+											@items.splice(__pos + __j, 0, __item);
+										}
+										__pos += __change.length;
+										break;
+									case "skip":
+										for(var __j = 0; __j < __change.length; __j++) {
+											@items[__j].update();
+										}
+										__pos += __change.length;
+										break;
+									case "del":
+										// Remove the old nodes
+										for(var __k = __pos; __k < __pos + __change.length; __k++) {
+											var __item = @items[__k];
+											for(var __j = 0; __j < __item.nodes.length; __j++) {
+												@comment.parentNode.removeChild(__item.nodes[__j]);
+											}
+											@destroy(__item);
+										}
+										@items.splice(__pos, __change.length);
+										break;
+								}
+							}
 						} else {
 							// No changes to the array itself. See if any item needs updating
 							for (var __i = 0; __i < @items.length; __i++) {
@@ -205,9 +294,10 @@ function generateContent(code, updateCode, ast) {
 				var destroy = identifier "__destroy_" + counter.toString();
 				var destructors = identifier "__destructors_" + counter.toString();
 				var nodes = identifier "__nodes_" + counter.toString();
+				var oldnodes = identifier "__oldnodes_" + counter.toString();
 				var newnodes = identifier "__newnodes_" + counter.toString();
 				var state = identifier "__state_" + (counter++).toString();
-				code.push(template{ var @state = !!@(a.expr), @nodes, @newnodes, @destructors; });
+				code.push(template{ var @state = !!@(a.expr), @nodes, @newnodes, @oldnodes, @destructors; });
 
 				// Process the content inside th if-clause
 				var content = [];
@@ -218,12 +308,17 @@ function generateContent(code, updateCode, ast) {
 				code.push.apply(code, template{
 					function @create() {
 						if (!@state) {
-							return document.createComment("placeholder");
+							@nodes = [document.createComment("placeholder")];
+							return @nodes[0];
 						}
 						var __parent = document.createDocumentFragment();
 						var __destructors = [];
 						@content
 						@destructors = __destructors;
+						@nodes = [];
+						for(var __i = 0; __i < __parent.children.length; __i++) {
+							@nodes.push(__parent.children[__i]);
+						}
 						return __parent;
 					}
 
@@ -238,25 +333,26 @@ function generateContent(code, updateCode, ast) {
 
 				// Render the code
 				code.push(template{
-					__parent.appendChild(@nodes = @create());
+					__parent.appendChild(@create());
 				});
 
 				// Code that updates the DOM as data changes
 				updateCode.push(template{
 					// The if-expression changed?
-					if (@state != @(a.expr)) {
+					if (@state !== !!@(a.expr)) {
 						@state = !@state;
+						@oldnodes = @nodes;
 						if (!@state) {
 							@destroy();
 						}
 						@newnodes = @create();
 						// Insert the new nodes instead of the old nodes
-						@nodes[0].parentNode.insertBefore(@newnodes, @nodes[0]);
-						for(var __i = 0; __i < @nodes.length; __i++) {
-							@nodes[i].parentNode.removeChild(@nodes[__i]);
+						@oldnodes[0].parentNode.insertBefore(@newnodes, @oldnodes[0]);
+						for(var __i = 0; __i < @oldnodes.length; __i++) {
+							@oldnodes[__i].parentNode.removeChild(@oldnodes[__i]);
 						}
-						@nodes = @newnodes;
 						@newnodes = null;
+						@oldnodes = null;
 					} else {
 						// See if any children need to update
 						@updateContent
