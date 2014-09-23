@@ -6,7 +6,6 @@ var require = function() {
 				return ns.objectToNode(obj());					
 			case "object":
 				if (obj instanceof ns.Widget) {
-					console.log("GOT a widget")
 					return obj;
 				} else if (typeof(obj.nodeType) === "number") {
 					return obj;
@@ -18,11 +17,8 @@ var require = function() {
 		},
 
 		Widget: function() {
-		},
-
-		isWidget: function(w) {
-
 		}
+
 	};
 
 	return ns;
@@ -46,12 +42,12 @@ var alright = true;
 
 // <div style."font-weight"={....} class."super"={...}
 
-var tmpl1 = domTemplate(){
-	<p>Length is {hossa.length}</p>
+var tmpl1 = domTemplate(css){
+	<p class={css}>Length is {hossa.length}</p>
 };
 
-var tmpl1b = domTemplate(){
-	<p>A length of {hossa.length} is small</p>
+var tmpl1b = domTemplate(css){
+	<p class={css}>A length of {hossa.length} is small</p>
 };
 
 var tmpl2 = domTemplate(){
@@ -64,7 +60,7 @@ var tmpl2 = domTemplate(){
 		<p>Everything is alright</p>
 		<p>Let us go on</p>
 	{/if}
-	{hossa.length <= 2 ? new tmpl1b() : new tmpl1()}
+	{hossa.length <= 2 ? new tmpl1b(hossa[0].cssClass) : new tmpl1(hossa[0].cssClass)}
 }
 
 window.createControl = function() {

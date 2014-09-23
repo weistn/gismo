@@ -8,10 +8,10 @@ export operator domTemplate {
 	// Parse parameters
 	var args = [];
 	parser.tokenizer.expect("(");
-	var arg = parser.tokenizer.presumeIdentifier();
+	var arg = parser.tokenizer.presumeIdentifier(true);
 	while(arg) {
-		args.push(arg);
-		if (!parser.tokenizer.presume(",")) {
+		args.push(arg.value);
+		if (!parser.tokenizer.presume(",", true)) {
 			break;
 		}
 		arg = parser.tokenizer.expectIdentifier();
@@ -33,7 +33,7 @@ export operator domTemplate {
 
 	var loadParameters = [];
 	for(var i = 0; i < args.length; i++) {
-		loadParameters.push(template{ var @(args[i]) = this.__arguments[@i]; });
+		loadParameters.push(template{ var @(identifier args[i]) = this.__arguments[@i]; });
 	}
 
 	var code = template{
