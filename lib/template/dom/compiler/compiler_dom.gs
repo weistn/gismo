@@ -5,6 +5,19 @@ import "gismo/template/xml/parser" as xmlparser
 var counter = 0;
 
 export operator domTemplate {
+	// Parse parameters
+	var args = [];
+	parser.tokenizer.expect("(");
+	var arg = parser.tokenizer.presumeIdentifier();
+	while(arg) {
+		args.push(arg);
+		if (!parser.tokenizer.presume(",")) {
+			break;
+		}
+		arg = parser.tokenizer.expectIdentifier();
+	}
+	parser.tokenizer.expect(")");
+
 	parser.tokenizer.expect("{");
 	var ast = xmlparser.parseFragment(parser);
 	parser.tokenizer.expect("}");
@@ -13,47 +26,72 @@ export operator domTemplate {
 		ast = [];
 	}
 
-	var code = template{
-		var __children = [], __destructors = []; 
-		var __instance = Object.create(@(identifier parser.importAlias(module)).Widget.prototype);
-
-		__instance.getFragment = function() {
-			var __f = document.createDocumentFragment();
-			for(var __i = 0; __i < __children.length; __i++) {
-				__f.appendChild(__children[__i]);
-			}
-			return __f;	
-		};
-
-		__instance.destroy = function() {
-			__children = null;
-			for(var __i = 0; __i < __destructors.length; __i++) {
-				__destructors[__i]();
-			}
-		};
-
-		var __parent = document.createDocumentFragment(), __node, $data;
-	};
-
 	var updateCode = [];
-
-//	console.log(JSON.stringify(ast, null, "\t"));
+	var createCode = [];
 	counter = 0;
-	generateContent(code, updateCode, ast);
+	generateContent(createCode, updateCode, ast);
 
-	code = code.concat(template{
-		__instance.update = function() {
+	var loadParameters = [];
+	for(var i = 0; i < args.length; i++) {
+		loadParameters.push(template{ var @(args[i]) = this.__arguments[@i]; });
+	}
+
+	var code = template{
+		var widget_update = function(@args) {
+			var $data, __newstate;
 			@updateCode
 		};
 
-		for(var __i = 0; __i < __parent.children.length; __i++ ) {
-			__children.push(__parent.children[__i]);
+		var widget_create = function() {
+			// Load all stored parameters in local variables
+			@loadParameters
+
+			var __destructors = [];
+			var __parent = document.createDocumentFragment(), __node, $data;
+			@createCode
+			this.__destructors = __destructors;
+
+			// TODO: Move to base class
+			for(var __i = 0; __i < __parent.children.length; __i++ ) {
+				this.__children.push(__parent.children[__i]);
+			}
+			if (this.__children.length === 0) {
+				var placeholder = document.createComment("placeholder");
+				__parent.appendChild(placeholder);
+				this.__children = [placeholder];
+			}
+			return __parent;
+		};
+
+		var widget_destroy = function() {
+			// TODO: Move to base class
+			this.__children = null;
+			for(var __i = 0; __i < this.__destructors.length; __i++) {
+				this.__destructors[__i]();
+			}
+			this.__destructors = null;
+		};
+
+		// ctor accepts a variable list of parameters.
+		// The update function expects exactly the same parameters.
+		function ctor() {
+			// TODO: Move to base class
+			this.__children = [];
+			this.__destructors = null;
+			this.__arguments = arguments;
+			this.constructor = ctor;
 		}
 
-		return __instance;
-	});
+		ctor.prototype = Object.create(@(identifier parser.importAlias(module)).Widget.prototype);
+		ctor.prototype.create = widget_create;
+		ctor.prototype.update = widget_update;
+		ctor.prototype.destroy = widget_destroy;
 
-	return template(function(){@code});
+		return ctor;
+	};
+
+	var params = [];
+	return template((function(@params){@code})());
 }
 
 function generateContent(code, updateCode, ast) {
@@ -67,15 +105,16 @@ function generateContent(code, updateCode, ast) {
 					for(var j = 0; j < a.attributes.length; j++) {
 						var attr = a.attributes[j];
 						if (attr.value.type === "Code") {
-							var node = identifier "__node_" + (counter).toString();
-							var state = identifier "__state_" + (counter).toString();
-							var newstate = identifier "__newstate_" + (counter++).toString();
-							code.push(template{ var @state = @(attr.value.expr).toString(), @node = __node, @newstate});
+							var node = template(this.@(identifier "__node_" + (counter).toString()));
+							var state = template(this.@(identifier "__state_" + (counter).toString()));
+							counter++;
+							code.push(template{ @state = @(attr.value.expr).toString(); });
+							code.push(template{ @node = __node; });
 							code.push(template{ __node.setAttribute(@(literal attr.name.name), @state); });
 							updateCode.push.apply(updateCode, template{
-								@newstate = @(attr.value.expr).toString();
-								if (@newstate !== @state) {
-									@state = @newstate;
+								__newstate = @(attr.value.expr).toString();
+								if (__newstate !== @state) {
+									@state = __newstate;
 									@node.setAttribute(@(literal attr.name.name), @state);	
 								}
 							});
@@ -98,15 +137,19 @@ function generateContent(code, updateCode, ast) {
 				code.push(template{ __parent.appendChild(__node); });
 				break;
 			case "Code":
-				var create = identifier "__create_" + (counter).toString();
-				var nodes = identifier "__nodes_" + (counter).toString();
-				var state = identifier "__state_" + (counter).toString();
-				var newstate = identifier "__newstate_" + (counter++).toString();
-
+				var create = template(this.@(identifier "__create_" + (counter).toString()));
+				var nodes = template(this.@(identifier "__nodes_" + (counter).toString()));
+				var state = template(this.@(identifier "__state_" + (counter).toString()));
+				var destroy = template(this.@(identifier "__destroy_" + (counter).toString()));
+				counter++;
 				code.push.apply(code, template{
-					var @state = @(a.expr), @nodes, @newstate;
-					function @create() {
-						__node = @(identifier parser.importAlias(module)).objectToNode(document, @state);
+					@state = @(a.expr);
+					
+					@create = function() {
+						var __node = @(identifier parser.importAlias(module)).objectToNode(document, @state);
+						if (__node instanceof @(identifier parser.importAlias(module)).Widget) {
+							__node = __node.create();
+						}
 						if (__node.nodeType === 11) {
 							// The expression resulted in a fragment. Remember all nodes inside
 							@nodes = [];
@@ -118,24 +161,43 @@ function generateContent(code, updateCode, ast) {
 						}
 						return __node;
 					}
+
+					@destroy = function() {
+						if (@state instanceof @(identifier parser.importAlias(module)).Widget) {
+							@state.destroy();
+						}
+						@state = null;
+						@nodes = null;
+					};
+
 					__parent.appendChild(@create());
+					__destructors.push(@destroy);
 				});
 
 				updateCode.push.apply(updateCode, template{
-					@newstate = @(a.expr);
-					if (@newstate !== @state) {
+					__newstate = @(a.expr);
+					if (__newstate !== @state) {
 						// If the previous value and the new value are strings
-						if ((typeof @newstate === "string" || typeof @newstate === "number" || typeof @newstate === "boolean") &&
+						if ((typeof __newstate === "string" || typeof __newstate === "number" || typeof __newstate === "boolean") &&
 							(typeof @state === "string" || typeof @state === "number" || typeof @state === "boolean")) {
-							@state = @newstate;
+							@state = __newstate;
 							@nodes[0].data = @state.toString();
 						} else {
-							@state = @newstate;
-							var __before = null;
-							// Remove the old nodes
-
-							// Insert the new nodes
-							__node = @create();						
+							__newstate = @(identifier parser.importAlias(module)).objectToNode(document, __newstate);
+							if ((@state instanceof @(identifier parser.importAlias(module)).Widget) && (__newstate instanceof @(identifier parser.importAlias(module)).Widget) && @state.constructor === __newstate.constructor) {
+								// Simply update the existing widget
+								@state.update.apply(@state, __newstate.__arguments);
+							} else {
+								// Remove the old nodes
+								var __before = @nodes[@nodes.length-1].nextSibling;
+								var __parent = @nodes[0].parentNode;
+								for(var __i = @nodes.length - 1; __i >= 0; __i--) {
+									__parent.removeChild(@nodes[__i]);
+								}
+								@destroy();
+								@state = __newstate;
+								__parent.insertBefore(@create(), __before);
+							}
 						}
 					}
 				});
@@ -145,17 +207,15 @@ function generateContent(code, updateCode, ast) {
 				if (a.content.length === 0) {
 					continue;
 				}
-				var arrname = identifier "__arr_" + (counter).toString();
-				var newarrname = identifier "__newarr_" + (counter).toString();
-				var items = identifier "__items_" + (counter).toString();
-				var comment = identifier "__comment_" + (counter).toString();
-				var create = identifier "__create_" + counter.toString();
-				var destroy = identifier "__destroy_" + counter.toString();
-				var createAll = identifier "__createAll_" + counter.toString();
-				var destroyAll = identifier "__destroyAll_" + counter.toString();
+				var arrname = template(this.@(identifier "__arr_" + (counter).toString()));
+				var items = template(this.@(identifier "__items_" + (counter).toString()));
+				var comment = template(this.@(identifier "__comment_" + (counter).toString()));
+				var update = template(this.@(identifier "__update_" + counter.toString()));
+				var create = template(this.@(identifier "__create_" + counter.toString()));
+				var destroy = template(this.@(identifier "__destroy_" + counter.toString()));
+				var createAll = template(this.@(identifier "__createAll_" + counter.toString()));
+				var destroyAll = template(this.@(identifier "__destroyAll_" + counter.toString()));
 				counter++;
-				code.push(template{ var @arrname = @(a.expr), @items, @newarrname, @comment; });
-
 				// Process the content inside th foreach-clause
 				var content = [];
 				var updateContent = [];
@@ -163,7 +223,9 @@ function generateContent(code, updateCode, ast) {
 
 				// Code to create and destroy the content
 				code.push.apply(code, template{
-					function @createAll() {
+					@arrname = @(a.expr);
+
+					@createAll = function() {
 						var __parent = document.createDocumentFragment();
 						// A placeholder in case the array is empty
 						__parent.appendChild(@comment = document.createComment("placeholder"));
@@ -172,16 +234,16 @@ function generateContent(code, updateCode, ast) {
 							var __len = @arrname.length;
 							for(var __i = 0; __i < __len; __i++) {
 								var __item = {};
-								__parent.appendChild(@create(__item, @arrname[__i]));
+								__parent.appendChild(@create.call(__item, @arrname[__i]));
 								@items.push(__item);
 							}
 						}
 						return __parent;						
 					}
 
-					function @destroyAll() {
+					@destroyAll = function() {
 						for(var __i = 0; __i < @items.length; __i++) {
-							@destroy(@items[__i]);
+							@destroy.call(@items[__i]);
 						}
 						@items = null;
 						@comment = null;
@@ -189,38 +251,38 @@ function generateContent(code, updateCode, ast) {
 					}
 					__destructors.push(@destroyAll);
 
-					function @create(__item, $data) {
+					@create = function($data) {
 						var __parent = document.createDocumentFragment();
 						var __destructors = [];
 						@content
-						__item.destructors = __destructors;
-						__item.nodes = [];
+						this.destructors = __destructors;
+						this.nodes = [];
+						this.$data = $data;
 						for(var __i = 0; __i < __parent.children.length; __i++) {
-							__item.nodes.push(__parent.children[__i]);
+							this.nodes.push(__parent.children[__i]);
 						}
-						__item.update = function() {
-							@updateContent
-						};
 						return __parent;
 					}
 
-					function @destroy(item) {
-						for(var __i = 0; __i < item.destructors.length; __i++) {
-							item.destructors[__i]();
+					@destroy = function() {
+						for(var __i = 0; __i < this.destructors.length; __i++) {
+							this.destructors[__i]();
 						}
 					}
-				});
 
-				// Render the code
-				code.push(template{
+					@update = function() {
+						var $data = this.$data;
+						@updateContent
+					};
+
 					__parent.appendChild(@createAll());
 				});
 
 				// Code that updates the DOM as data changes
 				updateCode.push.apply(updateCode, template{
 					// The foreach-expression changed? Then replace everything
-					@newarrname = @(a.expr);
-					if (@arrname != @newarrname) {
+					__newstate = @(a.expr);
+					if (@arrname != __newstate) {
 						var __oldcomment = @comment;
 						// Remove the old nodes
 						for(var __i = 0; __i < @items.length; __i++) {
@@ -230,7 +292,7 @@ function generateContent(code, updateCode, ast) {
 							}
 						}
 						@destroyAll();
-						@arrname = @newarrname;
+						@arrname = __newstate;
 						var __newnodes = @createAll();
 						// Insert the new nodes instead of the old comment
 						__oldcomment.parentNode.insertBefore(__newnodes, __oldcomment);
@@ -253,14 +315,14 @@ function generateContent(code, updateCode, ast) {
 										}
 										for(var __j = 0; __j < __change.length; __j++) {
 											var __item = {};
-											@comment.parentNode.insertBefore(@create(__item, @arrname[__pos + __j]), __before);
+											@comment.parentNode.insertBefore(@create.call(__item, @arrname[__pos + __j]), __before);
 											@items.splice(__pos + __j, 0, __item);
 										}
 										__pos += __change.length;
 										break;
 									case "skip":
 										for(var __j = 0; __j < __change.length; __j++) {
-											@items[__j].update();
+											@update.call(@items[__j]);
 										}
 										__pos += __change.length;
 										break;
@@ -271,7 +333,7 @@ function generateContent(code, updateCode, ast) {
 											for(var __j = 0; __j < __item.nodes.length; __j++) {
 												@comment.parentNode.removeChild(__item.nodes[__j]);
 											}
-											@destroy(__item);
+											@destroy.call(__item);
 										}
 										@items.splice(__pos, __change.length);
 										break;
@@ -280,7 +342,7 @@ function generateContent(code, updateCode, ast) {
 						} else {
 							// No changes to the array itself. See if any item needs updating
 							for (var __i = 0; __i < @items.length; __i++) {
-								@items[__i].update();
+								@update.call(@items[__i]);
 							}
 						}
 					}
@@ -290,14 +352,15 @@ function generateContent(code, updateCode, ast) {
 				if (a.content.length === 0) {
 					continue;
 				}
-				var create = identifier "__create_" + counter.toString();
-				var destroy = identifier "__destroy_" + counter.toString();
-				var destructors = identifier "__destructors_" + counter.toString();
-				var nodes = identifier "__nodes_" + counter.toString();
+				var create = template(this.@(identifier "__create_" + counter.toString()));
+				var destroy = template(this.@(identifier "__destroy_" + counter.toString()));
+				var destructors = template(this.@(identifier "__destructors_" + counter.toString()));
+				var nodes = template(this.@(identifier "__nodes_" + counter.toString()));
 				var oldnodes = identifier "__oldnodes_" + counter.toString();
 				var newnodes = identifier "__newnodes_" + counter.toString();
-				var state = identifier "__state_" + (counter++).toString();
-				code.push(template{ var @state = !!@(a.expr), @nodes, @newnodes, @oldnodes, @destructors; });
+				var state = template(this.@(identifier "__state_" + (counter).toString()));
+				counter++
+				code.push(template{ var @newnodes, @oldnodes; });
 
 				// Process the content inside th if-clause
 				var content = [];
@@ -306,7 +369,8 @@ function generateContent(code, updateCode, ast) {
 
 				// Code to create and destroy the content
 				code.push.apply(code, template{
-					function @create() {
+					@state = !!@(a.expr);
+					@create = function() {
 						if (!@state) {
 							@nodes = [document.createComment("placeholder")];
 							return @nodes[0];
@@ -322,7 +386,7 @@ function generateContent(code, updateCode, ast) {
 						return __parent;
 					}
 
-					function @destroy() {
+					@destroy = function() {
 						for(var __i = 0; __i < @destructors.length; __i++) {
 							@destructors[__i]();
 						}

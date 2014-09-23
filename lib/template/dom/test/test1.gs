@@ -2,12 +2,18 @@ var require = function() {
 	var ns = {
 		objectToNode: function(doc, obj) {
 			switch(typeof obj) {
-				case "Object":
+			case "function":
+				return ns.objectToNode(obj());					
+			case "object":
+				if (obj instanceof ns.Widget) {
+					console.log("GOT a widget")
 					return obj;
-				case "Function":
-					return obj();					
-				default:
-					return doc.createTextNode(obj.toString());
+				} else if (typeof(obj.nodeType) === "number") {
+					return obj;
+				} 
+				// Break left out intentionally
+			default:
+				return doc.createTextNode(obj.toString());
 			}
 		},
 
@@ -24,7 +30,7 @@ var require = function() {
 
 import "gismo/template/dom"
 
-var tmpl = domTemplate{<h1>Hallo Welt, die Antwort ist {12*2} <img src="hudel.gif" alt={ foo() } />&quot;&#65;&#x20;</h1>}
+var tmpl = domTemplate(){<h1>Hallo Welt, die Antwort ist {12*2} <img src="hudel.gif" alt={ foo() } />&quot;&#65;&#x20;</h1>}
 
 var hossa = [
 	{
@@ -40,11 +46,15 @@ var alright = true;
 
 // <div style."font-weight"={....} class."super"={...}
 
-var tmpl1 = domTemplate{
+var tmpl1 = domTemplate(){
 	<p>Length is {hossa.length}</p>
 };
 
-var tmpl2 = domTemplate{
+var tmpl1b = domTemplate(){
+	<p>A length of {hossa.length} is small</p>
+};
+
+var tmpl2 = domTemplate(){
 	<ul>
 		{foreach hossa}
 			<li class={$data.cssClass}>Point {$data.name}</li>
@@ -54,12 +64,12 @@ var tmpl2 = domTemplate{
 		<p>Everything is alright</p>
 		<p>Let us go on</p>
 	{/if}
+	{hossa.length <= 2 ? new tmpl1b() : new tmpl1()}
 }
 
 window.createControl = function() {
-    var instance = tmpl2();
-    var frag = instance.getFragment();
-    console.log(frag);
+    var instance = new tmpl2();
+    var frag = instance.create();
     document.getElementById('main').appendChild(frag);
     document.getElementById("button").addEventListener("click", function() {
     	alright = !alright;
@@ -92,7 +102,6 @@ window.createControl = function() {
     		name: "Five",
     		cssClass: ""
     	});
-    	console.log(hossa);
     	hossa.changes = [
     		{
     			type: "skip",
