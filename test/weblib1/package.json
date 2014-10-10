@@ -1,0 +1,25 @@
+{
+    "name": "weblib1",
+    "version": "0.0.1",
+    "description": "TODO",
+    "main": "main.js",
+    "author": "TODO",
+    "license": "TODO",
+    "gismo": {
+        "uniqueId": "9ca1613d968c4752d4e4a5ca1d88ddd0",
+    	"weblib": true,
+    	"extensions": {
+    		".gs": {
+    			"action": "compile"
+    			},
+    		".md": {
+    			"action": "compile",
+    			"import": "gismo/markdown/lang"
+    		},
+    		".html": "copy",
+    		".css": "copy",
+    		".png": "copy",
+    		".jpeg": "copy"
+    	}    	
+    }
+}

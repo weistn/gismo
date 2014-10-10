@@ -1,0 +1,11 @@
+{
+    "name": "build",
+    "version": "0.0.1",
+    "description": "TODO",
+    "main": "main.js",
+    "author": "TODO",
+    "license": "TODO",
+    "gismo": {
+        "uniqueId": "877fde49d45723e8355b2afac0972ca6"
+    }
+}
