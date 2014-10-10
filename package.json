@@ -4,7 +4,7 @@
   "description": "Programming language with extensible syntax",
   "main": "index.js",
   "scripts": {
-    "test": "make test"
+    "install": "make"
   },
   "keywords": [
     "gismo",
@@ -26,13 +26,11 @@
     "commander": "^2.2.0",
     "escodegen": "^1.3.2",
     "promptly": "^0.2.0",
+    "requirejs": "^2.1.15",
     "source-map": "^0.1.34"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/weistn/gismo.git"
-  },
-  "scripts": {
-    "install": "make"
   }
 }
