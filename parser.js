@@ -912,7 +912,7 @@ function importParser() {
 //	var path = jsfile.substr(0, jsfile.lastIndexOf('/') + 1);
 	this.importModuleRunning = true;
 	try {
-		this.compiler.importMetaModule(this, p, as.name);
+		this.compiler.importMetaModule(this, p, as.name, name.value);
 	} catch(err) {
 		if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
 			throw err;
@@ -922,6 +922,15 @@ function importParser() {
 	this.importModuleRunning = false;
 
 	var endloc = this.tokenizer.location();
+
+	// In web apps the importing is realized differently
+	if (this.compiler.options.weblib && !this.compiler.compilingMetaModule) {
+		return {
+			type: "EmptyStatement"
+		};
+	}
+
+	// Import using modejs require
 	return {
 		loc: {source: loc.filename, start: loc.loc, end: endloc.loc},
         "type": "VariableDeclaration",

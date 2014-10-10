@@ -1,29 +1,3 @@
-var require = function() {
-	var ns = {
-		objectToNode: function(doc, obj) {
-			switch(typeof obj) {
-			case "function":
-				return ns.objectToNode(obj());					
-			case "object":
-				if (obj instanceof ns.Widget) {
-					return obj;
-				} else if (typeof(obj.nodeType) === "number") {
-					return obj;
-				} 
-				// Break left out intentionally
-			default:
-				return doc.createTextNode(obj.toString());
-			}
-		},
-
-		Widget: function() {
-		}
-
-	};
-
-	return ns;
-};
-
 import "gismo/template/dom"
 
 var tmpl = domTemplate(){<h1>Hallo Welt, die Antwort ist {12*2} <img src="hudel.gif" alt={ foo() } />&quot;&#65;&#x20;</h1>}
@@ -39,11 +13,25 @@ var hossa = [
 	}
 ];
 var alright = true;
+var person = {
+	_name: "Horst",
+	_adult: true,
+	get name() { return this._name; },
+	set name(value) {
+		this._name = value;
+		dom.__triggerUpdate();
+	},
+	get adult() { return this._adult; },
+	set adult(value) {
+		this._adult = value;
+		dom.__triggerUpdate();
+	}
+}
 
-// <div style."font-weight"={....} class."super"={...}
+// <div style={{fontWeight:..., color:xxxx}} class={{important: ....}}
 
 var tmpl1 = domTemplate(css){
-	<p class={css}>Length is {hossa.length}</p>
+	<p class={css} style={{color: hossa.length > 3 ? "green" : "black"}}>Length is {hossa.length}</p>
 };
 
 var tmpl1b = domTemplate(css){
@@ -53,18 +41,29 @@ var tmpl1b = domTemplate(css){
 var tmpl2 = domTemplate(){
 	<ul>
 		{foreach hossa}
-			<li class={$data.cssClass}>Point {$data.name}</li>
+			<li class={$data.cssClass}>Point number {$index} is {$data.name}</li>
 		{/foreach}
 	</ul>
 	{if alright}
-		<p>Everything is alright</p>
+		<p class={{green: hossa.length > 3}}>Everything is alright</p>
 		<p>Let us go on</p>
 	{/if}
 	{hossa.length <= 2 ? new tmpl1b(hossa[0].cssClass) : new tmpl1(hossa[0].cssClass)}
+	<div>
+		<input type="text" value={person.name} /> is {person.name}
+	</div>
+	<div>
+		<textarea value={person.name} /> is {person.name.length > 10 ? person.name.slice(0,10) + "..." : person.name}
+	</div>
+	<div>
+		<input type="checkbox" checked={person.adult} /> {if person.adult}is over 18{/if}
+		<input type="checkbox" checked={person.adult} />
+	</div>
 }
 
 window.createControl = function() {
     var instance = new tmpl2();
+    dom.__registerWidget(instance);
     var frag = instance.create();
     document.getElementById('main').appendChild(frag);
     document.getElementById("button").addEventListener("click", function() {
@@ -128,4 +127,7 @@ window.createControl = function() {
     	instance.update();    	
     });
 }
+
+window.createControl();
+
 

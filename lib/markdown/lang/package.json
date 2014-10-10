@@ -5,5 +5,7 @@
     "main": "main.js",
     "author": "TODO",
     "license": "TODO",
-    "gismo": {}
+    "gismo": {
+    	"uniqueId": "1ca1613d968c4752d4e4a5ca1d88dd10"
+    }
 }

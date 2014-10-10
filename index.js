@@ -5,6 +5,7 @@ var fs = require('fs');
 var errors = require('./errors.js');
 var colors = require('colors');
 var promptly = require('promptly');
+var crypto = require('crypto');
 
 var pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(module.filename), 'package.json'), 'utf8'));
 
@@ -21,6 +22,10 @@ function initModule() {
 			console.log("A file or directory of this name already exists".yellow);
 			return;
 		}
+		var h = crypto.createHash("md5");
+		h.write(Math.random().toString());
+		var hv = h.digest();
+		var id = hv.hexSlice(0, hv.length);
 		try {
 			fs.mkdirSync(value);
 			fs.mkdirSync(path.join(value, "src"));
@@ -33,7 +38,9 @@ function initModule() {
 				"main": "main.js",
 				"author": "TODO",
 				"license": "TODO",
-				"gismo": { }
+				"gismo": {
+					"uniqueId": id
+				}
 			};
 			fs.writeFileSync(path.join(value, "package.json"), JSON.stringify(pkg, null, '    '));
 			fs.writeFileSync(path.join(value, "src", path.basename(value) + ".gs"), "");
@@ -44,20 +51,32 @@ function initModule() {
 	});
 }
 
+function cleanModule() {
+	var options = arguments[arguments.length - 1];
+	var m = require("./clean.js");
+	var args = Array.prototype.slice.call(arguments, 0);
+	if (args.length === 1) {
+		args = ["./", null];
+	}
+	for(var i = 0; i < args.length - 1; i++) {
+		m.cleanModule(args[i], !!options.recursive);
+	}
+}
+
 function compileModules() {
 	var args = Array.prototype.slice.call(arguments, 0);
 	for(var i = 0; i < args.length - 1; i++) {
 		var arg = path.resolve(args[i]);
-		if (!compileModule(arg)) {
+		if (!compileModule(arg, compileCmd)) {
 			return false;
 		}
 	}
 	return true;
 }
 
-function compileModule(arg) {
+function compileModule(arg, options) {
 	try {
-		var c = new compiler.Compiler(arg);
+		var c = new compiler.Compiler(arg, options);
 		c.compileModule();
 		return true;
 	} catch(err) {
@@ -115,7 +134,7 @@ function execModule() {
 //		modulePath = "." + path.sep + modulePath;
 //	}
 	// Does the module need compilation?
-	var c = new compiler.Compiler(modulePath);
+	var c = new compiler.Compiler(modulePath, compileCmd);
 	if (!c.isUpToDate()) {
 		if (!compileModule(modulePath)) {
 			return;
@@ -182,10 +201,21 @@ program
 	.description('create a new gismo module')
 	.action( initModule );
 
-program
+var compileCmd = program
 	.command('compile')
+	.option('-w --weblib', 'Generate a library that can be used in a web app.\n\t\t\t   File names have the postfix ".weblib.js"')
+	.option('-p --dependencies', 'Write all external dependencies to "dependencies.json"')
+	.option('-v --graphviz', 'Only useful in combination with --dependencies.\n\t\t\t   Creates a graphviz visualization in "dependencies.dot"')
+	.option('-y --deploy [path]', 'Copy the compiler output to the default deployment location\n\t\t\t   ("./deploy" or as mentioned in package.json) or to the specified path\n\t\t\t   Only useful in combination with --weblib')
+	.option('-Y --deployall [path]', 'Like -y, but all dependencies are deployed, too')
 	.description('compiles gismo modules')
 	.action( compileModules );
+
+program
+	.command('clean')
+	.option('-r --recursive', 'Cleans modules contained in sub-directories as well')
+	.description('Cleans a gismo module from all generated files')
+	.action( cleanModule );
 
 program
 	.command('*')

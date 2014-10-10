@@ -52,8 +52,8 @@ export operator domTemplate {
 			this.__destructors = __destructors;
 
 			// TODO: Move to base class
-			for(var __i = 0; __i < __parent.children.length; __i++ ) {
-				this.__children.push(__parent.children[__i]);
+			for(var __i = 0; __i < __parent.childNodes.length; __i++ ) {
+				this.__children.push(__parent.childNodes[__i]);
 			}
 			if (this.__children.length === 0) {
 				var placeholder = document.createComment("placeholder");
@@ -105,19 +105,113 @@ function generateContent(code, updateCode, ast) {
 					for(var j = 0; j < a.attributes.length; j++) {
 						var attr = a.attributes[j];
 						if (attr.value.type === "Code") {
-							var node = template(this.@(identifier "__node_" + (counter).toString()));
-							var state = template(this.@(identifier "__state_" + (counter).toString()));
-							counter++;
-							code.push(template{ @state = @(attr.value.expr).toString(); });
-							code.push(template{ @node = __node; });
-							code.push(template{ __node.setAttribute(@(literal attr.name.name), @state); });
-							updateCode.push.apply(updateCode, template{
-								__newstate = @(attr.value.expr).toString();
-								if (__newstate !== @state) {
-									@state = __newstate;
-									@node.setAttribute(@(literal attr.name.name), @state);	
+							if (attr.name.name === "style" && attr.value.expr.type === "ObjectExpression") {
+								for(var k = 0; k < attr.value.expr.properties.length; k++) {
+									var prop = attr.value.expr.properties[k];
+									var name = prop.key.type === "Identifier" ? prop.key.name : prop.key.value;
+									var node = template(this.@(identifier "__node_" + (counter).toString()));
+									var state = template(this.@(identifier "__state_" + (counter).toString()));
+									counter++;
+									code.push(template{ @state = @(prop.value).toString(); });
+									code.push(template{ @node = __node; });
+									code.push(template{ __node.style.@(identifier name) = @state; });
+									updateCode.push.apply(updateCode, template{
+										__newstate = @(prop.value).toString();
+										if (__newstate !== @state) {
+											@state = __newstate;
+											@node.style.@(identifier name) = @state;	
+										}
+									});									
 								}
-							});
+							} else if (attr.name.name === "class" && attr.value.expr.type === "ObjectExpression") {
+								for(var k = 0; k < attr.value.expr.properties.length; k++) {
+									var prop = attr.value.expr.properties[k];
+									var name = prop.key.type === "Identifier" ? prop.key.name : prop.key.value;
+									var node = template(this.@(identifier "__node_" + (counter).toString()));
+									var state = template(this.@(identifier "__state_" + (counter).toString()));
+									counter++;
+									code.push(template{ @state = !!@(prop.value); });
+									code.push(template{ @node = __node; });
+									code.push(template{ if (@state) { @(identifier parser.importAlias(module)).__addClass(__node, @name); } });
+									updateCode.push.apply(updateCode, template{
+										__newstate = !!@(prop.value);
+										if (__newstate !== @state) {
+											@state = __newstate;
+											if (@state) {
+												@(identifier parser.importAlias(module)).__addClass(@node, @name);
+											} else {
+												@(identifier parser.importAlias(module)).__removeClass(@node, @name);
+											}
+										}
+									});									
+								}
+							} else {
+								var node = template(this.@(identifier "__node_" + (counter).toString()));
+								var state = template(this.@(identifier "__state_" + (counter).toString()));
+								counter++;
+								code.push(template{ @state = @(attr.value.expr).toString(); });
+								code.push(template{ @node = __node; });
+								if ((a.nodeName.name === "textarea" || a.nodeName.name === "input") && (attr.name.name === "value" || attr.name.name === "checked")) {
+									code.push(template{ __node.@(identifier attr.name.name) = @state; });
+								} else {
+									code.push(template{ __node.setAttribute(@(literal attr.name.name), @state); });
+								}
+								if ((a.nodeName.name === "textarea" || a.nodeName.name === "input") && attr.name.name === "value") {
+									updateCode.push.apply(updateCode, template{
+										__newstate = @(attr.value.expr).toString();
+										if (__newstate !== @state) {
+											@state = __newstate;
+											@node.@(identifier attr.name.name) = @state;	
+										}
+									});
+								} else if (a.nodeName.name === "input" && attr.name.name === "checked") {
+									updateCode.push.apply(updateCode, template{
+										__newstate = !!@(attr.value.expr);
+										if (__newstate !== @state) {
+											@state = __newstate;
+											@node.@(identifier attr.name.name) = @state;	
+										}
+									});
+								} else {
+									updateCode.push.apply(updateCode, template{
+										__newstate = @(attr.value.expr).toString();
+										if (__newstate !== @state) {
+											@state = __newstate;
+											@node.setAttribute(@(literal attr.name.name), @state);	
+										}
+									});
+								}
+								if ((a.nodeName.name === "input" || a.nodeName.name === "textarea") && attr.name.name === "value" && attr.value.expr.type === "MemberExpression") {
+									code.push(template{ var __self = this; });
+									var eventName = "keyup";
+									code.push(template{
+										__node.addEventListener(@eventName, function() {
+											@(identifier parser.importAlias(module)).__registerUpdater(__self, function() {
+												if (@(attr.value.expr) != @node.@(identifier attr.name.name)) {
+													@(attr.value.expr) = @node.@(identifier attr.name.name);
+													return true;
+												}
+												return false;
+											})
+										});
+									});									
+								}
+								else if (a.nodeName.name === "input" && attr.name.name === "checked" && attr.value.expr.type === "MemberExpression") {
+									code.push(template{ var __self = this; });
+									var eventName = "click";
+									code.push(template{
+										__node.addEventListener(@eventName, function() {
+											@(identifier parser.importAlias(module)).__registerUpdater(__self, function() {
+												if (@(attr.value.expr) != @node.@(identifier attr.name.name)) {
+													@(attr.value.expr) = @node.@(identifier attr.name.name);
+													return true;
+												}
+												return false;
+											})
+										});
+									});									
+								}
+							}
 						} else {
 							code.push(template{ __node.setAttribute(@(literal attr.name.name), @(literal attr.value.value)); });
 						}
@@ -153,8 +247,8 @@ function generateContent(code, updateCode, ast) {
 						if (__node.nodeType === 11) {
 							// The expression resulted in a fragment. Remember all nodes inside
 							@nodes = [];
-							for(var __i = 0; __i < __node.children.length; __i++) {
-								@nodes.push(__node.children[__i]);
+							for(var __i = 0; __i < __node.childNodes.length; __i++) {
+								@nodes.push(__node.childNodes[__i]);
 							}
 						} else {
 							@nodes = [__node];
@@ -234,7 +328,7 @@ function generateContent(code, updateCode, ast) {
 							var __len = @arrname.length;
 							for(var __i = 0; __i < __len; __i++) {
 								var __item = {};
-								__parent.appendChild(@create.call(__item, @arrname[__i]));
+								__parent.appendChild(@create.call(__item, @arrname[__i], __i));
 								@items.push(__item);
 							}
 						}
@@ -251,15 +345,15 @@ function generateContent(code, updateCode, ast) {
 					}
 					__destructors.push(@destroyAll);
 
-					@create = function($data) {
+					@create = function($data, $index) {
 						var __parent = document.createDocumentFragment();
 						var __destructors = [];
 						@content
 						this.destructors = __destructors;
 						this.nodes = [];
 						this.$data = $data;
-						for(var __i = 0; __i < __parent.children.length; __i++) {
-							this.nodes.push(__parent.children[__i]);
+						for(var __i = 0; __i < __parent.childNodes.length; __i++) {
+							this.nodes.push(__parent.childNodes[__i]);
 						}
 						return __parent;
 					}
@@ -270,7 +364,7 @@ function generateContent(code, updateCode, ast) {
 						}
 					}
 
-					@update = function() {
+					@update = function($index) {
 						var $data = this.$data;
 						@updateContent
 					};
@@ -315,14 +409,14 @@ function generateContent(code, updateCode, ast) {
 										}
 										for(var __j = 0; __j < __change.length; __j++) {
 											var __item = {};
-											@comment.parentNode.insertBefore(@create.call(__item, @arrname[__pos + __j]), __before);
+											@comment.parentNode.insertBefore(@create.call(__item, @arrname[__pos + __j], __pos + __j), __before);
 											@items.splice(__pos + __j, 0, __item);
 										}
 										__pos += __change.length;
 										break;
 									case "skip":
 										for(var __j = 0; __j < __change.length; __j++) {
-											@update.call(@items[__j]);
+											@update.call(@items[__pos + __j], __pos + __j);
 										}
 										__pos += __change.length;
 										break;
@@ -339,10 +433,16 @@ function generateContent(code, updateCode, ast) {
 										break;
 								}
 							}
+							// Skip what remains
+							if (__pos < @items.length) {
+								for(var __j = __pos; __j < @items.length; __j++) {
+									@update.call(@items[__j], __j);
+								}								
+							}
 						} else {
 							// No changes to the array itself. See if any item needs updating
 							for (var __i = 0; __i < @items.length; __i++) {
-								@update.call(@items[__i]);
+								@update.call(@items[__i], __i);
 							}
 						}
 					}
@@ -380,8 +480,8 @@ function generateContent(code, updateCode, ast) {
 						@content
 						@destructors = __destructors;
 						@nodes = [];
-						for(var __i = 0; __i < __parent.children.length; __i++) {
-							@nodes.push(__parent.children[__i]);
+						for(var __i = 0; __i < __parent.childNodes.length; __i++) {
+							@nodes.push(__parent.childNodes[__i]);
 						}
 						return __parent;
 					}

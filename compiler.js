@@ -8,11 +8,8 @@ var escodegen = require('escodegen');
 
 // 'modulePath' is either a relative or absolute filename of a gismo file (ending with *.gs)
 // or the path of a directory of a package, which contains a file called 'package.json'.
-function Compiler(modulePath) {
+function Compiler(modulePath, options) {
 	this.path = modulePath;
-	this.spillers = {
-		"default" : new defspiller.NodeJSSpiller(this)
-	};
 
 	// Is it a file or a single module?
 	try {
@@ -42,6 +39,35 @@ function Compiler(modulePath) {
 		}
 	}
 
+	// Compute options based on package.json data and options passed via the command line interface
+	this.options = {};
+	if (this.pkg.gismo) {
+		for(var key in this.pkg.gismo) {
+			this.options[key] = this.pkg.gismo[key];
+		}
+	}
+	for(var key in options) {
+		if (key !== "commands" && key !== "options" && key !== "parent" && key[0] !== "_") {
+			this.options[key] = options[key];
+		}
+	}
+
+	// Install spillers
+	if (this.options.weblib) {
+		this.spillers = {
+			"default" : new defspiller.WeblibSpiller(this),
+			"dependencies" : new defspiller.DependenciesSpiller(this)
+		};
+	} else {
+		this.spillers = {
+			"default" : new defspiller.NodeJSSpiller(this)
+		};
+	}
+
+	if (this.options.dependencies) {
+		this.spillers["dependencies"] = new defspiller.DependenciesSpiller(this);
+	}
+
 	this.imports = { };
 }
 
@@ -56,7 +82,10 @@ Compiler.prototype.getSpiller = function(name) {
 };
 
 // Called from the parser that is launched on behalf of compileModule().
-Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
+// 'modulePath' is the directory that contains the module.
+// 'alias' is the JS identifier that is used by the importing module to refer to the imported module.
+// 'name' is the string following the import statement, e.g. in 'import "gismo/foo/bar' the name is 'gismo/foo/bar' 
+Compiler.prototype.importMetaModule = function(parser, modulePath, alias, name) {
 	if (modulePath === "") {
 		throw new Error("Implementation Error: Illegal path for a module.");
 	}
@@ -69,10 +98,17 @@ Compiler.prototype.importMetaModule = function(parser, modulePath, alias) {
 		if (modulePath === this.path) {
 			pkg = this.pkg;
 		} else {
-			pkg = JSON.parse(fs.readFileSync(modulePath + 'package.json', 'utf8'));
+			pkg = JSON.parse(fs.readFileSync(path.join(modulePath, 'package.json'), 'utf8'));
 		}
 	} catch(err) {
 		pkg = { };
+	}
+
+	if (name) {
+		for(var key in this.spillers) {
+			var s = this.spillers[key];
+			s.addDependency(modulePath, pkg, alias, name, this.compilingMetaModule);
+		}
 	}
 
 	// No gismo section? -> a normal node module
@@ -118,55 +154,111 @@ Compiler.prototype.importAlias = function(m) {
 Compiler.prototype.compileModule = function() {
 	var srcfiles = [];
 
+	// Compiling a single file or a package?
 	if (this.isFile) {
-		srcfiles = [this.path];
+		srcfiles = [{
+			filename: this.path,
+			action: { action: "compile"}
+		}];
 	} else {
 		// If it is a normal node package, do nothing
 		if (!this.pkg.gismo || typeof this.pkg.gismo !== "object") {
 			return;
 		}
 
+		// Compile the module's meta code
 		this.compileMetaModule();
 
-		srcfiles = this.pkg.gismo.src;
-		if (!srcfiles || typeof srcfiles !== "object") {
+		// Compute all source files belonging to the module
+		var filenames = this.pkg.gismo.src;
+		if (!filenames || typeof filenames !== "object") {
 			try {
-				srcfiles = fs.readdirSync(this.path + "src").sort();
+				filenames = fs.readdirSync(this.path + "src").sort();
 			} catch(e) {
-				srcfiles = [];
+				filenames = [];
 			}
 		}
-		for(var i = 0; i < srcfiles.length; i++) {
-			var fname = srcfiles[i];
-			if (fname[0] === '.' || fname.length < 4 || fname.substr(fname.length - 3, 3) !== ".gs") {
+
+		// Figure out what to do with each file
+		for(var i = 0; i < filenames.length; i++) {
+			var fname = filenames[i];
+			if (fname[0] === '.') { // || fname.length < 4 || fname.substr(fname.length - 3, 3) !== ".gs") {
 				continue;
 			}
-			srcfiles[i] = path.join(this.path, "src", fname);
+			if (!this.pkg.gismo.extensions) {
+				srcfiles.push({
+					filename: path.join(this.path, "src", fname),
+					action: { action: "compile"}
+				});
+				continue;
+			}
+			// What about the file name extension?
+			var index = fname.lastIndexOf(".");
+			if (index === -1) {
+				continue;
+			}
+			var ext = fname.substr(index);
+			for(var key in this.pkg.gismo.extensions) {
+				if (key === ext) {
+					var action = this.pkg.gismo.extensions[key];
+					if (typeof action === "string") {
+						action = { action: action };
+					}
+					switch (action.action) {
+					case "compile":
+					case "copy":
+						srcfiles.push({
+							filename: path.join(this.path, "src", fname),
+							action: action
+						});
+						break;
+					default:
+						throw new errors.CompilerError("In 'package.json': Action '" + action.action + "' for extension '" + ext + "' is not known");
+					}
+					continue;
+				}
+			}
+			// Ignore the file
 		}
 	}
 
 	var program = {type: "Program", body: []};
 
-	// Parse and compile all files
+	// Process all files
 	for(var i = 0; i < srcfiles.length; i++) {
-		var fname = srcfiles[i];
+		// What should happen to this source file?
+		var action = srcfiles[i].action;
+		var fname = srcfiles[i].filename;
+		if (action.action === "copy") {
+			// Add the file to all spillers
+			for(var key in this.spillers) {
+				this.spillers[key].addFile(fname, null, null, action);
+			}
+			continue;
+		}
+
+		// Read the source file from disk
 		var str;
 		try {
 			str = fs.readFileSync(fname).toString();
 		} catch(err) {
 			throw new Error("Could not read '" + fname + "'");
 		}
+		// Create a parser
 		var p = new parser.Parser(this);
 //		p.importModuleName = this.path;
+		// Import the meta module for this package
 		this.importMetaModule(p, this.path, "module");
+		// Parse the source file
 		var body = p.parse(lexer.newTokenizer(str, fname));
 		try {
 			// Add the file to all spillers
 			for(var key in this.spillers) {
+				// Does the file require a special spiller?
 				if (body.spillers && body.spillers[key]) {
-					body.spillers[key].spill(fname, body);
+					body.spillers[key].spill(fname, body, str, action);
 				} else {
-					this.spillers[key].addFile(fname, body);
+					this.spillers[key].addFile(fname, body, str, action);
 				}
 			}
 		} catch(err) {
@@ -179,6 +271,7 @@ Compiler.prototype.compileModule = function() {
 		}			
 	}
 
+	// Spill the resulting code
 	try {
 		for(var key in this.spillers) {
 			this.spillers[key].spill();
@@ -209,6 +302,8 @@ Compiler.prototype.compileMetaModule = function() {
 		}
 	}
 
+	this.compilingMetaModule = true;
+
 	var program = {type: "Program", body: []};
 
 	// Parse and compile all files
@@ -232,6 +327,8 @@ Compiler.prototype.compileMetaModule = function() {
 	var code = "exports.extendParser = function(parser) { "+ result.code + "\n}\n//# sourceMappingURL=_meta.js.map";
 	fs.writeFileSync(this.metaFile(), code);
 	fs.writeFileSync(this.metaFile() + '.map', result.map.toString());
+
+	this.compilingMetaModule = false;
 };
 
 Compiler.prototype.mainFile = function() {
@@ -251,12 +348,26 @@ Compiler.prototype.metaFile = function() {
 	if (this.isFile) {
 		return null;
 	}
-	// Which file contains the metailed import?
-	var metafile = this.pkg.gismo.metafile;
+	// Which file contains the compiled meta code?
+	var metafile = this.pkg.gismo.metaFile;
 	if (typeof metafile !== "string" || metafile === "") {
 		metafile = path.join(this.path, "_meta.js");
 	}
 	return metafile;
+};
+
+// Returns the directory to which the application should be deployed after compilation
+Compiler.prototype.deployTo = function() {
+	var p = this.isFile ? path.dirname(this.path) : this.path;
+	if (this.pkg.deployTo) {
+		return path.resolve(path.join(p, this.pkg.gismo.deployTo));
+	}
+	return path.resolve(path.join(p, "deploy"));	
+};
+
+// Returns the 'package.json' as a parsed JSON object
+Compiler.prototype.getPackage = function() {
+	return this.pkg;
 };
 
 Compiler.prototype.isUpToDate = function() {

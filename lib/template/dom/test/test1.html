@@ -1,9 +1,11 @@
 <html>
 <head>
-	<script src=".test1.js"></script>
 	<style>
 	.red {
 		color: red;
+	}
+	.green {
+		color: green;
 	}
 	</style>
 </head>
@@ -15,10 +17,12 @@
 <button id="button3">Click me array</button>
 <button id="button4">Click me attribute</button>
 <button id="button5">Click me attribute</button>
+<script type="text/javascript" src="deploy/require.js" data-main="deploy/test1.js"></script>
 <script type="text/javascript">
 function runit() {
-	console.log("started");
-	createControl();
+//	require("lib/test1.we")
+	console.log("weblib started");
+//	createControl();
 }
 </script>
 </body>
