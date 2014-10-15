@@ -1557,7 +1557,7 @@ Parser.prototype.parseStatement = function() {
 			this.throwError(token, "Parser for statement '" + s + "' must return a string or an AST object");
 		}
 		return result;
-	} else if (token.value === '{') {
+	} else if (token.value === '{' && token.type !== "String") {
 		return this.parseBlockStatement();
 	}
 	return this.parseExpressionStatement();

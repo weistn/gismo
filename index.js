@@ -203,6 +203,7 @@ program
 
 var compileCmd = program
 	.command('compile')
+	.option('-d --doc', 'Generate documentation from the source code')
 	.option('-w --weblib', 'Generate a library that can be used in a web app.\n\t\t\t   File names have the postfix ".weblib.js"')
 	.option('-p --dependencies', 'Write all external dependencies to "dependencies.json"')
 	.option('-v --graphviz', 'Only useful in combination with --dependencies.\n\t\t\t   Creates a graphviz visualization in "dependencies.dot"')
