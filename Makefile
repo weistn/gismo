@@ -18,6 +18,7 @@ lib:
 	./bin/gismoc ./lib/template/xml
 	./bin/gismoc ./lib/template/dom
 	./bin/gismoc ./lib/build
+	./bin/gismoc ./lib/doc
 
 libdep:
 	./bin/gismoc --dependencies --graphviz ./lib/template
@@ -30,6 +31,7 @@ libdep:
 	./bin/gismoc --dependencies --graphviz ./lib/template/xml
 	./bin/gismoc --dependencies --graphviz ./lib/template/dom
 	./bin/gismoc --dependencies --graphviz ./lib/build
+	./bin/gismoc --dependencies --graphviz ./lib/doc
 
 clean:
 	rm -f test/module1/main.js
