@@ -1,0 +1,11 @@
+{
+    "name": "dom",
+    "version": "0.0.1",
+    "description": "TODO",
+    "main": "main.js",
+    "author": "TODO",
+    "license": "TODO",
+    "gismo": {
+        "uniqueId": "d8e553482de23d05c759b178733abac6"
+    }
+}
