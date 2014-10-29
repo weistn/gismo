@@ -71,6 +71,7 @@ function cleanModule(modulePath, recursive, inTest) {
 		}
 		if (del) {
 			console.log("Deleting file", path.join(modulePath, fname));
+			fs.unlinkSync(path.join(modulePath, fname));
 		}
 	}
 }
@@ -86,11 +87,13 @@ function deleteRecursively(dir) {
 		}
 		if (!info.isDirectory()) {
 			console.log("Deleting file", path.join(dir, fname));
+			fs.unlinkSync(path.join(dir, fname));
 		} else {
 			deleteRecursively(path.join(dir, fname));
 		}
 	}
 	console.log("Deleting directory", dir);
+	fs.rmdirSync(dir);
 }
 
 exports.cleanModule = cleanModule;
