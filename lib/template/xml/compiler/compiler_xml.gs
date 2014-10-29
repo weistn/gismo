@@ -5,6 +5,9 @@ import "gismo/template/xml/parser" as xmlparser
 var counter = 0;
 
 export operator xmlTemplate {
+	parser.tokenizer.expect("(");
+	// TODO: parameter
+	parser.tokenizer.expect(")");
 	parser.tokenizer.expect("{");
 	var ast = xmlparser.parseFragment(parser);
 	parser.tokenizer.expect("}");
@@ -13,13 +16,18 @@ export operator xmlTemplate {
 		return template(null);
 	}
 
-	var code = [ template{ var __parent = document.createDocumentFragment(), __node, $data; } ];
+	var code = [ 
+		template{ if (!__doc) {
+			__doc = new @(identifier parser.importAlias(module)).xmldom.Document();
+		}},
+		template{ var __parent = __doc.createDocumentFragment(), __node; }
+	];
 //	console.log(JSON.stringify(ast, null, "\t"));
 	counter = 0;
 	generateContent(code, ast);
 	code.push(template{ return __parent; })
 
-	return template((function(){@code})());
+	return template(function(__doc, $data){@code});
 }
 
 function generateContent(code, ast) {
@@ -27,7 +35,7 @@ function generateContent(code, ast) {
 		var a = ast[i];
 		switch (a.type) {
 			case "Element":
-				code.push(template{ __node = document.createElement(@(literal a.nodeName.name)) });
+				code.push(template{ __node = __doc.createElement(@(literal a.nodeName.name)) });
 				if (a.attributes) {
 					for(var j = 0; j < a.attributes.length; j++) {
 						var attr = a.attributes[j];
@@ -39,9 +47,10 @@ function generateContent(code, ast) {
 					}
 				}
 				if (a.content) {
+					code.push(template{ __parent.appendChild(__node); });
 					code.push(template{ __parent = __node; })
 					generateContent(code, a.content);					
-					code.push(template{ __parent = __parent.parentNode; })
+					code.push(template{ __parent = __parent.parentNode; });
 				} else {
 					code.push(template{ __parent.appendChild(__node); });
 				}
@@ -50,11 +59,11 @@ function generateContent(code, ast) {
 				if ((i === 0 || i + 1 === ast.length) && a.value.trim() === "") {
 					continue;
 				}
-				code.push(template{ __node = document.createTextNode(@(literal a.value)); });
+				code.push(template{ __node = __doc.createTextNode(@(literal a.value)); });
 				code.push(template{ __parent.appendChild(__node); });
 				break;
 			case "Code":
-				code.push(template{ __node = @(identifier parser.importAlias(module)).objectToNode(document, @(a.expr)); });
+				code.push(template{ __node = @(identifier parser.importAlias(module)).objectToNode(__doc, @(a.expr)); });
 				code.push(template{ if (__node) __parent.appendChild(__node); });
 				break;
 			case "Foreach":
@@ -62,13 +71,16 @@ function generateContent(code, ast) {
 				var arrname = identifier "__arr_" + (counter).toString();
 				var arrlength = identifier "__arrlen_" + (counter).toString();
 				var itname = identifier "__it_" + (counter++).toString();
+				var tmpname = identifier "__tmp_" + (counter++).toString();
 				generateContent(content, a.content);
+				code.push(template{ var @tmpname = $data; });
 				code.push(template{ var @arrname = @(a.expr); });
 				code.push(template{ var @arrlength = @arrname.length; });
 				code.push(template{ for (var @itname = 0; @itname < @arrlength; @itname++ ) {
 					$data = @arrname[@itname];
 					@content
 				}});
+				code.push(template{ $data = @tmpname; });
 				break;
 			case "If":
 				var content = [];

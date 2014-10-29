@@ -32,7 +32,7 @@ grammar xmlFragment {
 		| "&#x" n:[0123456789abcdef]+ ";" m:text? { return {type: "Text", value: m ? String.fromCharCode(parseInt(n, 16)) + m.value : String.fromCharCode(parseInt(n, 16)) }; }
 		| "{foreach" expr:Expression "}" content:content* "{/foreach}" { return {type: "Foreach", expr: expr, content: content}; }
 		| "{if" expr:Expression "}" content:content* "{/if}" { return {type: "If", expr: expr, content:content}; }
-		| t:[^&<{}]+ m:text? { return {type: "Text", value: t}; }
+		| t:[^&<{}]+ m:text? { return {type: "Text", value: m ? t + m : t}; }
 
 	rule tag
 		= "<" name:Identifier attr:attribute* end:tagEnd { end.nodeName = name; end.attributes = attr; return end; }

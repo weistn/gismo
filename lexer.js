@@ -1071,6 +1071,10 @@ Tokenizer.prototype.nextChars = function(accept, stopAt) {
             return this.source.slice(start, this.index);
         }
         this.index++;
+        if (isLineTerminator(ch)) {
+            this.lineNumber++;
+            this.lineStart = this.index;
+        }
     }
     return this.source.slice(start);
 };

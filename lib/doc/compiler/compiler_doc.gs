@@ -1,4 +1,6 @@
 import "gismo/metaprogramming";
+import "gismo/template/xml"
+import "gismo/xml/dom"
 import "fs";
 import "path";
 
@@ -23,7 +25,23 @@ export statement /// {
     }
 
     var s = parser.parseStatementOrBlockStatement();
-    s.doc = str;
+
+    switch(s.type) {
+        case "FunctionDeclaration":
+            s.doc = {
+                description: str,
+                category: "Functions",
+                name: s.id.name
+            }
+            break;
+        case "VariableDeclaration":
+            s.doc = {
+                description: str,
+                category: "Variables",
+                name: s.declarations[0].id.name
+            }
+            break;
+    }
     return s;
 }
 
@@ -50,19 +68,82 @@ DocSpiller.prototype.spill = function() {
         return;
     }
 
-    var html = "<html><head></head><body>";
-
+    // Iterate over all top-level AST-nodes in all files and extract AST-nodes that feature documentation.
+    // The key is the documentation-category (e.g. function, var, ...) of the AST-nodes 
+    var docObjects = {};
+    var modulePath = path.basename(this.compiler.path);
     for(var i = 0; i < this.files.length; i++) {
         var f = this.files[i];
         for(var k = 0; k < f.ast.length; k++) {
             var s = f.ast[k];
             if (s.doc) {
-                html += s.doc;
+                if (!docObjects[s.doc.category]) {
+                    docObjects[s.doc.category] = [];
+                }
+                docObjects[s.doc.category].push(s);
             }
         }
     }
 
-    html += "</body>";
+    var overview = xmlTemplate(){
+        <dl>
+            {foreach $data}
+                <dd>{$data.doc.name}</dd>
+            {/foreach}
+        </dl>
+    }
+
+    var details = xmlTemplate() {
+        {foreach $data.nodes}
+            <h2>{$data.doc.name}</h2>
+            <div>{$data.doc.description}</div>
+        {/foreach}
+    };
+
+    var tmpl = xmlTemplate() {
+        <html>
+        <body>
+        <h1>Package {modulePath}</h1>
+        <dl>
+            <dd><code>import "{modulePath}</code></dd>
+        </dl>
+        <dl>
+            <dd><a href="#">Overview</a></dd>
+            <dd><a href="#">Index</a></dd>
+        </dl>
+        <h2>Index</h2>
+        {if docObjects["Functions"]}
+            <h4>Functions</h4>
+            {overview(__doc, docObjects["Functions"])}
+        {/if}
+        {if docObjects["Variables"]}
+            <h4>Variables</h4>
+            {overview(__doc, docObjects["Variables"])}
+        {/if}
+        {foreach Object.keys(docObjects)}
+            {if $data !== "Functions" && $data !== "Variables"}
+                <h4>{$data}</h4>
+                {overview(__doc, docObjects[$data])}
+            {/if}
+        {/foreach}
+
+        {if docObjects["Functions"]}
+            {details(__doc, {category: "Functions", nodes: docObjects["Functions"]})}
+        {/if}
+        {if docObjects["Variables"]}
+            {details(__doc, {category: "Variables", nodes: docObjects["Variables"]})}
+        {/if}
+        {foreach Object.keys(docObjects)}
+            {if $data !== "Functions" && $data !== "Variables"}
+                {details(__doc, {category: $data, nodes: docObjects[$data]})}
+            {/if}
+        {/foreach}
+        </body>
+        </html>
+    };
+
+    var ser = new dom.HTMLSerializer();
+    var html = ser.serializeToString(tmpl());
 
     fs.writeFileSync(path.join(path.dirname(this.compiler.mainFile()), "doc.html"), html);
 };
