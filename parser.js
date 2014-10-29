@@ -1524,10 +1524,13 @@ Parser.prototype.parseEndOfStatement = function() {
 Parser.prototype.parseStatement = function() {
 	var p;
 	var token = this.tokenizer.lookahead();
+	// A preprocessor has been installed to preprocess all statements?
 	if (this.statementPreprocessor) {
 		p = this.statementPreprocessor(token);
 	}
+	// No preprocessing?
 	if (!p) {
+		// Is it a statement?
 		p = token.type !== "String" ? this.statementKeywords[token.value] : null;
 		if (p) {
 			this.tokenizer.next();

@@ -24,25 +24,34 @@ export statement /// {
         return null;
     }
 
-    var s = parser.parseStatementOrBlockStatement();
-
-    switch(s.type) {
-        case "FunctionDeclaration":
-            s.doc = {
-                description: str,
-                category: "Functions",
-                name: s.id.name
-            }
-            break;
-        case "VariableDeclaration":
-            s.doc = {
-                description: str,
-                category: "Variables",
-                name: s.declarations[0].id.name
-            }
-            break;
+    var st = parser.parseStatement();
+    // The above function might return an array, especially when parsing 'export function foo() { }'.
+    var s;
+    if (st.length !== undefined && st.length > 0) {
+        s = st[0];
+    } else {
+        s = st;
     }
-    return s;
+
+    if (s) {
+        switch(s.type) {
+            case "FunctionDeclaration":
+                s.doc = {
+                    description: str,
+                    category: "Functions",
+                    name: s.id.name
+                }
+                break;
+            case "VariableDeclaration":
+                s.doc = {
+                    description: str,
+                    category: "Variables",
+                    name: s.declarations[0].id.name
+                }
+                break;
+        }
+    }
+    return st;
 }
 
 
