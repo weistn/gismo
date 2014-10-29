@@ -114,7 +114,7 @@ DocSpiller.prototype.spill = function() {
         <body>
         <h1>Package {modulePath}</h1>
         <dl>
-            <dd><code>import "{modulePath}</code></dd>
+            <dd><code>import "{modulePath}"</code></dd>
         </dl>
         <dl>
             <dd><a href="#">Overview</a></dd>

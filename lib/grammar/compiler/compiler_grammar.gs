@@ -490,7 +490,7 @@ export statement grammar {
 		// If there is more than one branch, we must look ahead to determine which branch to use.
 		if (r.branches.length > 1) {
 			var nolookahead = false;
-			var lcode = [template{ var __l = parser.tokenizer.lookahead(); }];
+			var lcode = [template{ var __l = parser.tokenizer.lookahead(true); }];
 			var charlookahead = false;
 			for(var k = 0; k < r.branches.length; k++) {
 				if (nolookahead) {

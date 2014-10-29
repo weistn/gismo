@@ -35,7 +35,8 @@ var Token = {
     NumericLiteral: "Numeric",
     Punctuator: "Punctuator",
     StringLiteral: "String",
-    RegularExpression: "RegularExpression"
+    RegularExpression: "RegularExpression",
+    Illegal: "ILLEGAL"
 };
 
 // See also tools/generate-unicode-regex.py.
@@ -1046,12 +1047,20 @@ Tokenizer.prototype.next = function() {
     return token;
 }
 
-Tokenizer.prototype.peek = function() {
+Tokenizer.prototype.peek = function(doNotThrow) {
     var prevLineNumber = this.lineNumber;
     var prevLineStart = this.lineStart;
     var prevIndex = this.index;
 
-    var token = this.collectToken();
+    if (doNotThrow) {
+        try {
+            var token = this.collectToken();
+        } catch(e) {
+            token = {type: Token.Illegal};
+        }
+    } else {
+        var token = this.collectToken();
+    }
 
     this.lineNumber = prevLineNumber;
     this.lineStart = prevLineStart;
@@ -1270,8 +1279,8 @@ exports.newTokenizer = function(source, filename) {
             return tokenizer.peekChar();
         },
 
-        lookahead : function() {
-            return tokenizer.peek();
+        lookahead : function(doNotThrow) {
+            return tokenizer.peek(doNotThrow);
         },
 
         location : function() {
