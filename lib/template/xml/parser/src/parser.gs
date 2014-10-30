@@ -13,6 +13,8 @@ grammar xmlFragment {
 	punctuator "{/foreach}"
 	punctuator "{if"
 	punctuator "{/if}"
+	punctuator "{{"
+	punctuator "}}"
 
 	rule start
 		= c:content* { return c; }
@@ -32,6 +34,8 @@ grammar xmlFragment {
 		| "&gt;" m:text? { return {type: "Text", value: m ? '>' + m.value : '>'}; }
 		| "&#" n:[0123456789]+ ";" m:text? { return {type: "Text", value: m ? String.fromCharCode(parseInt(n)) + m.value : String.fromCharCode(parseInt(n)) }; }
 		| "&#x" n:[0123456789abcdef]+ ";" m:text? { return {type: "Text", value: m ? String.fromCharCode(parseInt(n, 16)) + m.value : String.fromCharCode(parseInt(n, 16)) }; }
+		| "{{" m:text? { return {type: "Text", value: m ? "{" + m.value : "{"}; }
+		| "}}" m:text? { return {type: "Text", value: m ? "}" + m.value : "}"}; }
 		| t:[^&<{}]+ m:text? { return {type: "Text", value: m ? t + m.value : t}; }
 
 	rule tag
