@@ -77,7 +77,7 @@ function objectExpressionFromObject(obj) {
 
 	var props = [];
 	for(var key in obj) {
-		if (key === "loc") {
+		if (key === "loc" || key === "doc") {
 			continue;
 		}
 		var value = obj[key];

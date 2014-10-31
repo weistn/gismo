@@ -8,9 +8,10 @@ var escodegen = require('escodegen');
 
 // 'modulePath' is either a relative or absolute filename of a gismo file (ending with *.gs)
 // or the path of a directory of a package, which contains a file called 'package.json'.
-function Compiler(modulePath, options) {
+function Compiler(modulePath, options, version) {
 	this.path = modulePath;
-
+	this.version = version;
+	
 	// Is it a file or a single module?
 	try {
 		this.isFile = fs.statSync(modulePath).isFile();

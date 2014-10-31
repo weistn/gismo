@@ -4,10 +4,17 @@ import "gismo/grammar"
 
 grammar classGrammar {
 	rule start
-		= name:Identifier extend:extend? "{" members:member* "}"
+		= name:Identifier extend:extend? "{" members:docmember* "}"
 
     rule extend
         = "extends" name:Identifier
+
+    rule docmember
+        = member:member { return member; }
+        | doc:doc member:member { member.doc = doc; return member; }
+
+    rule doc
+        = "///" t:[^\n]* more:doc? { return more ? t + more : t; }
 
     rule member
         = "constructor" "(" arguments:arguments ")" body:BlockStatement { return {type: "Constructor", arguments: arguments, body: body} }
@@ -99,6 +106,17 @@ function replaceSuper(parser, className, memberName, ast) {
     return traverse(ast, callback);
 }
 
+function sigArguments(args) {
+    var sig = "";
+    for(var i = 0; i < args.length; i++) {
+        if (sig !== "") {
+            sig += ", ";
+        }
+        sig += args[i].name;
+    }
+    return sig;
+}
+
 export statement class {
 	var g = new classGrammar();
 	var ast = g.start(parser);
@@ -108,27 +126,32 @@ export statement class {
     var ctor;
     var memberDecl = [];
     var properties = {};
+    var docsig = "";
 
     if (ast.members) {
         for(var i = 0; i < ast.members.length; i++) {
             if (ast.members[i].type === "Constructor") {
                 ctor = ast.members[i];
+                docsig += "    constructor(" + sigArguments(ctor.arguments) + ")\n";
             } else if (ast.members[i].type === "FunctionDeclaration") {
                 memberDecl = memberDecl.concat( template{
                     @name.prototype.@(ast.members[i].name) = function(@(ast.members[i].arguments)) {
                         @(replaceSuper(parser, name, ast.members[i].name, ast.members[i].body))
                     }
                 })
+                docsig += "    " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")\n";
             } else if (ast.members[i].type === "Getter") {
                 if (!properties[ast.members[i].name.name]) {
                     properties[ast.members[i].name.name] = {};
                 }
                 properties[ast.members[i].name.name].getter = ast.members[i];
+                docsig += "    get " + ast.members[i].name.name + "()\n";
             } else if (ast.members[i].type === "Setter") {
                 if (!properties[ast.members[i].name.name]) {
                     properties[ast.members[i].name.name] = {};
                 }
                 properties[ast.members[i].name.name].setter = ast.members[i];
+                docsig += "    set " + ast.members[i].name.name + "(value)\n";
             }
         }
     }
@@ -191,6 +214,15 @@ export statement class {
 
         return @name;
     })()};
+
+    if (parser.compiler.options.doc) {
+        code.doc = {
+            category: "Classes",
+            name: name.name,
+            shortSignature: "class " + name.name,
+            longSignature: "class " + name.name + " {\n" + docsig + "}"
+        };
+    }
 
     return code;
 //	return template{ console.log(@({type: "Literal", value: JSON.stringify(ast, null, '\t')})) };

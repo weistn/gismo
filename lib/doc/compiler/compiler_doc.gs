@@ -93,10 +93,10 @@ DocSpiller.prototype.spill = function() {
 
     // Sort the index
     indexList.sort(function(a,b) {
-        if (a.name === b.name) {
+        if (a.shortSignature === b.shortSignature) {
             return 0;
         }
-        if (a.name < b.name) {
+        if (a.shortSignature < b.shortSignature) {
             return -1;
         }
         return 1;
@@ -208,6 +208,12 @@ DocSpiller.prototype.spill = function() {
                 border-radius: 5px;
                 line-height: 18px;
             }}
+            div#footer {{
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+                margin: 40px 0;
+            }}
             </style>
         </head>
         <body>
@@ -244,6 +250,10 @@ DocSpiller.prototype.spill = function() {
         {foreach indexList}
             {$data.items !== undefined ? groupDetails(__doc, $data) : details(__doc, $data)}
         {/foreach}
+        </div>
+        <div id="footer">
+            Build version gismo {self.compiler.version}.<br/>
+            The content of this page is licensed under the Creative Commons Attribution 3.0 License, and code is licensed under a BSD license.
         </div>
         </body>
         </html>

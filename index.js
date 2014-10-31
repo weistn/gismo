@@ -76,7 +76,7 @@ function compileModules() {
 
 function compileModule(arg, options) {
 	try {
-		var c = new compiler.Compiler(arg, options);
+		var c = new compiler.Compiler(arg, options, pkg.version);
 		c.compileModule();
 		return true;
 	} catch(err) {
@@ -134,7 +134,7 @@ function execModule() {
 //		modulePath = "." + path.sep + modulePath;
 //	}
 	// Does the module need compilation?
-	var c = new compiler.Compiler(modulePath, compileCmd);
+	var c = new compiler.Compiler(modulePath, compileCmd, pkg.version);
 	if (!c.isUpToDate()) {
 		if (!compileModule(modulePath)) {
 			return;

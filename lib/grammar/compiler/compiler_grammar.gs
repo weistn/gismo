@@ -275,6 +275,37 @@ function parseRuleBranch(parser) {
 					}
 					if (!neg && ch === 94 && chars.length === 0) { // [^
 						neg = true;
+					} else if (ch === 92) {
+						ch = parser.tokenizer.nextChar();
+						if (!ch) {
+							parser.throwError(null, "Unexpected end of file");
+						}
+						switch(ch) {
+						case 98: // b
+							ch = 8;
+							break;
+						case 102: // f
+							ch = 12;
+							break;
+						case 110: // n
+							ch = 10;
+							break;
+						case 114: // r
+							ch = 13;
+							break;
+						case 116: // t
+							ch = 9;
+							break;
+						case 118: // v
+							ch = 11;
+							break;
+						case 48:
+							ch = 0;
+							break;
+						default:
+							parser.throwError(null, "Illegal escape code \\" + String.fromCharCode(ch));							
+						}
+						chars.push(ch);
 					} else {
 						chars.push(ch);
 					}
