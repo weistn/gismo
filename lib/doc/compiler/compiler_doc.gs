@@ -36,18 +36,29 @@ export statement /// {
     if (s) {
         switch(s.type) {
             case "FunctionDeclaration":
+                var params = [];
+                for(var i = 0; i < s.params.length; i++) {
+                    params.push(s.params[i].name);
+                }
                 s.doc = {
                     description: str,
                     category: "Functions",
+                    shortSignature: "function " + s.id.name,
+                    longSignature: "function " + s.id.name + "(" + params.join(", ") + ")",
                     name: s.id.name
                 }
                 break;
             case "VariableDeclaration":
-                s.doc = {
+                if (s.doc) {
+                    s.doc.description = str;
+                }
+/*                s.doc = {
                     description: str,
                     category: "Variables",
+                    shortSignature: "var " + s.declarations[0].id.name,
+                    longSignature: "var " + s.declarations[0].id.name,
                     name: s.declarations[0].id.name
-                }
+                } */
                 break;
         }
     }
@@ -79,7 +90,8 @@ DocSpiller.prototype.spill = function() {
 
     // Iterate over all top-level AST-nodes in all files and extract AST-nodes that feature documentation.
     // The key is the documentation-category (e.g. function, var, ...) of the AST-nodes 
-    var docObjects = {};
+    var indexList = [];
+    var groups = {};
     var modulePath = path.basename(this.compiler.path);
     var moduleName = modulePath.lastIndexOf(".") != -1 ? modulePath.slice(0, modulePath.lastIndexOf(".")) : modulePath;
     var idcounter = 1;
@@ -87,31 +99,57 @@ DocSpiller.prototype.spill = function() {
         var f = this.files[i];
         for(var k = 0; k < f.ast.length; k++) {
             var s = f.ast[k];
-            if (s.doc) {
+            if (s.doc && s.exported) {
                 s.doc.__id = idcounter++;
-                if (!docObjects[s.doc.category]) {
-                    docObjects[s.doc.category] = [];
+                if (s.doc.name !== null) {
+                    indexList.push(s.doc);
+                } else {
+                    if (!groups[s.doc.category]) {
+                        var d = {name: s.doc.category, category: s.doc.category, shortSignature: s.doc.category, __id: idcounter++, items: [s.doc]};
+                        groups[s.doc.category] = d;
+                        indexList.push(d);
+                    } else {
+                        groups[s.doc.category].items.push(s.doc);
+                    }
                 }
-                docObjects[s.doc.category].push(s);
             }
         }
     }
 
+    // Sort the index
+    indexList.sort(function(a,b) {
+        if (a.name === b.name) {
+            return 0;
+        }
+        if (a.name < b.name) {
+            return -1;
+        }
+        return 1;
+    });
+
     var self = this;
 
-    var overview = xmlTemplate(){
-        <dl>
-            {foreach $data}
-                <dd>< a href={"#item" + $data.doc.__id}>{$data.doc.name}</a></dd>
-            {/foreach}
-        </dl>
+    // Template for the index
+    var overview = xmlTemplate() {
+        <dd>< a href={"#item" + $data.__id}>{$data.shortSignature}</a></dd>
     }
 
-    var details = xmlTemplate() {
-        {foreach $data.nodes}
-            <h2 id={"#item" + $data.doc.__id}>{$data.doc.name}</h2>
-            <p>{$data.doc.description}</p>
+    var groupDetails = xmlTemplate() {
+        <h2 id={"#item" + $data.__id}>{$data.name}</h2>
+        {foreach $data.items}
+            <pre>{$data.longSignature}</pre>
+            {if $data.description}
+                <p>{$data.description}</p>
+            {/if}
         {/foreach}
+    };
+
+    var details = xmlTemplate() {
+        <h2 id={"#item" + $data.__id}>{$data.shortSignature}</h2>
+        <pre>{$data.longSignature}</pre>
+        {if $data.description}
+            <p>{$data.description}</p>
+        {/if}
     };
 
     var tmpl = xmlTemplate() {
@@ -165,6 +203,10 @@ DocSpiller.prototype.spill = function() {
                 background: #E0EBF5;
                 padding: 2px 5px;
             }}
+            h3 {{
+                font-size: 20px;
+                padding: 2px 5px;
+            }}
             h4 {{
                 margin: 20px 5px;
                 font-size: 16px;
@@ -177,7 +219,7 @@ DocSpiller.prototype.spill = function() {
                 font-family: Menlo, monospace;
                 font-size: 14px;
             }}
-            dl, p {{
+            dl, p, pre {{
                 margin: 20px;
             }}
             dd {{
@@ -213,36 +255,19 @@ DocSpiller.prototype.spill = function() {
             <dd><a href="#index">Index</a></dd>
         </dl>
         <h2 id="index">Index</h2>
-        {if docObjects["Functions"]}
-            <h4>Functions</h4>
-            {overview(__doc, docObjects["Functions"])}
-        {/if}
-        {if docObjects["Variables"]}
-            <h4>Variables</h4>
-            {overview(__doc, docObjects["Variables"])}
-        {/if}
-        {foreach Object.keys(docObjects)}
-            {if $data !== "Functions" && $data !== "Variables"}
-                <h4>{$data}</h4>
-                {overview(__doc, docObjects[$data])}
-            {/if}
-        {/foreach}
+        <dl>
+            {foreach indexList}
+                {overview(__doc, $data)}
+            {/foreach}
+        </dd>
         <h4>Package files</h4>
         <dl><dd>
-        {foreach self.files}
-            <a href={$data.filename}>{path.basename($data.filename)}</a>
-        {/foreach}
+            {foreach self.files}
+                <a href={$data.filename}>{path.basename($data.filename)}</a>
+            {/foreach}
         </dd></dl>
-        {if docObjects["Functions"]}
-            {details(__doc, {category: "Functions", nodes: docObjects["Functions"]})}
-        {/if}
-        {if docObjects["Variables"]}
-            {details(__doc, {category: "Variables", nodes: docObjects["Variables"]})}
-        {/if}
-        {foreach Object.keys(docObjects)}
-            {if $data !== "Functions" && $data !== "Variables"}
-                {details(__doc, {category: $data, nodes: docObjects[$data]})}
-            {/if}
+        {foreach indexList}
+            {$data.items !== undefined ? groupDetails(__doc, $data) : details(__doc, $data)}
         {/foreach}
         </div>
         </body>

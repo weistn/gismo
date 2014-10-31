@@ -747,24 +747,44 @@ function throwParser() {
 function varParser() {
 	var loc = this.tokenizer.location();
 	var declarations = [];
+	var doc;
+
+    if (this.compiler.options.doc) {
+		doc = {name: null, category: "Variables", shortSignature: null, longSignature: []};
+    }
+
 	do {
 		var name = this.parseIdentifier();
 		var v = {type: "VariableDeclarator", init: null, id: name, loc: name.loc};
 		if (this.tokenizer.presume('=', true)) {
+		    if (this.compiler.options.doc) {
+				var start = this.tokenizer.location().index;
+			}
 			v.init = this.parseExpression(Mode_ExpressionWithoutComma);
-//			v.loc.end = this.tokenizer.lookback().loc.end;
-//		} else {
-//			v.loc.end = name.loc.end;
+		    if (this.compiler.options.doc) {
+				var end = this.tokenizer.location().index;
+				doc.longSignature.push(name.name + " =" + this.tokenizer.substring(start, end));
+			}
+		} else {
+		    if (this.compiler.options.doc) {
+				doc.longSignature.push(name.name);
+			}
 		}
 		declarations.push(v);
 	} while( this.tokenizer.presume(',', true) );
 	var endloc = this.tokenizer.location();
 	this.parseEndOfStatement();
+    
+    if (this.compiler.options.doc) {
+    	doc.longSignature = "var " + doc.longSignature.join(",\n    ");
+    }
+	
 	return {
 		type: "VariableDeclaration",
 		declarations: declarations,
 		kind: "var",
-		loc: {source: loc.filename, start: loc.loc, end: endloc.loc}
+		loc: {source: loc.filename, start: loc.loc, end: endloc.loc},
+		doc: doc
 	};
 }
 
@@ -968,6 +988,7 @@ function exportParser() {
 	var exported = false;
 	for(var i = 0; i < statements.length; i++) {
 		var s = statements[i];
+		s.exported = true;
 		switch (s.type) {
 			case "FunctionDeclaration":
 				exported = true;

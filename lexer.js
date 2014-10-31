@@ -1296,6 +1296,10 @@ exports.newTokenizer = function(source, filename) {
             };
         },
 
+        substring: function(start, end) {
+            return tokenizer.source.substring(start, end);
+        },
+
         skipComment : function() {
             tokenizer.skipComment();
         },
