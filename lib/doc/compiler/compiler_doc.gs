@@ -33,35 +33,10 @@ export statement /// {
         s = st;
     }
 
-    if (s) {
-        switch(s.type) {
-            case "FunctionDeclaration":
-                var params = [];
-                for(var i = 0; i < s.params.length; i++) {
-                    params.push(s.params[i].name);
-                }
-                s.doc = {
-                    description: str,
-                    category: "Functions",
-                    shortSignature: "function " + s.id.name,
-                    longSignature: "function " + s.id.name + "(" + params.join(", ") + ")",
-                    name: s.id.name
-                }
-                break;
-            case "VariableDeclaration":
-                if (s.doc) {
-                    s.doc.description = str;
-                }
-/*                s.doc = {
-                    description: str,
-                    category: "Variables",
-                    shortSignature: "var " + s.declarations[0].id.name,
-                    longSignature: "var " + s.declarations[0].id.name,
-                    name: s.declarations[0].id.name
-                } */
-                break;
-        }
+    if (s && s.doc) {
+        s.doc.description = str;
     }
+
     return st;
 }
 

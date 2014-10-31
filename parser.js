@@ -535,13 +535,29 @@ function functionDeclParser() {
 	}
 	var code = this.parseBlockStatement();
 	var endloc = this.tokenizer.location();
+
+	var doc;
+	if (this.compiler.options.doc) {
+        var params = [];
+        for(var i = 0; i < parameters.length; i++) {
+            params.push(parameters[i].name);
+        }
+        doc = {
+            category: "Functions",
+            shortSignature: "function " + name.name,
+            longSignature: "function " + name.name + "(" + params.join(", ") + ")",
+            name: name.name
+        };
+	}
+
 	return {
 		type: "FunctionDeclaration",
 		params: parameters,
 		body: code,
 		id: name,
 		loc: {source: loc.filename, start: loc.loc, end: endloc.loc},
-		generator: generator
+		generator: generator,
+		doc: doc
 	};
 }
 
