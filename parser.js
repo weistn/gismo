@@ -544,7 +544,7 @@ function functionDeclParser() {
         }
         doc = {
             category: "Functions",
-            shortSignature: "function " + name.name,
+            shortSignature: "function " + name.name + "(" + params.join(", ") + ")",
             longSignature: "function " + name.name + "(" + params.join(", ") + ")",
             name: name.name
         };

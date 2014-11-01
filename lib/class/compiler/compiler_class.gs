@@ -127,31 +127,68 @@ export statement class {
     var memberDecl = [];
     var properties = {};
     var docsig = "";
+    var docmembers = [];
 
     if (ast.members) {
         for(var i = 0; i < ast.members.length; i++) {
             if (ast.members[i].type === "Constructor") {
                 ctor = ast.members[i];
-                docsig += "    constructor(" + sigArguments(ctor.arguments) + ")\n";
+                if (parser.compiler.options.doc) {
+                    docsig += "    constructor(" + sigArguments(ctor.arguments) + ")\n";
+                    docmembers.push({
+                        name: "constructor",
+                        shortSignature: "constructor(" + sigArguments(ctor.arguments) + ")",
+                        longSignature: "constructor(" + sigArguments(ctor.arguments) + ")",
+                        category: "Constructor",
+                        description: ast.members[i].doc
+                    });
+                }
             } else if (ast.members[i].type === "FunctionDeclaration") {
                 memberDecl = memberDecl.concat( template{
                     @name.prototype.@(ast.members[i].name) = function(@(ast.members[i].arguments)) {
                         @(replaceSuper(parser, name, ast.members[i].name, ast.members[i].body))
                     }
                 })
-                docsig += "    " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")\n";
+                if (parser.compiler.options.doc) {
+                    docsig += "    " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")\n";
+                    docmembers.push({
+                        name: ast.members[i].name.name,
+                        shortSignature: "function " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")",
+                        longSignature: "function " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")",
+                        category: "Function",
+                        description: ast.members[i].doc
+                    });
+                }
             } else if (ast.members[i].type === "Getter") {
                 if (!properties[ast.members[i].name.name]) {
                     properties[ast.members[i].name.name] = {};
                 }
                 properties[ast.members[i].name.name].getter = ast.members[i];
-                docsig += "    get " + ast.members[i].name.name + "()\n";
+                if (parser.compiler.options.doc) {
+                    docsig += "    get " + ast.members[i].name.name + "()\n";
+                    docmembers.push({
+                        name: ast.members[i].name.name,
+                        shortSignature: "get " + ast.members[i].name.name + "()",
+                        longSignature: "get " + ast.members[i].name.name + "()",
+                        category: "Getter",
+                        description: ast.members[i].doc
+                    });
+                }
             } else if (ast.members[i].type === "Setter") {
                 if (!properties[ast.members[i].name.name]) {
                     properties[ast.members[i].name.name] = {};
                 }
                 properties[ast.members[i].name.name].setter = ast.members[i];
-                docsig += "    set " + ast.members[i].name.name + "(value)\n";
+                if (parser.compiler.options.doc) {
+                    docsig += "    set " + ast.members[i].name.name + "(value)\n";
+                    docmembers.push({
+                        name: ast.members[i].name.name,
+                        shortSignature: "set " + ast.members[i].name.name + "(value)",
+                        longSignature: "set " + ast.members[i].name.name + "(value)",
+                        category: "Setter",
+                        description: ast.members[i].doc
+                    });
+                }
             }
         }
     }
@@ -216,11 +253,16 @@ export statement class {
     })()};
 
     if (parser.compiler.options.doc) {
+        docmembers.sort(function(a, b) {
+            if (a.shortSignature === b.shortSignature) return 0;
+            return a.shortSignature < b.shortSignature ? -1 : 1;
+        });
         code.doc = {
             category: "Classes",
             name: name.name,
             shortSignature: "class " + name.name,
-            longSignature: "class " + name.name + " {\n" + docsig + "}"
+            longSignature: "class " + name.name + " {\n" + docsig + "}",
+            members: docmembers
         };
     }
 

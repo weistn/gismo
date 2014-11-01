@@ -58,6 +58,16 @@ DocSpiller.prototype.addFile = function(filename, ast, src, action) {
     })
 };
 
+function assignId(members, idcounter) {
+    for(var i = 0; i < members.length; i++) {
+        members[i].__id = idcounter++;
+        if (members[i].members) {
+            idcounter = assignId(members[i], idcounter);
+        }
+    }
+    return idcounter;
+}
+
 DocSpiller.prototype.spill = function() {
     if (!this.compiler.options.doc) {
         return;
@@ -76,6 +86,9 @@ DocSpiller.prototype.spill = function() {
             var s = f.ast[k];
             if (s.doc && s.exported) {
                 s.doc.__id = idcounter++;
+                if (s.doc.members) {
+                    idcounter = assignId(s.doc.members, idcounter);
+                }
                 if (s.doc.name !== null) {
                     indexList.push(s.doc);
                 } else {
@@ -107,6 +120,11 @@ DocSpiller.prototype.spill = function() {
     // Template for the index
     var overview = xmlTemplate() {
         <dd>< a href={"#item" + $data.__id}>{$data.shortSignature}</a></dd>
+        {if $data.members}
+            {foreach $data.members}
+                {overview(__doc, $data)}
+            {/foreach}
+        {/if}
     }
 
     var groupDetails = xmlTemplate() {
@@ -124,6 +142,24 @@ DocSpiller.prototype.spill = function() {
         <pre>{$data.longSignature}</pre>
         {if $data.description}
             <p>{$data.description}</p>
+        {/if}
+        {if $data.members}
+            {foreach $data.members}
+                {memberDetails(__doc, $data)}
+            {/foreach}
+        {/if}
+    };
+
+    var memberDetails = xmlTemplate() {
+        <h3 id={"#item" + $data.__id}>{$data.shortSignature}</h3>
+        <pre>{$data.longSignature}</pre>
+        {if $data.description}
+            <p>{$data.description}</p>
+        {/if}
+        {if $data.members}
+            {foreach $data.members}
+                {memberDetails(__doc, $data)}
+            {/foreach}
         {/if}
     };
 
