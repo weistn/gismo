@@ -89,15 +89,15 @@ DocSpiller.prototype.spill = function() {
                 if (s.doc.members) {
                     idcounter = assignId(s.doc.members, idcounter);
                 }
-                if (s.doc.name !== null) {
+                if (!s.doc.group) {
                     indexList.push(s.doc);
                 } else {
-                    if (!groups[s.doc.category]) {
-                        var d = {name: s.doc.category, category: s.doc.category, shortSignature: s.doc.category, __id: idcounter++, items: [s.doc]};
-                        groups[s.doc.category] = d;
+                    if (!groups[s.doc.group]) {
+                        var d = {group: s.doc.group, name: s.doc.group, category: s.doc.category, shortSignature: s.doc.category, __id: idcounter++, items: [s.doc]};
+                        groups[s.doc.group] = d;
                         indexList.push(d);
                     } else {
-                        groups[s.doc.category].items.push(s.doc);
+                        groups[s.doc.group].items.push(s.doc);
                     }
                 }
             }
@@ -106,10 +106,12 @@ DocSpiller.prototype.spill = function() {
 
     // Sort the index
     indexList.sort(function(a,b) {
-        if (a.shortSignature === b.shortSignature) {
+        var aname = a.group ? a.group : a.shortSignature;
+        var bname = b.group ? b.group : b.shortSignature;
+        if (aname === bname) {
             return 0;
         }
-        if (a.shortSignature < b.shortSignature) {
+        if (aname < bname) {
             return -1;
         }
         return 1;
@@ -120,6 +122,15 @@ DocSpiller.prototype.spill = function() {
     // Template for the index
     var overview = xmlTemplate() {
         <dd>< a href={"#item" + $data.__id}>{$data.shortSignature}</a></dd>
+        {if $data.members}
+            {foreach $data.members}
+                {overview(__doc, $data)}
+            {/foreach}
+        {/if}
+    }
+
+    var groupOverview = xmlTemplate() {
+        <dd>< a href={"#item" + $data.__id}>{$data.group}</a></dd>
         {if $data.members}
             {foreach $data.members}
                 {overview(__doc, $data)}
@@ -138,7 +149,7 @@ DocSpiller.prototype.spill = function() {
     };
 
     var details = xmlTemplate() {
-        <h2 id={"#item" + $data.__id}>{$data.shortSignature}</h2>
+        <h2 id={"#item" + $data.__id}>{$data.category + " " + $data.name}</h2>
         <pre>{$data.longSignature}</pre>
         {if $data.description}
             <p>{$data.description}</p>
@@ -151,7 +162,7 @@ DocSpiller.prototype.spill = function() {
     };
 
     var memberDetails = xmlTemplate() {
-        <h3 id={"#item" + $data.__id}>{$data.shortSignature}</h3>
+        <h3 id={"#item" + $data.__id}>{$data.category + " " + $data.name}</h3>
         <pre>{$data.longSignature}</pre>
         {if $data.description}
             <p>{$data.description}</p>
@@ -274,7 +285,7 @@ DocSpiller.prototype.spill = function() {
         <h2 id="index">Index</h2>
         <dl>
             {foreach indexList}
-                {overview(__doc, $data)}
+                {$data.group !== undefined ? groupOverview(__doc, $data) : overview(__doc, $data)}
             {/foreach}
         </dd>
         <h4>Package files</h4>

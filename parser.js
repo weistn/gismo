@@ -543,7 +543,7 @@ function functionDeclParser() {
             params.push(parameters[i].name);
         }
         doc = {
-            category: "Functions",
+            category: "function",
             shortSignature: "function " + name.name + "(" + params.join(", ") + ")",
             longSignature: "function " + name.name + "(" + params.join(", ") + ")",
             name: name.name
@@ -766,7 +766,7 @@ function varParser() {
 	var doc;
 
     if (this.compiler.options.doc) {
-		doc = {name: null, category: "Variables", shortSignature: null, longSignature: []};
+		doc = {name: null, category: "var", shortSignature: null, longSignature: [], group: "Variables"};
     }
 
 	do {

@@ -139,7 +139,7 @@ export statement class {
                         name: "constructor",
                         shortSignature: "constructor(" + sigArguments(ctor.arguments) + ")",
                         longSignature: "constructor(" + sigArguments(ctor.arguments) + ")",
-                        category: "Constructor",
+                        category: "function",
                         description: ast.members[i].doc
                     });
                 }
@@ -155,7 +155,7 @@ export statement class {
                         name: ast.members[i].name.name,
                         shortSignature: "function " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")",
                         longSignature: "function " + ast.members[i].name.name + "(" + sigArguments(ast.members[i].arguments) + ")",
-                        category: "Function",
+                        category: "function",
                         description: ast.members[i].doc
                     });
                 }
@@ -170,7 +170,7 @@ export statement class {
                         name: ast.members[i].name.name,
                         shortSignature: "get " + ast.members[i].name.name + "()",
                         longSignature: "get " + ast.members[i].name.name + "()",
-                        category: "Getter",
+                        category: "get",
                         description: ast.members[i].doc
                     });
                 }
@@ -185,7 +185,7 @@ export statement class {
                         name: ast.members[i].name.name,
                         shortSignature: "set " + ast.members[i].name.name + "(value)",
                         longSignature: "set " + ast.members[i].name.name + "(value)",
-                        category: "Setter",
+                        category: "set",
                         description: ast.members[i].doc
                     });
                 }
@@ -258,7 +258,7 @@ export statement class {
             return a.shortSignature < b.shortSignature ? -1 : 1;
         });
         code.doc = {
-            category: "Classes",
+            category: "class",
             name: name.name,
             shortSignature: "class " + name.name,
             longSignature: "class " + name.name + " {\n" + docsig + "}",
