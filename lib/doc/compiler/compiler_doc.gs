@@ -120,27 +120,27 @@ DocSpiller.prototype.spill = function() {
     var self = this;
 
     // Template for the index
-    var overview = xmlTemplate() {
-        <dd>< a href={"#item" + $data.__id}>{$data.shortSignature}</a></dd>
-        {if $data.members}
-            {foreach $data.members}
-                {overview(__doc, $data)}
+    var overview = xmlTemplate(docItem, prefix) {
+        <dd>< a href={"#item" + docItem.__id}>{prefix + docItem.shortSignature}</a></dd>
+        {if docItem.members}
+            {foreach docItem.members}
+                {overview($data, prefix + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160), __doc)}
             {/foreach}
         {/if}
     }
 
-    var groupOverview = xmlTemplate() {
-        <dd>< a href={"#item" + $data.__id}>{$data.group}</a></dd>
-        {if $data.members}
-            {foreach $data.members}
-                {overview(__doc, $data)}
+    var groupOverview = xmlTemplate(docItem, prefix) {
+        <dd>< a href={"#item" + docItem.__id}>{prefix + docItem.group}</a></dd>
+        {if docItem.members}
+            {foreach docItem.members}
+                {overview($data, prefix + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160), __doc)}
             {/foreach}
         {/if}
     }
 
-    var groupDetails = xmlTemplate() {
-        <h2 id={"#item" + $data.__id}>{$data.name}</h2>
-        {foreach $data.items}
+    var groupDetails = xmlTemplate(docItem) {
+        <h2 id={"#item" + docItem.__id}>{docItem.name}</h2>
+        {foreach docItem.items}
             <pre>{$data.longSignature}</pre>
             {if $data.description}
                 <p>{$data.description}</p>
@@ -148,27 +148,27 @@ DocSpiller.prototype.spill = function() {
         {/foreach}
     };
 
-    var details = xmlTemplate() {
-        <h2 id={"#item" + $data.__id}>{$data.category + " " + $data.name}</h2>
-        <pre>{$data.longSignature}</pre>
-        {if $data.description}
-            <p>{$data.description}</p>
+    var details = xmlTemplate(docItem) {
+        <h2 id={"#item" + docItem.__id}>{docItem.category + " " + docItem.name}</h2>
+        <pre>{docItem.longSignature}</pre>
+        {if docItem.description}
+            <p>{docItem.description}</p>
         {/if}
-        {if $data.members}
-            {foreach $data.members}
-                {memberDetails(__doc, $data)}
+        {if docItem.members}
+            {foreach docItem.members}
+                {memberDetails($data, __doc)}
             {/foreach}
         {/if}
     };
 
-    var memberDetails = xmlTemplate() {
-        <h3 id={"#item" + $data.__id}>{$data.category + " " + $data.name}</h3>
-        <pre>{$data.longSignature}</pre>
-        {if $data.description}
-            <p>{$data.description}</p>
+    var memberDetails = xmlTemplate(docItem) {
+        <h3 id={"#item" + docItem.__id}>{docItem.category + " " + docItem.name}</h3>
+        <pre>{docItem.longSignature}</pre>
+        {if docItem.description}
+            <p>{docItem.description}</p>
         {/if}
-        {if $data.members}
-            {foreach $data.members}
+        {if docItem.members}
+            {foreach docItem.members}
                 {memberDetails(__doc, $data)}
             {/foreach}
         {/if}
@@ -177,6 +177,7 @@ DocSpiller.prototype.spill = function() {
     var tmpl = xmlTemplate() {
         <html>
         <head>
+            <meta charset="utf-8"/>
             <style>
             body {{
                 font-family: Helvetica, Arial, sans-serif;
@@ -285,7 +286,7 @@ DocSpiller.prototype.spill = function() {
         <h2 id="index">Index</h2>
         <dl>
             {foreach indexList}
-                {$data.group !== undefined ? groupOverview(__doc, $data) : overview(__doc, $data)}
+                {$data.group !== undefined ? groupOverview($data, "", __doc) : overview($data, "", __doc)}
             {/foreach}
         </dd>
         <h4>Package files</h4>
@@ -295,7 +296,7 @@ DocSpiller.prototype.spill = function() {
             {/foreach}
         </dd></dl>
         {foreach indexList}
-            {$data.items !== undefined ? groupDetails(__doc, $data) : details(__doc, $data)}
+            {$data.items !== undefined ? groupDetails($data, __doc) : details($data, __doc)}
         {/foreach}
         </div>
         <div id="footer">

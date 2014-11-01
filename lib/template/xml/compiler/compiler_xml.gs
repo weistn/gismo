@@ -6,7 +6,19 @@ var counter = 0;
 
 export operator xmlTemplate {
 	parser.tokenizer.expect("(");
-	// TODO: parameter
+
+	// Parse parameters
+	var args = [];
+	var arg = parser.tokenizer.presumeIdentifier(true);
+	while(arg) {
+		args.push(arg.value);
+		if (!parser.tokenizer.presume(",", true)) {
+			break;
+		}
+		arg = parser.tokenizer.expectIdentifier();
+	}
+	args.push(identifier "__doc");
+
 	parser.tokenizer.expect(")");
 	parser.tokenizer.expect("{");
 	var ast = xmlparser.parseFragment(parser);
@@ -20,14 +32,14 @@ export operator xmlTemplate {
 		template{ if (!__doc) {
 			__doc = new @(identifier parser.importAlias(module)).xmldom.Document();
 		}},
-		template{ var __parent = __doc.createDocumentFragment(), __node; }
+		template{ var __parent = __doc.createDocumentFragment(), __node, $data; }
 	];
 //	console.log(JSON.stringify(ast, null, "\t"));
 	counter = 0;
 	generateContent(code, ast);
 	code.push(template{ return __parent; })
 
-	return template(function(__doc, $data){@code});
+	return template(function(@args){@code});
 }
 
 function generateContent(code, ast) {
