@@ -4,6 +4,15 @@ import "gismo/xml/dom"
 import "fs";
 import "path";
 
+/// Comments are started with the '///' operator that is defined in this packet.
+/// Do not forget to include the documentation operator via 'import "gismo/doc"' if the '///' operator is supposed to generate documentation.
+/// Use the '--doc' command line option when compiling to generate HTML documentation for your packet.
+///
+/// A '///' comment preceding a statement comments this statement.
+/// Some statements such as control structures (while, for, if) and expression statements are not commentable.
+/// Thus, no documentation will be emitted for them.
+///
+/// A comment at the and of the file will be treated as the package overview.
 export statement /// {
     var ch, str = "", token;
     // Read all comment lines
@@ -63,6 +72,8 @@ DocSpiller.prototype.addFile = function(filename, ast, src, action) {
         ast: ast
     })
 };
+
+DocSpiller.prototype.addMetaFile = DocSpiller.prototype.addFile;
 
 function assignId(members, idcounter) {
     for(var i = 0; i < members.length; i++) {

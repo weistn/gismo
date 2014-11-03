@@ -11,7 +11,7 @@ var escodegen = require('escodegen');
 function Compiler(modulePath, options, version) {
 	this.path = modulePath;
 	this.version = version;
-	
+
 	// Is it a file or a single module?
 	try {
 		this.isFile = fs.statSync(modulePath).isFile();
@@ -231,7 +231,7 @@ Compiler.prototype.compileModule = function() {
 		var action = srcfiles[i].action;
 		var fname = srcfiles[i].filename;
 		if (action.action === "copy") {
-			// Add the file to all spillers
+			// Add the file to all spillers, but do not attempt to compile it
 			for(var key in this.spillers) {
 				this.spillers[key].addFile(fname, null, null, action);
 			}
@@ -320,7 +320,26 @@ Compiler.prototype.compileMetaModule = function() {
 			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
 		}
 		var p = new parser.Parser(this);
-		program.body = program.body.concat(p.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname)));
+		var body = p.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname));
+		program.body = program.body.concat(body);
+		try {
+			// Add the file to all spillers
+			for(var key in this.spillers) {
+				// Does the file require a special spiller?
+				if (body.spillers && body.spillers[key]) {
+					body.spillers[key].spill(fname, body, str, "compile");
+				} else if (this.spillers[key].addMetaFile) {
+					this.spillers[key].addMetaFile(fname, body, str, "compile");
+				}
+			}
+		} catch(err) {
+			if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
+				throw err;
+			}
+			var e = new errors.CompilerError(err.toString());
+			e.stack = err.stack;
+			throw e;
+		}			
 	}
 
 	var result = escodegen.generate(program, {sourceMapWithCode: true, sourceMap: true, sourceContent: this.metaFile()});
