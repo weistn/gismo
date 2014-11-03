@@ -39,5 +39,7 @@ export class Rect {
 		this.width *= f;
 		this.height *= f;
 	}
-
 }
+
+/// This is a test module.
+/// It sports an overview comment right at the end of the file

@@ -21,7 +21,13 @@ export statement /// {
 
     // End of file?
     if (parser.tokenizer.lookahead() === null) {
-        return null;
+        return {
+            type: "EmptyStatement",
+            doc: {
+                category: "overview",
+                description: str
+            }
+        };
     }
 
     var st = parser.parseStatement();
@@ -79,12 +85,15 @@ DocSpiller.prototype.spill = function() {
     var groups = {};
     var modulePath = path.basename(this.compiler.path);
     var moduleName = modulePath.lastIndexOf(".") != -1 ? modulePath.slice(0, modulePath.lastIndexOf(".")) : modulePath;
+    var pkgOverview = "";
     var idcounter = 1;
     for(var i = 0; i < this.files.length; i++) {
         var f = this.files[i];
         for(var k = 0; k < f.ast.length; k++) {
             var s = f.ast[k];
-            if (s.doc && s.exported) {
+            if (s.doc && s.doc.category === "overview") {
+                pkgOverview = s.doc.description;
+            } else if (s.doc && s.exported) {
                 s.doc.__id = idcounter++;
                 if (s.doc.members) {
                     idcounter = assignId(s.doc.members, idcounter);
@@ -149,7 +158,7 @@ DocSpiller.prototype.spill = function() {
     };
 
     var details = xmlTemplate(docItem) {
-        <h2 id={"#item" + docItem.__id}>{docItem.category + " " + docItem.name}</h2>
+        <h2 id={"item" + docItem.__id}>{docItem.category + " " + docItem.name}</h2>
         <pre>{docItem.longSignature}</pre>
         {if docItem.description}
             <p>{docItem.description}</p>
@@ -162,7 +171,7 @@ DocSpiller.prototype.spill = function() {
     };
 
     var memberDetails = xmlTemplate(docItem) {
-        <h3 id={"#item" + docItem.__id}>{docItem.category + " " + docItem.name}</h3>
+        <h3 id={"item" + docItem.__id}>{docItem.category + " " + docItem.name}</h3>
         <pre>{docItem.longSignature}</pre>
         {if docItem.description}
             <p>{docItem.description}</p>
@@ -280,9 +289,11 @@ DocSpiller.prototype.spill = function() {
             <dd><code>import "{modulePath}"</code></dd>
         </dl>
         <dl>
-            <dd><a href="#">Overview</a></dd>
+            <dd><a href="#overview">Overview</a></dd>
             <dd><a href="#index">Index</a></dd>
         </dl>
+        <h2 id="overview">Overview</h2>
+        <p>{pkgOverview}</p>
         <h2 id="index">Index</h2>
         <dl>
             {foreach indexList}
