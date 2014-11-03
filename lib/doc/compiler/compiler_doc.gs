@@ -6,7 +6,12 @@ import "path";
 
 /// Comments are started with the '///' operator that is defined in this packet.
 /// Do not forget to include the documentation operator via 'import "gismo/doc"' if the '///' operator is supposed to generate documentation.
-/// Use the '--doc' command line option when compiling to generate HTML documentation for your packet.
+/// Use the '--doc' command line option when compiling to generate HTML documentation for your package.
+///
+/// import "gismo/doc";
+/// /// This is a comment for the function 'foo'.
+/// /// This comment can span multiple lines.
+/// function foo() { ... }
 ///
 /// A '///' comment preceding a statement comments this statement.
 /// Some statements such as control structures (while, for, if) and expression statements are not commentable.
