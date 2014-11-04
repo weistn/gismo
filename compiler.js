@@ -250,6 +250,17 @@ Compiler.prototype.compileModule = function() {
 //		p.importModuleName = this.path;
 		// Import the meta module for this package
 		this.importMetaModule(p, this.path, "module");
+
+		// Import the documentation module if required
+		if (this.options.doc && this.pkg.gismo.docModule) {
+			var tmp = this.resolveModule(parser, this.pkg.gismo.docModule);
+			// Import the gismo module
+			var pa = path.dirname(tmp.jsfile);
+			p.importModuleRunning = true;
+			this.importMetaModule(p, pa, "__docModule__", this.pkg.gismo.docModule);
+			p.importModuleRunning = false;
+		}
+
 		// Parse the source file
 		var body = p.parse(lexer.newTokenizer(str, fname));
 		try {
@@ -320,6 +331,17 @@ Compiler.prototype.compileMetaModule = function() {
 			throw new Error("Could not read '" + this.path + "compiler/" + fname + "'");
 		}
 		var p = new parser.Parser(this);
+
+		// Import the documentation module if required
+		if (this.options.doc && this.pkg.gismo.docModule) {
+			var tmp = this.resolveModule(parser, this.pkg.gismo.docModule);
+			// Import the gismo module
+			var pa = path.dirname(tmp.jsfile);
+			p.importModuleRunning = true;
+			this.importMetaModule(p, pa, "__docModule__", this.pkg.gismo.docModule);
+			p.importModuleRunning = false;
+		}
+
 		var body = p.parse(lexer.newTokenizer(str, this.path + "compiler/" + fname));
 		program.body = program.body.concat(body);
 		try {

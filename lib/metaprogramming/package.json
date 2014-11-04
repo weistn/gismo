@@ -5,5 +5,8 @@
     "main": "main.js",
     "author": "TODO",
     "license": "TODO",
-    "gismo": {}
+    "gismo": {
+    	"uniqueId": "a380d171125058474b52f7c0ca1ab731",
+    	"docModule": "gismo/doc"
+    }
 }

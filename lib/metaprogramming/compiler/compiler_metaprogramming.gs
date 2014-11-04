@@ -51,6 +51,8 @@ function isOperator(str) {
 /// Here the operator 'select' is right-associative. However, the default parser is not able to scan the exression to the right of 'select'
 /// because this is SQL syntax and not JS syntax. Thus, we define the operator as 'operator select { ... }' and parse the reminder of the SQL statement
 /// in the parser-function. From the viewpoint of the JS-parser the keyword 'select' starts an expression that is non-associative.
+///
+/// docHint: {"name": "operator", "category": "statement", "shortSignature": "statement operator", "longSignature": "statement operator"}
 export parser.extendSyntax({
     type: 'statement',
     name: 'operator',
@@ -206,6 +208,8 @@ export parser.extendSyntax({
 /// The parser-function has access to a variable named 'parser' and must scan until the end of the statement
 /// including a trailing ';'. The parser-function must return an AST node or an array of AST nodes.
 /// These returned AST nodes are put in the resulting AST to represent the parsed statement.
+///
+/// docHint: {"name": "statement", "category": "statement", "shortSignature": "statement statement", "longSignature": "statement statement"}
 export parser.extendSyntax({
     type: 'statement',
     name: 'statement',

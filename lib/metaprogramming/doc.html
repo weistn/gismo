@@ -1,0 +1,90 @@
+<html><head><meta charset="utf-8"><style>
+            body {
+                font-family: Helvetica, Arial, sans-serif;
+                margin: 0;
+            }
+            div#container {
+                padding: 0 20px;                
+            }
+            div#topbar {
+                background: #E0EBF5;
+                height: 64px;
+                overflow: hidden;
+                padding: 0 20px;                
+            }
+            div#heading {
+                margin: 0 0 10px 0;
+                padding: 21px 0;
+                font-size: 20px;
+                font-weight: normal;
+            }
+            div#menu {
+                float: right;
+                padding: 21px 0;
+                text-align: right;
+            }
+            div#menu > a {
+                margin-right: 5px;
+                margin-bottom: 10px;
+                padding: 10px;
+                color: white;
+                background: #375EAB;
+                border: 1px solid #375EAB;
+                text-decoration: none;
+                font-size: 16px;
+                border-radius: 5px;
+            }
+            h1, h2, h3, h4 {
+                margin: 20px 0;
+                padding: 0;
+                font-size: 24px;
+                color: #375eab;
+                font-weight: bold;
+            }
+            h2 {
+                font-size: 20px;
+                background: #E0EBF5;
+                padding: 2px 5px;
+            }
+            h3 {
+                font-size: 20px;
+                padding: 2px 5px;
+            }
+            h4 {
+                margin: 20px 5px;
+                font-size: 16px;
+            }
+            a {
+                color: #375eab;
+                text-decoration: none;
+            }
+            pre, code {
+                font-family: Menlo, monospace;
+                font-size: 14px;
+            }
+            dl, p, pre {
+                margin: 20px;
+            }
+            dd {
+                margin: 2px 20px;
+            }
+            pre {
+                background: #e9e9e9;
+                padding: 10px;
+                -webkit-border-radius: 5px;
+                -moz-border-radius: 5px;
+                border-radius: 5px;
+                line-height: 18px;
+            }
+            div#footer {
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+                margin: 40px 0;
+            }
+            </style></head><body><div id="topbar"><div id="menu"><a href="#">Packages</a><a href="#">The Project</a></div><div id="heading">
+                Gismo Documentation
+            </div></div><div id="container"><h1>Package metaprogramming</h1><dl><dd><code>import "metaprogramming"</code></dd></dl><dl><dd><a href="#overview">Overview</a></dd><dd><a href="#index">Index</a></dd></dl><h2 id="overview">Overview</h2><p> The meta-programming package defines two new statements: 'operator' and 'statement' which ease the implementation of new operators or statements. However, this is just a convenience syntax. The meta-programming package is only useful in the meta-code (which resides in the 'compiler' sub-directory of each package).</p><h2 id="index">Index</h2><dl><dd><a href="#item1">statement operator</a></dd><dd><a href="#item2">statement statement</a></dd></dl><h4>Package files</h4><dl><dd><a href="compiler_metaprogramming.gs">compiler_metaprogramming.gs</a><a href="/Users/weis/Projects/mydummy/lib/metaprogramming/src/metaprogramming.gs">metaprogramming.gs</a></dd></dl><h2 id="item1">statement operator</h2><pre>statement operator</pre><p> Defines a new operator. An operator can have no associativity. Thus, it can be used everywhere where a JS-expression can be used. You could, for example, define an operator named '@line'. Then you can write 'console.log("We are at" + @line)'. Left-associative operators attach them selfes to an expression to their left, e.g. in 'a...' the '...' operator is left-associative. Right-associative operators attach them selfes to an expression to their right, e.g. in '!a' the '!' operator is right-associative. Binary-associative operators combine expressions to their left and right into one expression, e.g. in 'a+b' the '+' operator is binary-associative. operator &lt;name-of-operator> { &lt;parser-function> }                                       // no associativity operator &lt;expr-placeholder> &lt;name-of-operator> { &lt;parser-function> }                    // left associativity operator &lt;name-of-operator> &lt;expr-placeholder> { &lt;parser-function> }                    // right associativity operator &lt;expr-placeholder> &lt;name-of-operator> &lt;expr-placeholder> { &lt;parser-function> } // binary associativity The name-of-statement is either a JS identifier (e.g. 'select' or 'foo12') or a sequence of characters which are neither white-spaces nor are they characters that may appear in the beginning of a JS identifier (e.g. '///' or '@'). The expr-placeholder must be an identifier. This causes problems when distinguishing a left-associative from a right-associative operator as shown by the following example: operator select expr { ... } This could either be a left-associative operator named 'expr' or a right-associative operator called 'select'. Since right-associativity is more common, the conflict is resolved this way. However, left-associativity can be enfored  by prepending the operator with a backslash, e.g. the following example defines a left-associative operator named 'expr'. operator select \expr { ... } The parser-function has access to a variable named 'parser' and must scan until the end of the statement including a trailing ';'. The parser-function must return an AST node or an array of AST nodes. These returned AST nodes are put in the resulting AST to represent the parsed statement. The parser-function has access to zero, one or two addition variables which are named by the &lt;expr-placeholder>, e.g. in the following example the parser-function has access to the variables 'a' and 'b'. The two variables 'a' and 'b' contain the AST tree of the two expressions. operator a + b { ... } Sometimes it might be useful to define an operator with no associativity although the operator has some associativity. For example, we want to realize the following code: var cursor = select * from table; Here the operator 'select' is right-associative. However, the default parser is not able to scan the exression to the right of 'select' because this is SQL syntax and not JS syntax. Thus, we define the operator as 'operator select { ... }' and parse the reminder of the SQL statement in the parser-function. From the viewpoint of the JS-parser the keyword 'select' starts an expression that is non-associative.</p><h2 id="item2">statement statement</h2><pre>statement statement</pre><p> Defines a new statement. statement &lt;name-of-statement> { &lt;parser-function> } The name-of-statement is either a JS identifier (e.g. 'select' or 'foo12') or a sequence of characters which are neither white-spaces nor are they characters that may appear in the beginning of a JS identifier (e.g. '///' or '@'). The parser-function has access to a variable named 'parser' and must scan until the end of the statement including a trailing ';'. The parser-function must return an AST node or an array of AST nodes. These returned AST nodes are put in the resulting AST to represent the parsed statement.</p></div><div id="footer">
+            Build version gismo 0.1.2.<br>
+            The content of this page is licensed under the Creative Commons Attribution 3.0 License, and code is licensed under a BSD license.
+        </div></body></html>

@@ -966,7 +966,7 @@ function importParser() {
 		};
 	}
 
-	// Import using modejs require
+	// Import using nodejs require
 	return {
 		loc: {source: loc.filename, start: loc.loc, end: endloc.loc},
         "type": "VariableDeclaration",

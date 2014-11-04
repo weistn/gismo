@@ -6,6 +6,7 @@
     "author": "TODO",
     "license": "TODO",
     "gismo": {
-        "uniqueId": "c859dee1561a552cf29c7665135ba7b4"
+        "uniqueId": "c859dee1561a552cf29c7665135ba7b4",
+    	"docModule": "gismo/doc"
     }
 }

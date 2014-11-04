@@ -5,8 +5,12 @@ import "fs";
 import "path";
 
 /// Comments are started with the '///' operator that is defined in this packet.
+/// A comment can span multiple lines. Therefore each subsequent line must start with '///'.
+/// Whitespace at the beginning or end of a line is ignored.
+///
 /// Do not forget to include the documentation operator via 'import "gismo/doc"' if the '///' operator is supposed to generate documentation.
 /// Use the '--doc' command line option when compiling to generate HTML documentation for your package.
+/// The following code shows an example usage of the 'gismo/doc' package.
 ///
 /// import "gismo/doc";
 /// /// This is a comment for the function 'foo'.
@@ -19,9 +23,10 @@ import "path";
 ///
 /// A comment at the and of the file will be treated as the package overview.
 export statement /// {
-    var ch, str = "", token;
+    var ch, str = "", token, line;
     // Read all comment lines
     do {
+        line = "";
         // Read until end of line
         do {
             var ch = parser.tokenizer.peekChar();
@@ -29,8 +34,9 @@ export statement /// {
                 break;
             }
             parser.tokenizer.nextChar();
-            str += String.fromCharCode(ch);
+            line += String.fromCharCode(ch);
         } while(ch);
+        str += line;
     } while (parser.tokenizer.presume("///", true));
 
     // End of file?
@@ -44,6 +50,13 @@ export statement /// {
         };
     }
 
+    var doc;
+    if (line.trim().substring(0,8) === "docHint:") {
+        str = str.substring(0, str.length - line.length);
+        line = line.trim();
+        doc = JSON.parse(line.substring(8, line.length).trim());
+    }
+
     var st = parser.parseStatement();
     // The above function might return an array, especially when parsing 'export function foo() { }'.
     var s;
@@ -53,6 +66,9 @@ export statement /// {
         s = st;
     }
 
+    if (s && doc) {
+        s.doc = doc;
+    }
     if (s && s.doc) {
         s.doc.description = str;
     }
@@ -350,4 +366,6 @@ DocSpiller.prototype.addDependency = function(modulePath, pkg, alias, name, isMe
     });
 };
 
-parser.getCompiler().addSpiller("doc", new DocSpiller(parser.getCompiler()));
+if (!parser.getCompiler().getSpiller("gismo/doc")) {
+    parser.getCompiler().addSpiller("gismo/doc", new DocSpiller(parser.getCompiler()));
+}
