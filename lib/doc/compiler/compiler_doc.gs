@@ -31,6 +31,7 @@ export statement /// {
         do {
             var ch = parser.tokenizer.peekChar();
             if (parser.tokenizer.isLineTerminator(ch)) {
+                line += String.fromCharCode(10);
                 break;
             }
             parser.tokenizer.nextChar();
@@ -184,7 +185,7 @@ DocSpiller.prototype.spill = function() {
         {foreach docItem.items}
             <pre>{$data.longSignature}</pre>
             {if $data.description}
-                <p>{$data.description}</p>
+                {self.compileMarkdown(__doc, $data.description)}
             {/if}
         {/foreach}
     };
@@ -193,7 +194,7 @@ DocSpiller.prototype.spill = function() {
         <h2 id={"item" + docItem.__id}>{docItem.category + " " + docItem.name}</h2>
         <pre>{docItem.longSignature}</pre>
         {if docItem.description}
-            <p>{docItem.description}</p>
+            {self.compileMarkdown(__doc, docItem.description)}
         {/if}
         {if docItem.members}
             {foreach docItem.members}
@@ -206,7 +207,7 @@ DocSpiller.prototype.spill = function() {
         <h3 id={"item" + docItem.__id}>{docItem.category + " " + docItem.name}</h3>
         <pre>{docItem.longSignature}</pre>
         {if docItem.description}
-            <p>{docItem.description}</p>
+            {self.compileMarkdown(__doc, docItem.description)}
         {/if}
         {if docItem.members}
             {foreach docItem.members}
@@ -365,6 +366,150 @@ DocSpiller.prototype.addDependency = function(modulePath, pkg, alias, name, isMe
         uniqueId: pkg.gismo ? pkg.gismo.uniqueId : null
     });
 };
+
+DocSpiller.prototype.compileMarkdown = function(doc, markdown) {
+    console.log("compileMarkfown")
+    var fragment = doc.createDocumentFragment();
+    var node;
+    var source = {markdown: markdown, index: 0};
+    while((node = this.compileMarkdownParagraph(doc, source)) !== null) {
+        fragment.appendChild(node);
+    }
+    return fragment;
+};
+
+DocSpiller.prototype.skipWhitespace = function(str, index) {
+    for(var i = index; i < str.length; i++) {
+        var ch = str.charCodeAt(i);
+        if ((ch === 0x20) || (ch === 0x09) || (ch === 0x0B) || (ch === 0x0C) || (ch === 0xA0) ||
+            (ch >= 0x1680 && [0x1680, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000, 0xFEFF].indexOf(ch) >= 0)) {
+            continue;
+        }
+        return i;
+    }
+    return str.length;
+};
+
+DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
+    console.log("Parag");
+    var markdown = source.markdown;
+    var index = this.skipWhitespace(markdown, source.index);
+    if (markdown.length === index) {
+        return null;
+    }
+    console.log("el");
+    var cssStack = [];
+    var nodeStack = [];
+    var star = false;
+    var underline = false;
+    var code = false;
+
+    // Create a new p-element
+    var node = doc.createElement("p");
+
+    // Count new lines. Two new lines denote the end of the paragraph
+    var newLine = 0;
+    while(newLine < 2) {
+        // Get text up to the next punctuator or line end
+        var start = index;
+        while(index < markdown.length) {
+            var ch = markdown.charCodeAt(index);
+            if (ch === 123 || ch === 125 || ch === 126 || ch === 42 || ch === 95 || ch === 10 || ch === 13) {
+                break;
+            }
+            index++;
+        }
+        if (start < index) {
+            console.log(">>>" + markdown.substring(start, index) + "<<<");
+            node.appendChild(doc.createTextNode(markdown.substring(start, index)));
+            newLine = 0;
+        }
+
+        var ch = markdown.charCodeAt(index++);
+        // EOF?
+        if (!ch) {
+            break;
+        }
+        // Which punctuator did we get?
+        switch(ch) {
+            case 123: // {
+                // TODO
+                cssStack.push("{")
+                break;
+            case 125: // }
+                if (cssStack.length === 0 || cssStack.pop() != "{") {
+                    parser.throwError(null, "Mismatched closing bracket");
+                }
+                // TODO
+                break;
+            case 126: // ~
+                // TODO
+                break;
+            case 96: // `
+                if (code) {
+                    if (cssStack.length === 0 || cssStack.pop() != "`") {
+                        parser.throwError(null, "Mismatched closing bracket");
+                    }
+                    node = nodeStack.pop();
+                    code = false;
+                } else {
+                    var n = doc.createElement("span");
+                    n.setAttribute("class", "code");
+                    node.appendChild(n);
+                    nodeStack.push(node);
+                    node = n;
+                    cssStack.push("*")
+                    code = true;
+                }
+                break;
+            case 42: // *
+                if (star) {
+                    if (cssStack.length === 0 || cssStack.pop() != "*") {
+                        parser.throwError(null, "Mismatched closing bracket");
+                    }
+                    node = nodeStack.pop();
+                    star = false;
+                } else {
+                    var n = doc.createElement("span");
+                    n.setAttribute("style", "font-weight: bold");
+                    node.appendChild(n);
+                    nodeStack.push(node);
+                    node = n;
+                    cssStack.push("*")
+                    star = true;
+                }
+                break;
+            case 95: // _
+                if (underline) {
+                    if (cssStack.length === 0 || cssStack.pop() != "_") {
+                        parser.throwError(null, "Mismatched closing bracket");
+                    }
+                    node = nodeStack.pop();
+                    underline = false;
+                } else {
+                    var n = doc.createElement("span");
+                    n.setAttribute("style", "font-style: italic");
+                    node.appendChild(n);
+                    nodeStack.push(node);
+                    node = n;
+                    cssStack.push("_");
+                    underline = true;
+                }
+                break;
+            case 10:
+                console.log("NEWLINE")
+                newLine++;
+                break;
+        }
+    }
+    source.index = index;
+    if(nodeStack.length > 0) {
+        node = nodeStack[0];
+    }
+    return node;
+}
+
+
 
 if (!parser.getCompiler().getSpiller("gismo/doc")) {
     parser.getCompiler().addSpiller("gismo/doc", new DocSpiller(parser.getCompiler()));
