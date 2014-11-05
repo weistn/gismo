@@ -298,6 +298,13 @@ DocSpiller.prototype.spill = function() {
                 border-radius: 5px;
                 line-height: 18px;
             }}
+            code {{
+                padding: 2px 4px;
+                color: #800;
+                background-color: #f7f7f9;
+                border: 1px solid #e1e1e8;
+                border-radius: 3px;
+            }}
             div#footer {{
                 text-align: center;
                 color: #666;
