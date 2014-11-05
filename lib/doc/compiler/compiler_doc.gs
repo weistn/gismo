@@ -4,7 +4,7 @@ import "gismo/xml/dom"
 import "fs";
 import "path";
 
-/// Comments are started with the '///' operator that is defined in this packet.
+/// Comments are started with the `///` operator that is defined in this packet.
 /// A comment can span multiple lines. Therefore each subsequent line must start with '///'.
 /// Whitespace at the beginning or end of a line is ignored.
 ///
@@ -368,7 +368,6 @@ DocSpiller.prototype.addDependency = function(modulePath, pkg, alias, name, isMe
 };
 
 DocSpiller.prototype.compileMarkdown = function(doc, markdown) {
-    console.log("compileMarkfown")
     var fragment = doc.createDocumentFragment();
     var node;
     var source = {markdown: markdown, index: 0};
@@ -391,18 +390,39 @@ DocSpiller.prototype.skipWhitespace = function(str, index) {
 };
 
 DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
-    console.log("Parag");
     var markdown = source.markdown;
     var index = this.skipWhitespace(markdown, source.index);
     if (markdown.length === index) {
         return null;
     }
-    console.log("el");
+
+    if (markdown.charCodeAt(index) === 96 && markdown.charCodeAt(index + 1) === 96) { // ''
+        var n = doc.createElement("pre");
+        index += 2;
+        // Get text up to the next punctuator or line end
+        var start = index;
+        while(index < markdown.length) {
+            var ch = markdown.charCodeAt(index);
+            if (ch === undefined) {
+                break;
+            }
+            index++;
+            if (ch === 96 && markdown.charCodeAt(index) === 96) {
+                index++;
+                break;
+            }
+        }
+        if (start < index - 2) {
+            n.appendChild(doc.createTextNode(markdown.substring(start, index - 2)));
+        }
+        source.index = index;
+        return n;
+    }
+
     var cssStack = [];
     var nodeStack = [];
     var star = false;
     var underline = false;
-    var code = false;
 
     // Create a new p-element
     var node = doc.createElement("p");
@@ -414,13 +434,12 @@ DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
         var start = index;
         while(index < markdown.length) {
             var ch = markdown.charCodeAt(index);
-            if (ch === 123 || ch === 125 || ch === 126 || ch === 42 || ch === 95 || ch === 10 || ch === 13) {
+            if (ch === 123 || ch === 125 || ch === 126 || ch === 42 || ch === 95 || ch === 96 || ch === 10 || ch === 13) {
                 break;
             }
             index++;
         }
         if (start < index) {
-            console.log(">>>" + markdown.substring(start, index) + "<<<");
             node.appendChild(doc.createTextNode(markdown.substring(start, index)));
             newLine = 0;
         }
@@ -446,21 +465,28 @@ DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
                 // TODO
                 break;
             case 96: // `
-                if (code) {
-                    if (cssStack.length === 0 || cssStack.pop() != "`") {
-                        parser.throwError(null, "Mismatched closing bracket");
-                    }
-                    node = nodeStack.pop();
-                    code = false;
-                } else {
-                    var n = doc.createElement("span");
-                    n.setAttribute("class", "code");
-                    node.appendChild(n);
-                    nodeStack.push(node);
-                    node = n;
-                    cssStack.push("*")
-                    code = true;
+                if (markdown.charCodeAt(index) === 96) { // ``
+                    index--;
+                    newLine = 2;
+                    break;
                 }
+                var n = doc.createElement("code");
+                // Get text up to the next punctuator or line end
+                var start = index;
+                while(index < markdown.length) {
+                    var ch = markdown.charCodeAt(index);
+                    if (ch === undefined) {
+                        break;
+                    }
+                    index++;
+                    if (ch === 96) {
+                        break;
+                    }
+                }
+                if (start < index - 1) {
+                    n.appendChild(doc.createTextNode(markdown.substring(start, index - 1)));
+                }
+                node.appendChild(n);
                 break;
             case 42: // *
                 if (star) {
@@ -497,7 +523,6 @@ DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
                 }
                 break;
             case 10:
-                console.log("NEWLINE")
                 newLine++;
                 break;
         }
