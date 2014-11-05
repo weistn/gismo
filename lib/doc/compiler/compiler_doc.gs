@@ -5,20 +5,20 @@ import "fs";
 import "path";
 
 /// Comments are started with the `///` operator that is defined in this packet.
-/// A comment can span multiple lines. Therefore each subsequent line must start with '///'.
+/// A comment can span multiple lines. Therefore each subsequent line must start with `///`.
 /// Whitespace at the beginning or end of a line is ignored.
 ///
-/// Do not forget to include the documentation operator via 'import "gismo/doc"' if the '///' operator is supposed to generate documentation.
-/// Use the '--doc' command line option when compiling to generate HTML documentation for your package.
-/// The following code shows an example usage of the 'gismo/doc' package.
-///
+/// Do not forget to include the documentation operator via `import "gismo/doc"` if the `///` operator is supposed to generate documentation.
+/// Use the `--doc` command line option when compiling to generate HTML documentation for your package.
+/// The following code shows an example usage of the `gismo/doc` package.
+/// ``
 /// import "gismo/doc";
-/// /// This is a comment for the function 'foo'.
+/// /// This is a comment for the function `foo`.
 /// /// This comment can span multiple lines.
 /// function foo() { ... }
-///
-/// A '///' comment preceding a statement comments this statement.
-/// Some statements such as control structures (while, for, if) and expression statements are not commentable.
+/// ``
+/// A `///` comment preceding a statement comments this statement.
+/// Some statements such as control structures (`while`, `for`, `if`) and expression statements are not commentable.
 /// Thus, no documentation will be emitted for them.
 ///
 /// A comment at the and of the file will be treated as the package overview.
