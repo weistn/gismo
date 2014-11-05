@@ -336,7 +336,7 @@ DocSpiller.prototype.spill = function() {
         <h4>Package files</h4>
         <dl><dd>
             {foreach self.files}
-                <a href={$data.filename}>{path.basename($data.filename)}</a>;
+                <a href={$data.filename}>{path.basename($data.filename)}</a>&#160;
             {/foreach}
         </dd></dl>
         {foreach indexList}

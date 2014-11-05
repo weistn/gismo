@@ -68,8 +68,18 @@ function generateContent(code, ast) {
 				}
 				break;
 			case "Text":
-				if ((i === 0 || i + 1 === ast.length) && a.value.trim() === "") {
-					continue;
+				// Strip white space (32) right after an opening tag and right before a closing tag
+				if (i === 0 || i + 1 === ast.length) {
+					var nonspace = false;
+					for(var k = 0; k < a.value.length; k++) {
+						if (a.value.charCodeAt(k) !== 32) {
+							nonspace = true;
+							break;
+						}
+					}
+					if (!nonspace) {
+						continue;
+					}
 				}
 				code.push(template{ __node = __doc.createTextNode(@(literal a.value)); });
 				code.push(template{ __parent.appendChild(__node); });
