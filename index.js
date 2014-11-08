@@ -128,7 +128,7 @@ function execModule() {
 		program.outputHelp();
 		process.exit();
 	}
-	var modulePath = args[0];
+	var modulePath = path.resolve(args[0]);
 //	// If it is not an absolute path, treat it as a relative path
 //	if (modulePath[0] != path.sep) {
 //		modulePath = "." + path.sep + modulePath;
