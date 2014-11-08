@@ -84,7 +84,7 @@ function compileModule(arg, options) {
 			console.log(err.toString().yellow);
 		} else if (err instanceof errors.CompilerError) {
 			if (!err.stack) {
-				console.log("Oooops", err.toString());
+				console.log(err.toString().yellow);
 				process.exit();
 			}
 //			console.log(JSON.stringify(err.stack, null, "\n"));

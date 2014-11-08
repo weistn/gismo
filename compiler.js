@@ -6,8 +6,10 @@ var errors = require('./errors.js');
 var defspiller = require('./spiller.js');
 var escodegen = require('escodegen');
 
-// 'modulePath' is either a relative or absolute filename of a gismo file (ending with *.gs)
-// or the path of a directory of a package, which contains a file called 'package.json'.
+/// Creates a compiler that can compile the specified module.
+/// The same compiler cannot be used to compile another module.
+/// `modulePath` is either a relative or absolute filename of a gismo file (ending with `*.gs`)
+/// or the absolute or relative path of a directory of a package, which contains a file called `package.json`.
 function Compiler(modulePath, options, version) {
 	this.path = modulePath;
 	this.version = version;
@@ -16,27 +18,27 @@ function Compiler(modulePath, options, version) {
 	try {
 		this.isFile = fs.statSync(modulePath).isFile();
 	} catch(err) {
-		throw new errors.SyntaxError("Unknown module " + this.path);
+		throw new errors.CompilerError("Unknown module " + this.path);
 	}
 
 	// Read package information if available
 	if (this.isFile) {
 		if (path.extname(this.path) != ".gs") {
-			throw new errors.SyntaxError("Not a gismo file " + this.path);
+			throw new errors.CompilerError("Not a gismo file " + this.path);
 		}
 		this.pkg = {};
 	} else {
 		if (this.path === "") {
-			throw new errors.SyntaxError("Illegal path for a module: " + this.path);
+			throw new errors.CompilerError("Illegal path for a module: " + this.path);
 		}
 		if (this.path[this.path.length - 1] != path.sep) {
 			this.path += path.sep;
 		}
 		// Try to read the package.json
 		try {
-			this.pkg = JSON.parse(fs.readFileSync(this.path + 'package.json', 'utf8'));
+			this.pkg = JSON.parse(fs.readFileSync(path.join(this.path, 'package.json'), 'utf8'));
 		} catch(err) {
-			throw new errors.SyntaxError("Unknown module " + this.path);
+			throw new errors.CompilerError("Unknown module " + this.path);
 		}
 	}
 
@@ -476,13 +478,21 @@ Compiler.prototype.checkMTime = function(dest, sources) {
 	return true;
 };
 
+/// Searches for a nodejs module that has been imported via `import "modulePath"`.
+///
+/// Returns an object with two properties. `modulePath` is the resolved path to the module.
+/// `modulePath` can be used with NodeJS require to import the module.
+/// `jsfile` is the path of the nodejs module's main source file.
+/// If the module is a gismo module, the `jsfile` will always point to the `main.js` file.
 Compiler.prototype.resolveModule = function(parser, modulePath) {
+	// Search a gismo standard library module?
 	if (modulePath.slice(0,6) === "gismo" + path.sep) {
 		// Seach the module in the lib-directory of this gismo installation
 		var p = path.dirname(__filename);
 		p = path.join(p, "lib", modulePath.slice(6));
 		try {
 			var jsfile = require.resolve(p);
+			// Search the module in the global gismo installation (if there is one)
 			try {
 				var jsfileGlobal = require.resolve(path.join("gismo", "lib", modulePath.slice(6)));
 				// If the global installation is the same as this gismo installation, then use the global path
@@ -499,11 +509,20 @@ Compiler.prototype.resolveModule = function(parser, modulePath) {
 		}
 	}
 
+	// Try to locate the module as a globally installed gismo module
 	try {
 		var jsfile = require.resolve(modulePath);
 	} catch(err) {
-		parser.throwError(null, errors.Messages.UnknownModule, modulePath);
-//		throw new Error(errors.Messages.UnknownModule.replace(/%(\d)/g, modulePath));
+		if (this.isFile) {
+			parser.throwError(null, errors.Messages.UnknownModule, modulePath);
+		}
+		// Check in the 'node_modules' directory
+		try {
+			jsfile = require.resolve(path.join(this.path, "node_modules", modulePath));
+		} catch(err) {
+			parser.throwError(null, errors.Messages.UnknownModule, modulePath);
+		}
+		return {modulePath: modulePath, jsfile: jsfile};
 	}
 	return {modulePath: modulePath, jsfile: jsfile};
 };
