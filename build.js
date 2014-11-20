@@ -17,10 +17,17 @@ function buildModules(modulePath, options, inTest) {
 
 	if (pkg && pkg.gismo && pkg.gismo.buildOrder) {
 		for(var i = 0; i < pkg.gismo.buildOrder.length; i++) {
-			buildModules(path.join(modulePath, pkg.gismo.buildOrder[i]), options, false);
+			if (!buildModules(path.join(modulePath, pkg.gismo.buildOrder[i]), options, false)) {
+				return false;
+			}
 		}
 	} else {
-		var filenames = fs.readdirSync(modulePath).sort();
+		try {
+			var filenames = fs.readdirSync(modulePath).sort();
+		} catch(e) {
+			console.log(("Directory " + modulePath + " does not exist. Check package.json on the parent directory").blue);
+			return false;
+		}
 		for(var i = 0; i < filenames.length; i++) {
 			var fname = filenames[i];
 			var info = fs.statSync(path.join(modulePath, fname));
@@ -29,9 +36,13 @@ function buildModules(modulePath, options, inTest) {
 			}
 
 			if (pkg && pkg.gismo && info.isDirectory() && fname === "test") {
-				buildModules(path.join(modulePath, fname), options, true);			
+				if (!buildModules(path.join(modulePath, fname), options, true)) {
+					return false;
+				}	
 			} else if (info.isDirectory()) {
-				buildModules(path.join(modulePath, fname), options, false);
+				if (!buildModules(path.join(modulePath, fname), options, false)) {
+					return false;
+				}
 			}
 		}
 	}
@@ -40,6 +51,8 @@ function buildModules(modulePath, options, inTest) {
 		console.log("Compile ", modulePath);
 		index.compileModule(modulePath, options);
 	}
+
+	return true;
 }
 
 exports.buildModules = buildModules;

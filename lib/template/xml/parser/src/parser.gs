@@ -1,4 +1,4 @@
-import "gismo/grammar"
+import "gismo/metaprogramming/grammar"
 
 grammar xmlFragment {
 	punctuator "</"

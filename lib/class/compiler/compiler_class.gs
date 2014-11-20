@@ -1,6 +1,6 @@
 import "gismo/metaprogramming/codegen"
 import "gismo/metaprogramming/keywords"
-import "gismo/grammar"
+import "gismo/metaprogramming/grammar"
 
 grammar classGrammar {
 	rule start
