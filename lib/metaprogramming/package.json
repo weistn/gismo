@@ -1,0 +1,7 @@
+{
+	"gismo": {
+		"buildOrder": [
+			"codegen", "keywords"
+		]
+	}
+}
