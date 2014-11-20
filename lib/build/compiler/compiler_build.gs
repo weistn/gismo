@@ -1,4 +1,4 @@
-import "gismo/metaprogramming"
+import "gismo/metaprogramming/keywords"
 import "escodegen"
 
 export operator resource {

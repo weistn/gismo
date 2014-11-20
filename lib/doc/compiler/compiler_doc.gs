@@ -1,4 +1,4 @@
-import "gismo/metaprogramming";
+import "gismo/metaprogramming/keywords";
 import "gismo/template/xml"
 import "gismo/xml/dom"
 import "fs";

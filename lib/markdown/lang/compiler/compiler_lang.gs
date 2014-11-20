@@ -1,6 +1,6 @@
 import "fs";
 import "path";
-import "gismo/metaprogramming"
+import "gismo/metaprogramming/keywords"
 
 function MarkDownSpiller() {
 }

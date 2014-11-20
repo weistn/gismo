@@ -1,4 +1,4 @@
-import "gismo/template";
+import "gismo/metaprogramming/codegen"
 
 function isOperator(str) {
     if (parser.tokenizer.isIdentifierStart(str.charCodeAt(0))) {

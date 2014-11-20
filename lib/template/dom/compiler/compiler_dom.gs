@@ -1,5 +1,5 @@
-import "gismo/template"
-import "gismo/metaprogramming"
+import "gismo/metaprogramming/codegen"
+import "gismo/metaprogramming/keywords"
 import "gismo/template/xml/parser" as xmlparser
 
 var counter = 0;

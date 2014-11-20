@@ -1,5 +1,5 @@
-import "gismo/metaprogramming"
-import "gismo/template"
+import "gismo/metaprogramming/codegen"
+import "gismo/metaprogramming/keywords"
 
 var counter = 0;
 

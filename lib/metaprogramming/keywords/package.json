@@ -1,0 +1,12 @@
+{
+    "name": "keywords",
+    "version": "0.0.1",
+    "description": "TODO",
+    "main": "main.js",
+    "author": "TODO",
+    "license": "TODO",
+    "gismo": {
+    	"uniqueId": "b380d171125058474b52f7c0ca1ab732",
+    	"docModule": "gismo/doc"
+    }
+}
