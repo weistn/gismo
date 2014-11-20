@@ -36,7 +36,7 @@ function buildModules(modulePath, options, inTest) {
 		}
 	}
 	
-	if (pkg && pkg.gismo) {
+	if (pkg && pkg.gismo && pkg.gismo.uniqueId) {
 		console.log("Compile ", modulePath);
 		index.compileModule(modulePath, options);
 	}
