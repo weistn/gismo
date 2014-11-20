@@ -1,5 +1,6 @@
 var program = require('commander');
 var compiler = require('./compiler.js');
+var build = require('./build.js');
 var path = require('path');
 var fs = require('fs');
 var errors = require('./errors.js');
@@ -67,8 +68,14 @@ function compileModules() {
 	var args = Array.prototype.slice.call(arguments, 0);
 	for(var i = 0; i < args.length - 1; i++) {
 		var arg = path.resolve(args[i]);
-		if (!compileModule(arg, compileCmd)) {
-			return false;
+		if (compileCmd.recursive) {
+			if (!build.buildModules(arg, compileCmd, false)) {
+				return false;
+			}
+		} else {
+			if (!compileModule(arg, compileCmd)) {
+				return false;
+			}
 		}
 	}
 	return true;
@@ -192,6 +199,8 @@ function printStackTrace(parsed) {
 	}
 }
 
+exports.compileModule = compileModule;
+
 program
 	.version(pkg.version)
 	.usage('[options] [command] <module ...>')
@@ -201,6 +210,7 @@ program
 	.description('create a new gismo module')
 	.action( initModule );
 
+
 var compileCmd = program
 	.command('compile')
 	.option('-d --doc', 'Generate documentation from the source code')
@@ -209,6 +219,7 @@ var compileCmd = program
 	.option('-v --graphviz', 'Only useful in combination with --dependencies.\n\t\t\t   Creates a graphviz visualization in "dependencies.dot"')
 	.option('-y --deploy [path]', 'Copy the compiler output to the default deployment location\n\t\t\t   ("./deploy" or as mentioned in package.json) or to the specified path\n\t\t\t   Only useful in combination with --weblib')
 	.option('-Y --deployall [path]', 'Like -y, but all dependencies are deployed, too')
+	.option('-r --recursive', 'Builds modules contained in sub-directories as well')
 	.description('compiles gismo modules')
 	.action( compileModules );
 
