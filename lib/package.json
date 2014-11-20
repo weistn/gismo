@@ -1,7 +1,7 @@
 {
 	"gismo": {
 		"buildOrder": [
-			"metaprogramming", "build", "class", "xml", "template", "transform", "markdown", "doc"
+			"metaprogramming", "build", "class", "xml", "template", "markdown", "doc"
 		]
 	}
 }

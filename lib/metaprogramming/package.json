@@ -1,7 +1,7 @@
 {
 	"gismo": {
 		"buildOrder": [
-			"codegen", "keywords", "grammar"
+			"codegen", "keywords", "grammar", "transform"
 		]
 	}
 }
