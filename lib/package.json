@@ -2,6 +2,7 @@
 	"gismo": {
 		"buildOrder": [
 			"metaprogramming", "build", "class", "xml", "template", "markdown", "doc"
-		]
+		],
+    	"docModule": "gismo/doc"
 	}
 }

@@ -78,6 +78,42 @@ export statement /// {
 }
 
 
+function DocDirectorySpiller(builder) {
+    this.builder = builder;
+    this.tree = {name: "root", tree:[]};
+}
+
+function getOrCreateNode(tree, name) {
+    for(var i = 0; i < tree.length; i++) {
+        if (tree[i].name === name) {
+            return tree[i];
+        }
+    }
+    var t = {name: name, tree:[]};
+    tree.push(t);
+    return t;
+}
+
+/// `path` is an array of directory names.
+DocDirectorySpiller.prototype.addModule = function(path, compiler, pkg) {
+    var t = this.tree;
+    for(var i = 0; i < path.length; i++) {
+        t = getOrCreateNode(t.tree, path[i]);
+    }
+};
+
+// Do nothing by intention
+//DocDirectorySpiller.prototype.addFile = function(filename, ast, src, action) {
+//};
+
+//DocDirectorySpiller.prototype.addMetaFile = DocDirectorySpiller.prototype.addFile;
+
+DocDirectorySpiller.prototype.spill = function() {
+    // Do nothing by intention
+    console.log(JSON.stringify(this.tree));
+};
+
+
 function DocSpiller(compiler) {
     this.compiler = compiler;
     this.imports = [];
@@ -543,6 +579,10 @@ DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
 
 
 
-if (!parser.getCompiler().getSpiller("gismo/doc")) {
+if (parser.getCompiler().isDirectoryMode()) {
+    if (parser.getCompiler().getBuilder() && !parser.getCompiler().getBuilder().getSpiller("gismo/doc")) {
+        parser.getCompiler().getBuilder().addSpiller("gismo/doc", new DocDirectorySpiller(parser.getCompiler().getBuilder()));
+    }
+} else if ((parser.getCompiler().isModuleMode() || parser.getCompiler().isFileMode()) && !parser.getCompiler().getSpiller("gismo/doc")) {
     parser.getCompiler().addSpiller("gismo/doc", new DocSpiller(parser.getCompiler()));
 }

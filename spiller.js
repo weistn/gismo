@@ -2,6 +2,7 @@ var escodegen = require('escodegen');
 var fs = require('fs');
 var path = require('path');
 var errors = require('./errors.js');
+var compiler = require('./compiler.js');
 
 function NodeJSSpiller(compiler) {
 	this.program = {type: "Program", body: []};
@@ -114,7 +115,7 @@ WeblibSpiller.prototype.webMainFile = function() {
     if (this.compiler.options.deploy || this.compiler.options.deployall) {
         // Determine in which directory we should deploy
         var to = this.compiler.deployTo();
-        if (this.compiler.isFile) {
+        if (this.compiler.mode === compiler.Mode.File) {
             // A single file? It will keep its name.
             var base = path.basename(this.compiler.path);
             main = path.join(to, base.slice(0, base.length - 3) + ".js");
@@ -124,7 +125,7 @@ WeblibSpiller.prototype.webMainFile = function() {
         }
     } else {
         // Just compile
-        if (this.compiler.isFile) {
+        if (this.compiler.mode --- compiler.Mode.File) {
             // A single file named "test.gs" is compiled to "test.weblib.js" in the same directory
             main = this.compiler.path.slice(0, this.compiler.path.length - 3) + ".weblib.js";
         } else {

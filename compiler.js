@@ -6,23 +6,39 @@ var errors = require('./errors.js');
 var defspiller = require('./spiller.js');
 var escodegen = require('escodegen');
 
+var Mode = {
+	Module : 1,
+	File : 2,
+	Directory: 3,
+	Node: 4
+};
+
 /// Creates a compiler that can compile the specified module.
 /// The same compiler cannot be used to compile another module.
 /// `modulePath` is either a relative or absolute filename of a gismo file (ending with `*.gs`)
 /// or the absolute or relative path of a directory of a package, which contains a file called `package.json`.
-function Compiler(modulePath, options, version) {
+function Compiler(builder, modulePath, options, version) {
 	this.path = modulePath;
 	this.version = version;
+	this.builder = builder;
+	this.imports = { };
+	this.spillers = { };
+	this.mode = null;
 
 	// Is it a file or a single module?
 	try {
-		this.isFile = fs.statSync(modulePath).isFile();
+		var stat = fs.statSync(modulePath);
+		if (stat.isFile()) {
+			this.mode = Mode.File;
+		} else if (!stat.isDirectory()) {
+			throw new errors.CompilerError("Path " + this.path + " is neither a regular file nor a directory");
+		}
 	} catch(err) {
 		throw new errors.CompilerError("Unknown module " + this.path);
 	}
 
 	// Read package information if available
-	if (this.isFile) {
+	if (this.mode === Mode.File) {
 		if (path.extname(this.path) != ".gs") {
 			throw new errors.CompilerError("Not a gismo file " + this.path);
 		}
@@ -40,6 +56,14 @@ function Compiler(modulePath, options, version) {
 		} catch(err) {
 			throw new errors.CompilerError("Unknown module " + this.path);
 		}
+
+		if (!this.pkg.gismo) {
+			this.mode = Mode.Node;
+		} else if (!this.pkg.gismo.uniqueId) {
+			this.mode = Mode.Directory;
+		} else {
+			this.mode = Mode.Module;
+		}
 	}
 
 	// Compute options based on package.json data and options passed via the command line interface
@@ -50,29 +74,51 @@ function Compiler(modulePath, options, version) {
 		}
 	}
 	for(var key in options) {
+		// Filter out attributes that commander.js put in the options object
 		if (key !== "commands" && key !== "options" && key !== "parent" && key[0] !== "_") {
 			this.options[key] = options[key];
 		}
 	}
 
-	// Install spillers
-	if (this.options.weblib) {
-		this.spillers = {
-			"default" : new defspiller.WeblibSpiller(this),
-			"dependencies" : new defspiller.DependenciesSpiller(this)
-		};
-	} else {
-		this.spillers = {
-			"default" : new defspiller.NodeJSSpiller(this)
-		};
-	}
+	if (this.pkg && this.pkg.gismo && this.pkg.gismo.uniqueId) {
+		// Install spillers to produce code etc. during compilation
+		if (this.options.weblib) {
+			this.spillers["default"] = new defspiller.WeblibSpiller(this);
+			this.spillers["dependencies"] = new defspiller.DependenciesSpiller(this);
+		} else {
+			this.spillers["default"] = new defspiller.NodeJSSpiller(this);
+		}
 
-	if (this.options.dependencies) {
-		this.spillers["dependencies"] = new defspiller.DependenciesSpiller(this);
+		if (this.options.dependencies) {
+			this.spillers["dependencies"] = new defspiller.DependenciesSpiller(this);
+		}
+	} else if (this.options.doc && this.pkg && this.pkg.gismo && this.pkg.gismo.docModule) {
+		// Install spiller for the documentation
+		var p = new parser.Parser(this);
+		var tmp = this.resolveModule(p, this.pkg.gismo.docModule);
+		// Import the gismo module
+		try {
+			// Import the gismo module. It will install a spiller
+			var pa = path.dirname(tmp.jsfile);
+			p.importModuleRunning = true;
+			this.importMetaModule(p, pa, "__docModule__", this.pkg.gismo.docModule);
+			p.importModuleRunning = false;
+		} catch(err) {
+			if (err instanceof errors.SyntaxError || err instanceof errors.CompilerError) {
+				throw err;
+			}
+			var e = new errors.CompilerError(err.toString());
+			e.stack = err.stack;
+			throw e;
+		}
 	}
-
-	this.imports = { };
 }
+
+/// Returns a reference to the builder that created this compiler object or
+/// null if no builder is involved, e.g. if only a single module is being compiled.
+Compiler.prototype.getBuilder = function() {
+	return this.builder;
+};
 
 /// Sets the spiller that is used by the compiler to generate output.
 Compiler.prototype.addSpiller = function(name, spiller) {
@@ -82,6 +128,29 @@ Compiler.prototype.addSpiller = function(name, spiller) {
 /// Returns the spiller used by the compiler to generate output.
 Compiler.prototype.getSpiller = function(name) {
 	return this.spillers[name];
+};
+
+/// Returns true if the module path of the compiler object refers to a single file.
+Compiler.prototype.isFileMode = function() {
+	return this.mode === Mode.File;
+};
+
+/// Returns true if the module path of the compiler object contains a 'package.json' file which
+/// has a gismo section but no build target for JavaScript code.
+Compiler.prototype.isDirectoryMode = function() {
+	return this.mode === Mode.Directory;
+};
+
+/// Returns true if the module path of the compiler object contains a 'package.json' file which
+/// has a gismo section and a build target for JavaScript code.
+Compiler.prototype.isModuleMode = function() {
+	return this.mode === Mode.Module;
+};
+
+/// Returns true if the module path of the compiler object contains a 'package.json' file which
+/// has no gismo section, i.e. it is an oridnary node package.
+Compiler.prototype.isNodeMode = function() {
+	return this.mode === Mode.Module;
 };
 
 // Called from the parser that is launched on behalf of compileModule().
@@ -153,12 +222,18 @@ Compiler.prototype.importAlias = function(m) {
 	return m.alias;
 };
 
-// Compiles the module, including its meta module
+/// Compiles the module, including its meta module.
+/// This is the main entry function of the Compiler.
 Compiler.prototype.compileModule = function() {
+	if (this.pkg && (!this.pkg.gismo || !this.pkg.gismo.uniqueId)) {
+		this.spill();
+		return;
+	}
+
 	var srcfiles = [];
 
 	// Compiling a single file or a package?
-	if (this.isFile) {
+	if (this.mode === Mode.File) {
 		srcfiles = [{
 			filename: this.path,
 			action: { action: "compile"}
@@ -285,6 +360,10 @@ Compiler.prototype.compileModule = function() {
 		}			
 	}
 
+	this.spill();
+};
+
+Compiler.prototype.spill = function() {
 	// Spill the resulting code
 	try {
 		for(var key in this.spillers) {
@@ -377,7 +456,7 @@ Compiler.prototype.compileMetaModule = function() {
 
 Compiler.prototype.mainFile = function() {
 	var main;
-	if (this.isFile) {
+	if (this.mode === Mode.File) {
 		var dir = path.dirname(this.path);
 		var base = path.basename(this.path);
 		main = path.join(dir, "." + base.slice(0, base.length - 3) + ".js");
@@ -389,7 +468,7 @@ Compiler.prototype.mainFile = function() {
 };
 
 Compiler.prototype.metaFile = function() {
-	if (this.isFile) {
+	if (this.mode === Mode.File) {
 		return null;
 	}
 	// Which file contains the compiled meta code?
@@ -402,7 +481,7 @@ Compiler.prototype.metaFile = function() {
 
 // Returns the directory to which the application should be deployed after compilation
 Compiler.prototype.deployTo = function() {
-	var p = this.isFile ? path.dirname(this.path) : this.path;
+	var p = this.mode === Mode.File ? path.dirname(this.path) : this.path;
 	if (this.pkg.deployTo) {
 		return path.resolve(path.join(p, this.pkg.gismo.deployTo));
 	}
@@ -415,7 +494,7 @@ Compiler.prototype.getPackage = function() {
 };
 
 Compiler.prototype.isUpToDate = function() {
-	if (this.isFile) {
+	if (this.mode === Mode.File) {
 		try {
 			var mtime = fs.statSync(this.path).mtime.getTime();
 			var mtime2 = fs.statSync(this.mainFile()).mtime.getTime();
@@ -479,6 +558,8 @@ Compiler.prototype.checkMTime = function(dest, sources) {
 };
 
 /// Searches for a nodejs module that has been imported via `import "modulePath"`.
+/// The parser is either an instance of the parser class or an object that implements
+/// a matching `throwError(token, string, args ...)` function to signal errors.
 ///
 /// Returns an object with two properties. `modulePath` is the resolved path to the module.
 /// `modulePath` can be used with NodeJS require to import the module.
@@ -513,7 +594,7 @@ Compiler.prototype.resolveModule = function(parser, modulePath) {
 	try {
 		var jsfile = require.resolve(modulePath);
 	} catch(err) {
-		if (this.isFile) {
+		if (this.mode === Mode.File) {
 			parser.throwError(null, errors.Messages.UnknownModule, modulePath);
 		}
 		// Check in the 'node_modules' directory
@@ -528,3 +609,4 @@ Compiler.prototype.resolveModule = function(parser, modulePath) {
 };
 
 exports.Compiler = Compiler;
+exports.Mode = Mode;
