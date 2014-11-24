@@ -111,6 +111,138 @@ DocDirectorySpiller.prototype.addModule = function(path, compiler, pkg) {
 DocDirectorySpiller.prototype.spill = function() {
     // Do nothing by intention
     console.log(JSON.stringify(this.tree));
+
+    var self = this;
+    var tmpl = xmlTemplate() {
+        <html>
+        <head>
+            <meta charset="utf-8"/>
+            <style>
+            body {{
+                font-family: Helvetica, Arial, sans-serif;
+                margin: 0;
+            }}
+            div#container {{
+                padding: 0 20px;                
+            }}
+            div#topbar {{
+                background: #E0EBF5;
+                height: 64px;
+                overflow: hidden;
+                padding: 0 20px;                
+            }}
+            div#heading {{
+                margin: 0 0 10px 0;
+                padding: 21px 0;
+                font-size: 20px;
+                font-weight: normal;
+            }}
+            div#menu {{
+                float: right;
+                padding: 21px 0;
+                text-align: right;
+            }}
+            div#menu > a {{
+                margin-right: 5px;
+                margin-bottom: 10px;
+                padding: 10px;
+                color: white;
+                background: #375EAB;
+                border: 1px solid #375EAB;
+                text-decoration: none;
+                font-size: 16px;
+                border-radius: 5px;
+            }}
+            h1, h2, h3, h4 {{
+                margin: 20px 0;
+                padding: 0;
+                font-size: 24px;
+                color: #375eab;
+                font-weight: bold;
+            }}
+            h2 {{
+                font-size: 20px;
+                background: #E0EBF5;
+                padding: 2px 5px;
+            }}
+            h3 {{
+                font-size: 20px;
+                padding: 2px 5px;
+            }}
+            h4 {{
+                margin: 20px 5px;
+                font-size: 16px;
+            }}
+            a {{
+                color: #375eab;
+                text-decoration: none;
+            }}
+            pre, code {{
+                font-family: Menlo, monospace;
+                font-size: 14px;
+            }}
+            dl, p, pre {{
+                margin: 20px;
+            }}
+            dd {{
+                margin: 2px 20px;
+            }}
+            pre {{
+                background: #e9e9e9;
+                padding: 10px;
+                -webkit-border-radius: 5px;
+                -moz-border-radius: 5px;
+                border-radius: 5px;
+                line-height: 18px;
+            }}
+            code {{
+                padding: 2px 4px;
+                color: #800;
+                background-color: #f7f7f9;
+                border: 1px solid #e1e1e8;
+                border-radius: 3px;
+            }}
+            div#footer {{
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+                margin: 40px 0;
+            }}
+            </style>
+        </head>
+        <body>
+        <div id="topbar">
+            <div id="menu">
+                <a href="#">Packages</a>
+                <a href="#">The Project</a>
+            </div>
+            <div id="heading">
+                Gismo Documentation
+            </div>
+        </div>
+        <div id="container">
+        <h1>Packages</h1>
+        <h2 id="index">Index</h2>
+        <table>
+            <thead>
+                <tr><td>Name</td><td>Synopsis</td></tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        </div>
+        <div id="footer">
+            Build version gismo {self.builder.version}.<br/>
+            The content of this page is licensed under the Creative Commons Attribution 3.0 License, and code is licensed under a BSD license.
+        </div>        
+        </body>
+        </html>
+    };
+
+    var ser = new dom.HTMLSerializer();
+    var html = ser.serializeToString(tmpl());
+
+    fs.writeFileSync(path.join(this.builder.modulePath, "index.html"), html);
 };
 
 

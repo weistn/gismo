@@ -226,7 +226,7 @@ Compiler.prototype.importAlias = function(m) {
 /// This is the main entry function of the Compiler.
 Compiler.prototype.compileModule = function() {
 	if (this.pkg && (!this.pkg.gismo || !this.pkg.gismo.uniqueId)) {
-		this.spill();
+//		this.spill();
 		return;
 	}
 
