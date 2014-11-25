@@ -1,7 +1,7 @@
 {
     "name": "keywords",
     "version": "0.0.1",
-    "description": "TODO",
+    "description": "Syntax extensions to ease defining new operators and statements",
     "main": "main.js",
     "author": "TODO",
     "license": "TODO",

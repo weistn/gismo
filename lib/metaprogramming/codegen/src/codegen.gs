@@ -28,7 +28,7 @@ exports.toAST = function(obj) {
 	}
 };
 
-export function toLiteral(obj) {
+function toLiteral(obj) {
 	switch(typeof obj) {
 		case "object":
 			if (obj !== null) {
@@ -54,8 +54,9 @@ export function toLiteral(obj) {
 			throw new Error("Value cannot be converted to a literal: " + JSON.stringify(obj));
 	}
 };
+exports.toLiteral = toLiteral;
 
-export function toIdentifier(ident) {
+function toIdentifier(ident) {
 	if (typeof ident === "object") {
 		if (!ident.type) {
 			throw new Error("Expect object to be an AST object: " + JSON.stringify(ident));
@@ -67,6 +68,7 @@ export function toIdentifier(ident) {
 	}
 	throw new Error("Expect object to be an AST object or string: " + JSON.stringify(ident));
 }
+exports.toIdentifier = toIdentifier;
 
 exports.toFunctionParameters = function() {
 	var result = [];

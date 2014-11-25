@@ -1,3 +1,6 @@
+/// The `@` operator is used inside a `template` clause to refer to a placeholder.
+///
+/// docHint: {"name": "@", "category": "operator", "shortSignature": "operator @", "longSignature": "operator @"}
 export parser.extendSyntax({
     type: 'operator',
     associativity: "none",
@@ -217,6 +220,51 @@ function objectExpressionFromObject(obj) {
     }
 };
 
+/// The `template` operator simplifies the generation of code.
+///
+/// When implementing new operators or statements, these implementations must return a JavaScript AST (Abstract Syntax Tree).
+/// This can either be done via complex JSON expressions, or short and simple with `template`.
+/// ``
+/// var ast = template (a+b)
+/// ``
+/// The above example returns an AST that adds variables named `a` and `b`.
+/// If the name of these variables is only known when `template` executes, we can use placeholders.
+/// ``
+/// var a = "foo";
+/// var b = "bar";
+/// var ast = template (@a+@b);
+/// ``
+/// The above example returns an AST that adds variables named `foo` and `bar`.
+/// A placeholder is either an identifier or an expression wrapped in paranthesis as in the following example.
+/// ``
+/// var a = "foo";
+/// var b = "bar";
+/// var ast = template (@(a.toUpperCase())+@(b.toUpperCase()));
+/// ``
+///
+/// The examples so far generated an AST for an expression. To generate an AST for a statement use the following syntax (notice the curly braces).
+/// ``
+/// var ast = template {a+b}
+/// ``
+/// This generates an AST for an expression-statement that in turn contains an expression that adds `a` and `b`.
+/// If there are multiple statements inside the curly braces, the `template` operator returns an array with these statement-ASTs as in the following example:
+/// ``
+/// var ast = template {
+///     var square = foo();
+///     console.log(square * square);   
+/// }
+/// ``
+///
+/// The expressions or statements inside the `template` clause can in turn use all syntax extensions that are currently loaded.
+/// Hence, we can easily generate classes (which are themselves a syntax extension).
+/// ``
+/// import "gismo/class";
+///
+/// var name = "Foo";
+/// var ast = template{ class @name {} };
+/// ``
+///
+/// docHint: {"name": "template", "category": "operator", "shortSignature": "operator template", "longSignature": "operator template"}
 export parser.extendSyntax({
     type: 'operator',
     associativity: 'none',
@@ -234,6 +282,29 @@ export parser.extendSyntax({
     }
 });
 
+/// The `identifier` operator returns an AST-node that represents an identifier.
+/// The name of this identifier is determined by the expression following the `identifier` keyword.
+/// ``
+/// var path = ["foo", "bar"];
+/// var ast = identifier path.join("_")
+/// ``
+/// The above example generates an AST-node for an identifier named `foo_bar`.
+///
+/// Of course the same logic could have been implemented with a normal function as follows:
+/// ``
+/// function identifier(expr) {
+///     return {type: "Identifier", name: expr.toString()};    
+/// }
+/// var path = ["foo", "bar"];
+/// var ast = identifier(path.join("_"));
+/// ``
+/// However, this solution requires a function call. Using the `identifier` keyword works like a macro expansion and generates the following code:
+/// ``
+/// var ast = {type: "Identifier", name: path.join("_")};
+/// ``
+/// When used heavily inside of code generation, this can lead to performance benefits since there is no function call involved here.
+///
+/// docHint: {"name": "identifier", "category": "operator", "shortSignature": "operator identifier", "longSignature": "operator identifier"}
 export parser.extendSyntax({
     type: 'operator',
     associativity: 'none',
@@ -259,6 +330,16 @@ export parser.extendSyntax({
     }
 });
 
+/// The same as the `identifier` operator, but `literal` returns an AST-literal that has the value of the expression that is being passed.
+/// ``
+/// var ast = literal 2 * 21;
+/// ``
+/// The above example generates an AST literal node with value 42 and his hence equivalent to
+/// ``
+/// var ast = {type: "Literal", value: 2*21};
+/// ``
+///
+/// docHint: {"name": "literal", "category": "operator", "shortSignature": "operator literal", "longSignature": "operator literal"}
 export parser.extendSyntax({
     type: 'operator',
     associativity: 'none',
@@ -283,3 +364,6 @@ export parser.extendSyntax({
         };
     }
 });
+
+/// The `codegen` module offers the `template` syntax that greatly simplifies the generator of AST (abstract syntax tree) nodes.
+/// In addition to `template`, the module defines some utility functions and syntax extensions.

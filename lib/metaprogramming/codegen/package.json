@@ -1,7 +1,7 @@
 {
     "name": "codegen",
     "version": "0.0.1",
-    "description": "TODO",
+    "description": "Syntax extensions to ease code generation, especially the 'template' operator",
     "main": "main.js",
     "author": "TODO",
     "license": "TODO",

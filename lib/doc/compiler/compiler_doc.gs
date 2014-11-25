@@ -95,11 +95,16 @@ function getOrCreateNode(tree, name) {
 }
 
 /// `path` is an array of directory names.
-DocDirectorySpiller.prototype.addModule = function(path, compiler, pkg) {
+DocDirectorySpiller.prototype.addModule = function(modulePath, compiler, pkg) {
     var t = this.tree;
-    for(var i = 0; i < path.length; i++) {
-        t = getOrCreateNode(t.tree, path[i]);
+    for(var i = 0; i < modulePath.length; i++) {
+        t = getOrCreateNode(t.tree, modulePath[i]);
     }
+    if (pkg.gismo.docModule) {
+        t.hasDoc = true;
+    }
+    t.path = modulePath.join(path.sep);
+    t.pkg = pkg;
 };
 
 // Do nothing by intention
@@ -109,10 +114,20 @@ DocDirectorySpiller.prototype.addModule = function(path, compiler, pkg) {
 //DocDirectorySpiller.prototype.addMetaFile = DocDirectorySpiller.prototype.addFile;
 
 DocDirectorySpiller.prototype.spill = function() {
-    // Do nothing by intention
-    console.log(JSON.stringify(this.tree));
-
     var self = this;
+
+    var tree = xmlTemplate(item, xndent) {
+        {if item.hasDoc}
+            <tr><td><a href={path.join(item.path, "doc.html")}>{xndent + item.name}</a></td><td></td><td>{ item.pkg.description}</td></tr>
+        {/if}
+        {if !item.hasDoc}
+            <tr><td>{xndent + item.name}</td><td></td><td>{ item.pkg ? item.pkg.description : ""}</td></tr>
+        {/if}
+        {foreach item.tree}
+            {tree($data, xndent + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160) + String.fromCharCode(160), __doc)}
+        {/foreach}
+    };
+
     var tmpl = xmlTemplate() {
         <html>
         <head>
@@ -225,9 +240,12 @@ DocDirectorySpiller.prototype.spill = function() {
         <h2 id="index">Index</h2>
         <table>
             <thead>
-                <tr><td>Name</td><td>Synopsis</td></tr>
+                <tr><th style="text-align:left; font-weight:bold">Name</th><th>&#160;&#160;&#160;&#160;</th><th style="text-align:left; font-weight:bold">Synopsis</th></tr>
             </thead>
             <tbody>
+                {foreach self.tree.tree}
+                    {tree($data, "", __doc)}
+                {/foreach}
             </tbody>
         </table>
         </div>
@@ -328,6 +346,10 @@ DocSpiller.prototype.spill = function() {
     });
 
     var self = this;
+
+    var packageOverview = xmlTemplate() {
+        {self.compileMarkdown(__doc, pkgOverview)}
+    };
 
     // Template for the index
     var overview = xmlTemplate(docItem, prefix) {
@@ -501,7 +523,7 @@ DocSpiller.prototype.spill = function() {
             <dd><a href="#index">Index</a></dd>
         </dl>
         <h2 id="overview">Overview</h2>
-        <p>{pkgOverview}</p>
+        <p>{packageOverview()}</p>
         <h2 id="index">Index</h2>
         <dl>
             {foreach indexList}
@@ -709,8 +731,6 @@ DocSpiller.prototype.compileMarkdownParagraph = function(doc, source) {
     return node;
 }
 
-
-
 if (parser.getCompiler().isDirectoryMode()) {
     if (parser.getCompiler().getBuilder() && !parser.getCompiler().getBuilder().getSpiller("gismo/doc")) {
         parser.getCompiler().getBuilder().addSpiller("gismo/doc", new DocDirectorySpiller(parser.getCompiler().getBuilder()));
@@ -718,3 +738,45 @@ if (parser.getCompiler().isDirectoryMode()) {
 } else if ((parser.getCompiler().isModuleMode() || parser.getCompiler().isFileMode()) && !parser.getCompiler().getSpiller("gismo/doc")) {
     parser.getCompiler().addSpiller("gismo/doc", new DocSpiller(parser.getCompiler()));
 }
+
+/// The `doc` package generates HTML documentation for modules.
+/// It introduces the `///` operator. All comments prefixed by `///` are treated as comments in markdown syntax.
+/// Comments starting with `//` or `/*` are ignored by the doc generator.
+///
+/// To enable the generation of HTML documents, you must put the following information in the `package.json` file of the module:
+/// ``
+/// {
+///    "gismo": {
+///        "docModule": "gismo/doc"
+///    }
+/// }
+/// ``
+/// In addition, the `-d` option must be used when compiling the module.
+///
+/// Furthermore, the doc generator can generate an overview HTML page that lists all modules in a project.
+/// For example, if the directory structure of your project looks like this
+/// ``
+/// -- lib
+///  +-- package.json
+///  +-- foo
+///    +-- ...
+///  +-- bar
+///    +-- ...
+/// ``
+/// where `foo` and `bar` are modules (which can contain further modules), then the `lib/package.json` file must be configured to generate the
+/// overview HTML page.
+/// ``
+/// {
+///    "gismo": {
+///        "docModule": "gismo/doc"
+///    }
+/// }
+/// ``
+/// This entry in `lib/package.json` will do the job when the project is built with this command line:
+/// ``
+/// gismo compile -r -d lib
+/// ``
+/// Here the `-r` flag tells `gismo` to build recursively, i.e. to visit sub-directories and to build all modules found there.
+/// The `-d` option tells `gismo` to produce documentation.
+/// Notice that `lib` is not a module. It is just a directory that contains other directories or modules.
+/// Hence, the doc generation will produce an overview page instead of a module documentation.
