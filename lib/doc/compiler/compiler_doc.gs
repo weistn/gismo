@@ -552,7 +552,7 @@ DocSpiller.prototype.spill = function() {
     var html = ser.serializeToString(tmpl());
 
     if (this.compiler.isFileMode()) {
-        var fname = this.compiler.mainFile() + ".html";
+        var fname = this.compiler.path + ".html";
         fs.writeFileSync(fname, html);
     } else {
         fs.writeFileSync(path.join(path.dirname(this.compiler.mainFile()), "doc.html"), html);
