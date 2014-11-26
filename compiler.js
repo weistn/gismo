@@ -80,7 +80,7 @@ function Compiler(builder, modulePath, options, version) {
 		}
 	}
 
-	if (this.pkg && this.pkg.gismo && this.pkg.gismo.uniqueId) {
+	if (this.mode === Mode.File || this.mode === Mode.Module) {
 		// Install spillers to produce code etc. during compilation
 		if (this.options.weblib) {
 			this.spillers["default"] = new defspiller.WeblibSpiller(this);
@@ -92,8 +92,8 @@ function Compiler(builder, modulePath, options, version) {
 		if (this.options.dependencies) {
 			this.spillers["dependencies"] = new defspiller.DependenciesSpiller(this);
 		}
-	} else if (this.options.doc && this.pkg && this.pkg.gismo && this.pkg.gismo.docModule) {
-		// Install spiller for the documentation
+	} else if (this.options.doc && this.mode === Mode.Directory && this.pkg.gismo.docModule) {
+		// Install spiller for documentation only
 		var p = new parser.Parser(this);
 		var tmp = this.resolveModule(p, this.pkg.gismo.docModule);
 		// Import the gismo module
@@ -225,8 +225,9 @@ Compiler.prototype.importAlias = function(m) {
 /// Compiles the module, including its meta module.
 /// This is the main entry function of the Compiler.
 Compiler.prototype.compileModule = function() {
-	if (this.pkg && (!this.pkg.gismo || !this.pkg.gismo.uniqueId)) {
-//		this.spill();
+	// When compiling a directory there is no module code that needs to be transpiled.
+	// The same applies to normal node packages.
+	if (this.mode === Mode.Directory || this.mode === Mode.Node) {
 		return;
 	}
 
@@ -329,13 +330,16 @@ Compiler.prototype.compileModule = function() {
 		this.importMetaModule(p, this.path, "module");
 
 		// Import the documentation module if required
-		if (this.options.doc && this.pkg.gismo.docModule) {
-			var tmp = this.resolveModule(parser, this.pkg.gismo.docModule);
-			// Import the gismo module
-			var pa = path.dirname(tmp.jsfile);
-			p.importModuleRunning = true;
-			this.importMetaModule(p, pa, "__docModule__", this.pkg.gismo.docModule);
-			p.importModuleRunning = false;
+		if (this.options.doc && this.mode === Mode.Module) {
+			var docModule = this.pkg.gismo.docModule;
+			if (docModule) {
+				var tmp = this.resolveModule(parser, docModule);
+				// Import the gismo module
+				var pa = path.dirname(tmp.jsfile);
+				p.importModuleRunning = true;
+				this.importMetaModule(p, pa, "__docModule__", this.pkg.gismo.docModule);
+				p.importModuleRunning = false;
+			}
 		}
 
 		// Parse the source file

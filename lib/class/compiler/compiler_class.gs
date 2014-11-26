@@ -252,6 +252,7 @@ export statement class {
         return @name;
     })()};
 
+    // Generates hints for the documentation generator
     if (parser.compiler.options.doc) {
         docmembers.sort(function(a, b) {
             if (a.shortSignature === b.shortSignature) return 0;

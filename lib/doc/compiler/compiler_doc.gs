@@ -551,7 +551,12 @@ DocSpiller.prototype.spill = function() {
     var ser = new dom.HTMLSerializer();
     var html = ser.serializeToString(tmpl());
 
-    fs.writeFileSync(path.join(path.dirname(this.compiler.mainFile()), "doc.html"), html);
+    if (this.compiler.isFileMode()) {
+        var fname = this.compiler.mainFile() + ".html";
+        fs.writeFileSync(fname, html);
+    } else {
+        fs.writeFileSync(path.join(path.dirname(this.compiler.mainFile()), "doc.html"), html);
+    }
 };
 
 DocSpiller.prototype.addDependency = function(modulePath, pkg, alias, name, isMeta) {
