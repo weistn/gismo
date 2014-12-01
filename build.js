@@ -20,7 +20,6 @@ Builder.prototype.build = function() {
 
 /// Sets the spiller that is used by the compiler to generate output.
 Builder.prototype.addSpiller = function(name, spiller) {
-	console.log("SET SPILLER", name);
 	this.spillers.push({spiller: spiller, name: name});
 };
 

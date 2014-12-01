@@ -14,7 +14,6 @@ NodeJSSpiller.prototype.addFile = function(filename, ast, src, action) {
     if (!ast) {
         return;
     }
-
     // Wrap each file in a function that is invoked to create a namespace
     ast = [{
         "type": "ExpressionStatement",
@@ -27,14 +26,58 @@ NodeJSSpiller.prototype.addFile = function(filename, ast, src, action) {
                 "defaults": [],
                 "body": {
                     "type": "BlockStatement",
-                    "body": ast
+                    "body": ast,
+                    "loc": {
+                        "source": filename,
+                        "start": {
+                            "line": 1,
+                            "column": 1
+                        },
+                        "end": {
+                            "line": 1,
+                            "column": 1
+                        }
+                    }
                 },
                 "rest": null,
                 "generator": false,
-                "expression": false
+                "expression": false,
+                "loc": {
+                    "source": filename,
+                    "start": {
+                        "line": 1,
+                        "column": 1
+                    },
+                    "end": {
+                        "line": 1,
+                        "column": 1
+                    }
+                }                
             },
-            "arguments": []
-        }
+            "arguments": [],
+            "loc": {
+                "source": filename,
+                "start": {
+                    "line": 1,
+                    "column": 1
+                },
+                "end": {
+                    "line": 1,
+                    "column": 1
+                }
+            }
+        },
+        "loc": {
+            "source": filename,
+            "start": {
+                "line": 1,
+                "column": 1
+            },
+            "end": {
+                "line": 1,
+                "column": 1
+            }
+        }        
     }];
 
 	this.program.body = this.program.body.concat(ast);

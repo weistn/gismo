@@ -158,7 +158,9 @@ function execModule() {
 		require(modulePath);
 	} catch(err) {
 		if (err.stack) {
+//			console.log(err.stack);
 			var parsed = errors.parseStackTrace(err.stack);
+//			console.log(JSON.stringify(parsed));
 			// Strip lines of the stack trace that are caused by this file (i.e. __filename) or by this file calling 'require' in module.js.
 			for(var k = 0; k < parsed.stack.length; k++) {
 //			for(var k = parsed.stack.length - 1; k >= 0; k--) {
@@ -198,7 +200,7 @@ function printStackTrace(parsed) {
 			});
 			console.log(('    at ' + (loc.name ? loc.name : line.function) + ' (' + loc.source + ':' + loc.line + ':' + loc.column + ')').blue);
 		} catch(err) {
-//					console.log("Failed reading source map".red, line.loc.filename + ".map", err.toString().red);
+//			console.log("Failed reading source map".red, line.loc.filename + ".map", err.toString().red);
 			console.log(('    at ' + line.function + ' (' + line.loc.filename + ':' + line.loc.lineNumber + ':' + line.loc.column + ')').blue);
 		}
 	}

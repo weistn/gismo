@@ -1,21 +1,3 @@
-/// The `@` operator is used inside a `template` clause to refer to a placeholder.
-///
-/// docHint: {"name": "@", "category": "operator", "shortSignature": "operator @", "longSignature": "operator @"}
-export parser.extendSyntax({
-    type: 'operator',
-    associativity: "none",
-    name: "@",
-    level: 18,
-    generator: function() {
-        var content = parser.parseTerm();
-        return {
-            type: "Identifier",
-            name: "@",
-            content: content,
-            loc: content.loc
-        };
-    }
-});
 
 // 'obj' is an array of AST nodes
 function arrayExpressionFromObject(obj) {
@@ -271,10 +253,32 @@ export parser.extendSyntax({
     level: 18,
     name: "template",
     generator: function() {
+        parser.storeContext();
+        parser.extendSyntax({
+            type: 'operator',
+            associativity: "none",
+            name: "@",
+            level: 18,
+            generator: function() {
+                var content = parser.parseTerm();
+                return {
+                    type: "Identifier",
+                    name: "@",
+                    content: content,
+                    loc: content.loc
+                };
+            }
+        });
+
         if (parser.tokenizer.presume('(', false)) {
-            return objectExpressionFromObject(parser.parseTerm());
+            var t = parser.parseTerm();
+            parser.restoreContext();
+            return objectExpressionFromObject(t);
         }
+
         var s = parser.parseBlockStatement();
+        parser.restoreContext();
+
         if (s.body.length === 1 ) {
             return objectExpressionFromObject(s.body[0]);
         }
@@ -311,6 +315,7 @@ export parser.extendSyntax({
     level: 18,
     name: "identifier",
     generator: function() {
+        var expr = parser.parseExpression(parser.Mode_ExpressionWithoutComma);
         return {
             "type": "CallExpression",
             "callee": {
@@ -318,14 +323,18 @@ export parser.extendSyntax({
                 "computed": false,
                 "object": {
                     "type": "Identifier",
-                    "name": parser.importAlias(module)
+                    "name": parser.importAlias(module),
+                    "loc": expr.loc
                 },
                 "property": {
                     "type": "Identifier",
-                    "name": "toIdentifier"
-                }
+                    "name": "toIdentifier",
+                    "loc": expr.loc
+                },
+                "loc": expr.loc
             },
-            "arguments": [parser.parseExpression(parser.Mode_ExpressionWithoutComma)]
+            "arguments": [expr],
+            "loc": expr.loc
         };
     }
 });
@@ -346,6 +355,7 @@ export parser.extendSyntax({
     level: 18,
     name: "literal",
     generator: function() {
+        var expr = parser.parseExpression(parser.Mode_ExpressionWithoutComma);
         return {
             "type": "CallExpression",
             "callee": {
@@ -353,14 +363,18 @@ export parser.extendSyntax({
                 "computed": false,
                 "object": {
                     "type": "Identifier",
-                    "name": parser.importAlias(module)
+                    "name": parser.importAlias(module),
+                    "loc": expr.loc
                 },
                 "property": {
                     "type": "Identifier",
-                    "name": "toLiteral"
-                }
+                    "name": "toLiteral",
+                    "loc": expr.loc
+                },
+                "loc": expr.loc
             },
-            "arguments": [parser.parseExpression(parser.Mode_ExpressionWithoutComma)]
+            "arguments": [expr],
+            "loc": expr.loc
         };
     }
 });

@@ -291,7 +291,8 @@ function Parser(compiler) {
 		[{
 			type: 'Punctuator',
 			value: ".",
-			associativity: "bl"
+			associativity: "ul",
+			generator: memberExprParser.bind(this)
 		},
 		{
 			type: 'Punctuator',
@@ -419,6 +420,18 @@ Parser.prototype.getCompiler = function() {
 Parser.prototype.getTokenizer = function() {
 	return this.tokenizer;
 };
+
+function memberExprParser(object) {
+	var loc = this.tokenizer.location();
+	var ident = this.parseIdentifier();
+	return {
+		object: object,
+		property: ident,
+		computed: false,
+		type: "MemberExpression",
+		loc: ident.loc
+	};
+}
 
 function functionParser() {
 	var loc = this.tokenizer.location();
@@ -999,8 +1012,9 @@ function importParser() {
 }
 
 function exportParser() {
-	var loc = this.tokenizer.location();
+	var loc1 = this.tokenizer.location();
 	var statements = [].concat(this.parseStatement());
+	var loc2 = this.tokenizer.location();
 	var exported = false;
 	for(var i = 0; i < statements.length; i++) {
 		var s = statements[i];
@@ -1029,7 +1043,8 @@ function exportParser() {
 		                    "type": "Identifier",
 		                    "name": s.id.name
 		                }
-		            }
+		            },
+		            "loc": {source: loc1.filename, start: loc1.loc, end: loc2.loc}
 		        }
 		        statements.push(code);
 				break;
@@ -1057,7 +1072,8 @@ function exportParser() {
 			                    "type": "Identifier",
 			                    "name": s.declarations[k].id.name
 			                }
-			            }
+			            },
+    		            "loc": {source: loc1.filename, start: loc1.loc, end: loc2.loc}
 			        }
     		        statements.push(code);
 				}
@@ -1070,6 +1086,7 @@ function exportParser() {
 		}
 	}
 	if (!exported) {
+		console.log(JSON.stringify(statements, null, "\t"));
 		this.throwError(null, errors.Messages.CannotExport);
 	}
 	return statements;
@@ -1104,7 +1121,7 @@ var closingSquareBracketOperator = {
 };
 
 Parser.prototype.findOperatorDownwards = function(token, level) {
-	if (token.type === "Identifier") {
+	if (token.type === "Identifier" && !this.operators.hasOwnProperty(token.value)) {
 		return this.identifierTerminal;
 	}
 	if (token.type === "Numeric") {
@@ -1186,8 +1203,8 @@ Parser.prototype.finishRecursions = function(level, stack, value, lookahead) {
 				} else {
 					state.value.expressions.push(value);
 				}
-			} else if (state.op.value === '.') {
-				state.value.property = value;
+//			} else if (state.op.value === '.') {
+//				state.value.property = value;
 			} else {
 				state.value.right = value;
 			}
@@ -1388,8 +1405,8 @@ Parser.prototype.parseExpression = function(mode) {
 //			console.log(token.value, "bl or br");
 			if (state.op.value === ",") {
 				state.value = {expressions: [value], type: "SequenceExpression", loc: token.loc};
-			} else if (state.op.value === ".") {
-				state.value = {object: value, computed: false, type: "MemberExpression", loc: token.loc};
+//			} else if (state.op.value === ".") {
+//				state.value = {object: value, computed: false, type: "MemberExpression", loc: token.loc};
 			} else if (state.op.value === "=") {
 				state.value = {left: value, operator: "=", type: "AssignmentExpression", loc: token.loc};
 			} else {
@@ -1568,8 +1585,8 @@ Parser.prototype.parseStatement = function() {
 	// No preprocessing?
 	if (!p) {
 		// Is it a statement?
-		p = token.type !== "String" ? this.statementKeywords[token.value] : null;
-		if (p) {
+		if (token.type !== "String" && this.statementKeywords.hasOwnProperty(token.value)) {
+			p = this.statementKeywords[token.value];
 			this.tokenizer.next();
 		}
 	}
@@ -1778,14 +1795,15 @@ Parser.prototype.newOperator = function(s) {
 	// The new operator is an identifier?
 	var op;
 	if (lexer.isIdentifier(s.name)) {
-		this.keywords.push(s.name);
-		if (this.tokenizer) {
-			this.tokenizer.registerKeyword(s.name);
-		}
+//		this.keywords.push(s.name);
+//		if (this.tokenizer) {
+//			this.tokenizer.registerKeyword(s.name);
+//		}
 		op = {
 			associativity: associativity,
 			value: s.name,
-			type: "Keyword",
+//			type: "Keyword",
+			type: "Identifier",
 			generator: s.generator,
 			level: level,
 			module: this.importModuleName
@@ -1810,7 +1828,7 @@ Parser.prototype.newOperator = function(s) {
 		};
 	}
 
-	if (this.operators[s.name]) {
+	if (this.operators.hasOwnProperty(s.name)) {
 		// TODO: Check conflicts with existing operands or operators
 		var existingOps = this.operators[s.name];
 		for(var i = 0; i < existingOps.length; i++) {
